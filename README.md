@@ -38,4 +38,6 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 
 Issues 可提交反馈。在「关于」可复制 QQ 群号 `1102727864`。
 
-日语预览包含《ツクヨミステップ》的封面与短句。第三方素材的权利归原权利人。项目代码使用 Apache-2.0。
+日语预览包含《ツクヨミステップ》的封面与短句。第三方素材的权利归原权利人。
+
+[ColorOS Live Lyrics Bridge 图标](https://github.com/Andrea-lyz/ColorOS-Live-Lyrics-Bridge/blob/a51c946d1c66f02a6a4a96dc0f568e387fe05844/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png)和本项目代码均使用 Apache-2.0。

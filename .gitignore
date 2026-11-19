@@ -7,6 +7,9 @@ local.properties
 .env.*
 !.env.example
 
+# Local work notes
+/TODO.md
+
 # Build outputs and local test evidence
 .gradle/
 .kotlin/
