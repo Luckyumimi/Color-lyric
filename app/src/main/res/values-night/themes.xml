@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.TerraMoor" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#111216</item>
+    </style>
+</resources>

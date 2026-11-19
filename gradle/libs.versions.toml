@@ -1,0 +1,29 @@
+[versions]
+agp = "9.3.3"
+kotlin = "2.4.10"
+activityCompose = "1.13.0"
+composeBom = "2026.08.00"
+coui = "1.1.0"
+couiKit = "0.0.1-alpha11"
+xposed = "102.0.0"
+junit = "4.13.2"
+junitVersion = "1.1.5"
+espressoCore = "3.5.1"
+
+[libraries]
+coui-kit = { module = "io.github.itoseo:coui", version.ref = "couiKit" }
+coui-kit-icons = { module = "io.github.itoseo:coui-icons", version.ref = "couiKit" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+coui-ui = { module = "io.github.suqi8.coui.kmp:coui-ui", version.ref = "coui" }
+coui-preference = { module = "io.github.suqi8.coui.kmp:coui-preference", version.ref = "coui" }
+xposed-api = { module = "io.github.libxposed:api", version.ref = "xposed" }
+xposed-service = { module = "io.github.libxposed:service", version.ref = "xposed" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

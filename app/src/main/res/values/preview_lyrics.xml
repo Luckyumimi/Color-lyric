@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="preview_lyrics_japanese" translatable="false">
+        <item>夜風が街角を抜けて、小さな光が帰り道を照らす</item>
+        <!-- Short excerpt from the NetEase listing (track 1961880646). The other lines are preview fixtures. -->
+        <item>愚者は雨夜の月</item>
+        <item>この道を歩き続けよう、朝の最初の光が屋根を越えるまで</item>
+    </string-array>
+    <string-array name="preview_lyrics_japanese_chinese" translatable="false">
+        <item>晚风拂过街角，微光陪我们回家</item>
+        <item>愚者向着雨夜之月</item>
+        <item>沿着这条路继续走，直到清晨的第一束光越过屋顶</item>
+    </string-array>
+    <string-array name="preview_lyrics_english" translatable="false">
+        <item>The evening breeze turns the corner, and a little light guides us home</item>
+        <item>The streetlights dim and the city falls asleep</item>
+        <item>We keep walking down this road until the first light of morning reaches over the rooftops</item>
+    </string-array>
+    <string-array name="preview_lyrics_korean" translatable="false">
+        <item>밤바람이 길모퉁이를 스치고 작은 빛이 집으로 가는 길을 비추네</item>
+        <item>가로등이 어두워지고 도시는 잠든다</item>
+        <item>아침의 첫 햇살이 지붕 너머로 번질 때까지 이 길을 계속 걸어가자</item>
+    </string-array>
+    <string-array name="preview_lyrics_chinese" translatable="false">
+        <item>晚风拂过街角，微光陪我们回家</item>
+        <item>街灯渐暗，城市慢慢入睡</item>
+        <item>沿着这条路继续走，直到清晨的第一束光越过屋顶</item>
+    </string-array>
+</resources>
