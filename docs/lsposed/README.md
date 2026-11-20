@@ -10,12 +10,9 @@ TerraMoor 在 ColorOS 17 的原生媒体胶囊中显示同步歌词。可调整�
 | --- | --- |
 | ![应用内胶囊](https://raw.githubusercontent.com/Luckyumimi/TerraMoor/main/docs/previews/app-capsule.png) | ![系统媒体胶囊](https://raw.githubusercontent.com/Luckyumimi/TerraMoor/main/docs/previews/system-capsule.png) |
 
-## 已支持的设备
+## 兼容性
 
-- 机型 `PKX110`
-- 固件 `PKX110_17.0.0.104(CN01)`
-- SystemUI `17.99.02` 与 SystemUIPlugin `17.000.002`
-- 支持现代模块 API 102 的 LSPosed
+应用可安装于 Android 14 及以上。歌词功能需要支持 API 102 的 LSPosed，以及原生媒体胶囊接口兼容的 ColorOS 系统。模块按实际接口和视图结构匹配，未匹配到时保留系统原样。
 
 ## 使用方法
 

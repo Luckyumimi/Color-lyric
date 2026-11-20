@@ -16,10 +16,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import shop.terramoor.github.io.systemui.TargetFirmware
+import shop.terramoor.github.io.diagnostics.DiagnosticLog
+import shop.terramoor.github.io.diagnostics.DiagnosticStore
+import shop.terramoor.github.io.systemui.NativeContract
 
 class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
-    internal enum class Connection { CHECKING, DISCONNECTED, NO_SCOPE, READY, FAILED, UNSUPPORTED }
+    internal enum class Connection { CHECKING, DISCONNECTED, NO_SCOPE, READY, FAILED }
 
     internal data class State(
         val connection: Connection = Connection.CHECKING,
@@ -31,12 +33,12 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         val completion: CompletableDeferred<Boolean> = CompletableDeferred(),
     )
 
+    internal val diagnostics = DiagnosticLog("App") { DiagnosticStore.append(this, it) }
     private val main = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutableState = MutableStateFlow(State())
     internal val state = mutableState.asStateFlow()
     private var service: XposedService? = null
-    private var supported = false
     private var preferences: SharedPreferences? = null
     private var refreshGeneration = 0
     private var confirmed = CapsuleSettings()
@@ -48,11 +50,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
 
     override fun onCreate() {
         super.onCreate()
-        supported = TargetFirmware.supported(this)
-        if (!supported) {
-            mutableState.value = State(Connection.UNSUPPORTED)
-            return
-        }
+        diagnostics.note("App process started, pid=${android.os.Process.myPid()}")
         XposedServiceHelper.registerListener(this)
         main.postDelayed({ if (service == null) refresh() }, 1200)
     }
@@ -61,7 +59,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         main.post {
             if (this.service !== service) {
                 discardWrites()
-                mutableState.value = State(Connection.CHECKING, confirmed)
+                updateState(State(Connection.CHECKING, confirmed))
             }
             this.service = service
             refresh()
@@ -78,34 +76,36 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         }
     }
 
+    internal fun diagnosticService(): XposedService? = service
+
     internal fun refresh() {
-        if (!supported) return
         val generation = ++refreshGeneration
         val bound = service
         if (bound == null) {
-            mutableState.value = State(Connection.DISCONNECTED)
+            updateState(State(Connection.DISCONNECTED))
             return
         }
         val existing = preferences
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val inScope = TargetFirmware.SYSTEM_UI in bound.scope
+                    val inScope = NativeContract.SYSTEM_UI in bound.scope
                     val prefs = existing ?: TrustedXposedProvider.readPreferences(bound, CapsuleSettings.GROUP)
                     Triple(inScope, prefs, if (existing == null) CapsuleSettings.read(prefs) else null)
                 }
             }
             if (generation != refreshGeneration || service !== bound || preferences !== existing) return@launch
             val (inScope, prefs, initial) = result.getOrElse {
+                diagnostics.failure("Read LSPosed scope and preferences", it)
                 discardWrites()
-                mutableState.value = State(Connection.FAILED, confirmed)
+                updateState(State(Connection.FAILED, confirmed))
                 return@launch
             }
             if (initial != null) confirmed = initial
             if (!inScope) discardWrites()
             preferences = prefs
-            mutableState.value = if (!inScope) State(Connection.NO_SCOPE, confirmed) else
-                State(Connection.READY, initial ?: state.value.settings)
+            updateState(if (!inScope) State(Connection.NO_SCOPE, confirmed) else
+                State(Connection.READY, initial ?: state.value.settings))
         }
     }
 
@@ -208,23 +208,32 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         scope.launch {
             val stored = withContext(Dispatchers.IO) {
                 runCatching {
-                    if (prefs.edit().apply(write.edit).commit()) CapsuleSettings.read(prefs) else null
-                }.getOrNull()
+                    if (prefs.edit().apply(write.edit).commit()) CapsuleSettings.read(prefs) else {
+                        diagnostics.note("LSPosed preference commit rejected")
+                        null
+                    }
+                }.onFailure { diagnostics.failure("Write LSPosed preferences", it) }.getOrNull()
             }
             writerRunning = false
             val stillConnected = preferences === prefs && state.value.connection == Connection.READY
             if (stillConnected && stored != null) {
                 confirmed = stored
+                diagnostics.note("Remote settings committed, $stored")
                 // A newer optimistic value may already be visible. Keep it until it gets written.
                 if (writes.isEmpty() && pendingTuning.isEmpty()) showSettings(stored)
             } else if (stillConnected) {
                 discardWrites()
-                mutableState.value = State(Connection.FAILED, confirmed)
+                updateState(State(Connection.FAILED, confirmed))
             }
             write.completion.complete(stillConnected && stored != null)
             if (!main.hasCallbacks(flushPendingTuning)) enqueueTuning()
             pumpWrites()
         }
+    }
+
+    private fun updateState(next: State) {
+        if (state.value.connection != next.connection) diagnostics.note("LSPosed connection: ${next.connection}")
+        mutableState.value = next
     }
 
     private fun showSettings(settings: CapsuleSettings) {

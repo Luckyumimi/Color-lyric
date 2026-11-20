@@ -17,11 +17,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -30,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -102,6 +105,7 @@ import kotlin.math.abs
 class SettingsActivity : ComponentActivity() {
     private val app get() = application as TerraMoorApp
     private var backupBusy = mutableStateOf(false)
+    private var diagnosticsBusy by mutableStateOf(false)
     private var restartBusy by mutableStateOf(false)
     private var updateResult by mutableStateOf<GitHubUpdates.Result>(GitHubUpdates.Result.Idle)
     private val onboarding by lazy { getSharedPreferences("onboarding", MODE_PRIVATE) }
@@ -119,6 +123,9 @@ class SettingsActivity : ComponentActivity() {
             val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                 if (uri != null) importSettings(uri)
             }
+            val exportDiagnostics = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+                if (uri != null) saveDiagnostics(uri)
+            }
             COUITheme(colors = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
                 SettingsPage(
                     state = state,
@@ -135,6 +142,8 @@ class SettingsActivity : ComponentActivity() {
                     checkForUpdates = { checkForUpdates(version) },
                     openReleases = { openWeb(GitHubUpdates.RELEASES_URL) },
                     copySupportGroup = ::copySupportGroup,
+                    canExportDiagnostics = !diagnosticsBusy,
+                    onExportDiagnostics = { exportDiagnostics.launch(DiagnosticReport.fileName()) },
                     canUseBackup = state.connection == Connection.READY && !backupBusy.value,
                     onExport = { export.launch("TerraMoor-settings.json") },
                     onImport = { import.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
@@ -194,6 +203,32 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
+    private fun saveDiagnostics(uri: Uri) {
+        if (diagnosticsBusy) return
+        diagnosticsBusy = true
+        val state = app.state.value
+        val providers = providerStatuses
+        val service = app.diagnosticService()
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val report = DiagnosticReport.collect(app, state, providers, service)
+                    checkNotNull(contentResolver.openOutputStream(uri, "wt")).bufferedWriter(Charsets.UTF_8).use {
+                        it.write(report)
+                    }
+                }
+                notify(R.string.diagnostics_export_ok)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                app.diagnostics.failure("Export diagnostic report", error)
+                notify(R.string.diagnostics_export_failed)
+            } finally {
+                diagnosticsBusy = false
+            }
+        }
+    }
+
     private fun exportSettings(uri: Uri) {
         if (app.state.value.connection != Connection.READY) {
             notify(R.string.backup_unavailable)
@@ -240,7 +275,10 @@ class SettingsActivity : ComponentActivity() {
         restartBusy = true
         lifecycleScope.launch {
             try {
-                notify(when (SystemUiRestart.request()) {
+                app.diagnostics.note("SystemUI restart requested")
+                val result = SystemUiRestart.request()
+                app.diagnostics.note("SystemUI restart result: $result")
+                notify(when (result) {
                     SystemUiRestart.Result.SENT -> R.string.restart_system_ui_sent
                     SystemUiRestart.Result.ROOT_REQUIRED -> R.string.restart_system_ui_root_required
                     SystemUiRestart.Result.FAILED -> R.string.restart_system_ui_failed
@@ -277,6 +315,8 @@ private fun SettingsPage(
     canUseBackup: Boolean,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    canExportDiagnostics: Boolean,
+    onExportDiagnostics: () -> Unit,
     restartBusy: Boolean,
     onRestartSystemUi: () -> Unit,
 ) {
@@ -284,7 +324,7 @@ private fun SettingsPage(
     val pager = rememberPagerState { tabs.size }
     val scope = rememberCoroutineScope()
     val pageState = rememberSaveableStateHolder()
-    val currentTab = tabs[pager.currentPage]
+    val currentTab = tabs.getOrElse(pager.currentPage) { SettingsTab.HOME }
     var showRestartConfirmation by remember { mutableStateOf(false) }
     var showProviderPrompt by rememberSaveable { mutableStateOf(askForProviderCheck) }
     if (showProviderPrompt) {
@@ -316,7 +356,7 @@ private fun SettingsPage(
         )
     }
     fun selectTab(tab: SettingsTab) {
-        scope.launch { pager.animateScrollToPage(tab.ordinal) }
+        scope.launch { pager.animateScrollToPage(tabs.indexOf(tab)) }
     }
     BackHandler(currentTab != SettingsTab.HOME) { selectTab(SettingsTab.HOME) }
     val background = CouiPageDefaults.themeColors().background
@@ -369,6 +409,7 @@ private fun SettingsPage(
                         SettingsTab.ABOUT -> AboutPage(
                             Modifier.fillMaxSize(), bottomClearance, version, canUseBackup, onExport, onImport,
                             openRepository, updateResult, checkForUpdates, openReleases, copySupportGroup,
+                            canExportDiagnostics, onExportDiagnostics,
                         )
                     }
                 }
@@ -418,7 +459,6 @@ private fun HomePage(
         Connection.NO_SCOPE -> R.string.status_no_scope to R.string.status_no_scope_hint
         Connection.READY -> R.string.status_ready to null
         Connection.FAILED -> R.string.status_failed to R.string.status_failed_hint
-        Connection.UNSUPPORTED -> R.string.status_unsupported to R.string.status_unsupported_hint
     }
     SettingsList(modifier, bottomClearance) {
         SettingsPageTitle(R.string.app_name)
@@ -443,7 +483,7 @@ private fun HomePage(
                 enabled = state.connection == Connection.READY,
             )
         }
-        SettingsGroup(stringResource(R.string.section_provider)) {
+        SettingsGroup(stringResource(R.string.section_provider), notice = stringResource(R.string.provider_both_required)) {
             LyricsProvider.entries.forEachIndexed { index, provider ->
                 if (index != 0) HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
                 val installed = providerStatuses[provider]
@@ -487,6 +527,8 @@ private fun AboutPage(
     checkForUpdates: () -> Unit,
     openReleases: () -> Unit,
     copySupportGroup: () -> Unit,
+    canExportDiagnostics: Boolean,
+    onExportDiagnostics: () -> Unit,
 ) {
     SettingsList(modifier, bottomClearance) {
         SettingsPageTitle(R.string.tab_about)
@@ -503,6 +545,13 @@ private fun AboutPage(
             UpdatePreference(updateResult, checkForUpdates, openReleases)
             HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
             SupportGroupPreference(copySupportGroup)
+            HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
+            BasicComponent(
+                title = stringResource(R.string.diagnostics_export),
+                summary = stringResource(R.string.diagnostics_export_hint),
+                enabled = canExportDiagnostics,
+                onClick = onExportDiagnostics,
+            )
         }
         SettingsGroup(stringResource(R.string.section_backup)) {
             BasicComponent(
@@ -660,9 +709,12 @@ internal fun SettingsList(
 }
 
 @Composable
-internal fun SettingsGroup(title: String, content: @Composable () -> Unit) {
+internal fun SettingsGroup(title: String, notice: String? = null, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SettingSummary(title, Modifier.padding(horizontal = 12.dp))
+        Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingSummary(title)
+            if (notice != null) Text(notice, color = unavailableColor(), style = COUITheme.textStyles.body2)
+        }
         Card(
             modifier = Modifier.fillMaxWidth(),
             cornerRadius = 24.dp,

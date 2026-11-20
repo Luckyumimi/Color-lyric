@@ -12,18 +12,30 @@ internal object LyricPayload {
         "lyricTranslation", "translationLrc", "transLrc", "translation",
     )
 
-    fun parse(payload: String?, title: String?, titleChanged: Boolean, artist: String? = null): Timeline? {
-        if (payload.isNullOrBlank() || payload.length > MAX_CHARS) return null
-        val json = try { JSONObject(payload) } catch (_: org.json.JSONException) { return null }
-        if (json.optBoolean("noLyric", false)) return null
+    enum class Outcome { EMPTY, TOO_LARGE, INVALID_JSON, PROVIDER_NO_LYRIC, TRACK_MISMATCH, NO_TIMED_LINES, PARSED }
+
+    data class Result(val outcome: Outcome, val timeline: Timeline? = null,
+                      val hasLrc: Boolean = false, val hasTtml: Boolean = false)
+
+    fun parse(payload: String?, title: String?, titleChanged: Boolean, artist: String? = null): Timeline? =
+        inspect(payload, title, titleChanged, artist).timeline
+
+    fun inspect(payload: String?, title: String?, titleChanged: Boolean, artist: String? = null): Result {
+        if (payload.isNullOrBlank()) return Result(Outcome.EMPTY)
+        if (payload.length > MAX_CHARS) return Result(Outcome.TOO_LARGE)
+        val json = try { JSONObject(payload) } catch (_: org.json.JSONException) { return Result(Outcome.INVALID_JSON) }
+        if (json.optBoolean("noLyric", false)) return Result(Outcome.PROVIDER_NO_LYRIC)
         val payloadTitle = json.text("songName").ifBlank { json.text("title") }
-        if (!titlesMatch(title, payloadTitle, titleChanged, artist, json.text("artist"))) return null
-        return Timeline.parse(
-            json.text("lyric"),
-            json.text("rawLyric"),
+        if (!titlesMatch(title, payloadTitle, titleChanged, artist, json.text("artist"))) return Result(Outcome.TRACK_MISMATCH)
+        val lyric = json.text("lyric")
+        val raw = json.text("rawLyric")
+        val ttml = json.text("ttml")
+        val timeline = Timeline.parse(lyric, raw,
             translationKeys.firstNotNullOfOrNull { json.text(it).takeIf(String::isNotBlank) }.orEmpty(),
-            TtmlEnds.parse(json.text("ttml")),
+            TtmlEnds.parse(ttml),
         )
+        return Result(if (timeline == null) Outcome.NO_TIMED_LINES else Outcome.PARSED,
+            timeline, lyric.isNotBlank() || raw.isNotBlank(), ttml.isNotBlank())
     }
 
     private fun JSONObject.text(key: String): String = (opt(key) as? String).orEmpty()

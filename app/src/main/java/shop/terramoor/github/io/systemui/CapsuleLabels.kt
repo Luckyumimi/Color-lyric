@@ -66,10 +66,10 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         capsule.display?.cutout?.boundingRectTop?.takeUnless { it.isEmpty }
             ?: capsule.rootWindowInsets?.displayCutout?.boundingRectTop?.takeUnless { it.isEmpty }
 
-    fun draw(canvas: Canvas, drawingWidth: Int) {
-        if (!capsule.isShown) return
-        if (displayLine == null && artwork == null) return
-        if (drawingWidth <= 0 || capsule.height <= 0) return
+    fun draw(canvas: Canvas, drawingWidth: Int): String {
+        if (!capsule.isShown) return "CAPSULE_HIDDEN"
+        if (displayLine == null && artwork == null) return "NO_LYRIC_OR_ARTWORK"
+        if (drawingWidth <= 0 || capsule.height <= 0) return "EMPTY_DRAWING_AREA"
         // Shape and timing come from the OEM animator. Keep the text viewport stable while the shape is clipped.
         val shapeLeft = (capsule.width - drawingWidth) / 2f
         area.set(shapeLeft, 0f, shapeLeft + drawingWidth, capsule.height.toFloat())
@@ -80,7 +80,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         try {
             canvas.clipPath(clip)
             drawArtwork(canvas)
-            if (displayLine == null) return
+            if (displayLine == null) return "ARTWORK_ONLY"
             // Display cutout and getLocationOnScreen share display coordinates. Insets
             // delivered to the native capsule may already have consumed the cutout.
             val camera = cameraBounds()
@@ -106,6 +106,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             if (animate && timing?.moving == true && timing.speed > 0f) {
                 capsule.postInvalidateOnAnimation()
             }
+            return "LYRICS_DRAWN"
         } finally {
             canvas.restoreToCount(save)
         }

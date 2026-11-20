@@ -1,6 +1,7 @@
 package shop.terramoor.github.io.systemui
 
 import android.graphics.Canvas
+import android.service.notification.StatusBarNotification
 import android.util.Log
 import io.github.libxposed.api.XposedInterface.ExceptionMode
 import io.github.libxposed.api.XposedInterface.HookHandle
@@ -8,64 +9,132 @@ import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.error.XposedFrameworkError
+import shop.terramoor.github.io.diagnostics.DiagnosticLog
+import shop.terramoor.github.io.diagnostics.DiagnosticProvider
+import shop.terramoor.github.io.diagnostics.diagnosticStack
 import shop.terramoor.github.io.settings.CapsuleSettings
 import java.lang.reflect.Method
 
 class TerraMoorModule : XposedModule() {
     private var targetProcess = false
+    private var diagnostics: DiagnosticLog? = null
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
-        targetProcess = param.processName == TargetFirmware.SYSTEM_UI
+        targetProcess = param.processName == NativeContract.SYSTEM_UI
+        if (targetProcess) Log.i(TAG, "onModuleLoaded: SystemUI pid=${android.os.Process.myPid()}")
     }
 
     override fun onPackageReady(param: PackageReadyParam) {
-        if (!targetProcess || !param.isFirstPackage || param.packageName != TargetFirmware.SYSTEM_UI ||
-            !TargetFirmware.supportedBuild()) return
+        if (!targetProcess) return
+        if (!param.isFirstPackage || param.packageName != NativeContract.SYSTEM_UI) {
+            Log.i(TAG, "onPackageReady filtered: first=${param.isFirstPackage}, systemUi=${param.packageName == NativeContract.SYSTEM_UI}")
+            return
+        }
         val hooks = ArrayList<HookHandle>()
         try {
-            val host = NativeContract.Host(param.classLoader)
-            val runtime = CapsuleRuntime(host, { getRemotePreferences(CapsuleSettings.GROUP) }, ::installPlugin)
+            val journal = DiagnosticProvider.systemUiLog { moduleApplicationInfo.packageName }
+            diagnostics = journal
+            journal.note("onModuleLoaded reached, SystemUI pid=${android.os.Process.myPid()}; onPackageReady first=true; Xposed API $apiVersion")
+            Log.i(TAG, "TerraMoor module entered SystemUI, pid=${android.os.Process.myPid()}")
+            val host = NativeContract.Host(param.classLoader, ::optionalMissing)
+            journal.note("Required host contract resolved: classes=${NativeContract.HOST},${NativeContract.MEDIA}; media fields and methods verified")
+            val runtime = CapsuleRuntime(host, journal, { getRemotePreferences(CapsuleSettings.GROUP) }, ::installPlugin)
             hooks += after(host.attach) { instance, _, _ -> runtime.hostChanged(instance) }
+            journal.note("Required hook installed: ${host.attach.declaringClass.name}#${host.attach.name}")
             hooks += after(host.detach) { instance, _, _ -> runtime.hostDetached(instance) }
-            hooks += after(host.pluginAdded) { instance, _, _ -> runtime.hostChanged(instance) }
-            hooks += after(host.pluginRemoved) { instance, _, _ -> runtime.pluginRemoved(instance) }
-            hooks += after(host.send) { instance, _, result -> runtime.mediaChanged(instance, result == true) }
-            hooks += after(host.release) { instance, _, _ -> runtime.mediaReleased(instance) }
+            journal.note("Required hook installed: ${host.detach.declaringClass.name}#${host.detach.name}")
+            host.pluginAdded?.let { method -> installOptional(hooks, "Plugin-added hook") {
+                after(method) { instance, _, _ -> runtime.hostChanged(instance) }
+            } }
+            host.pluginRemoved?.let { method -> installOptional(hooks, "Plugin-removed hook") {
+                after(method) { instance, _, _ -> runtime.pluginRemoved(instance) }
+            } }
+            val publication = installMediaPublication(host, runtime, hooks)
+            host.release?.let { method -> installOptional(hooks, "Media release hook") {
+                after(method) { instance, _, _ -> runtime.mediaReleased(instance) }
+            } }
+            journal.note("Required media publication hook installed: ${publication.declaringClass.name}#${publication.name}")
             Log.i(TAG, "SystemUI hooks ready")
+            journal.note("SystemUI host hooks installed")
         } catch (failure: Throwable) {
             if (!isExpectedFailure(failure)) throw failure
             hooks.forEach { it.unhook() }
-            reportFailure("Host contract", failure)
+            report("Host contract", failure)
         }
+    }
+
+    private fun installMediaPublication(host: NativeContract.Host, runtime: CapsuleRuntime,
+                                        hooks: MutableList<HookHandle>): Method {
+        host.send?.let { send ->
+            try {
+                hooks += after(send) { instance, _, result -> runtime.mediaChanged(instance, result == true, null) }
+                return send
+            } catch (failure: Throwable) {
+                if (!isExpectedFailure(failure)) throw failure
+                report("Primary media publication hook", failure)
+            }
+        }
+        val dispatch = host.dispatchMethod()
+        hooks += after(dispatch) { instance, args, result ->
+            if (result == true) {
+                if (args.firstOrNull() == "cancelLiveAlert") runtime.mediaReleased(instance)
+                else (args.getOrNull(1) as? StatusBarNotification)?.let { runtime.mediaChanged(instance, true, it) }
+            }
+        }
+        return dispatch
     }
 
     private fun installPlugin(plugin: NativeContract.Plugin, runtime: CapsuleRuntime): List<HookHandle> {
         val hooks = ArrayList<HookHandle>()
         try {
-            hooks += hook(plugin.contentFrame).setExceptionMode(ExceptionMode.PROTECTIVE).intercept { chain ->
-                val restore = try {
-                    chain.thisObject?.let(runtime::stabilizeMediaContentFrame)
-                } catch (failure: Throwable) {
-                    if (!isExpectedFailure(failure)) throw failure
-                    reportFailure("Media content layout", failure)
-                    null
-                }
-                try {
-                    chain.proceed()
-                } finally {
-                    restore?.invoke()
-                }
-            }
-            hooks += after(plugin.contentChanged) { receiver, _, _ -> runtime.contentChanged(receiver) }
-            hooks += after(plugin.layout) { receiver, _, _ -> runtime.containerLaidOut(receiver) }
             hooks += after(plugin.draw) { receiver, args, _ ->
                 (args.firstOrNull() as? Canvas)?.let { runtime.draw(receiver, it) }
             }
+            diagnostics?.note("Required plugin hook installed: ${plugin.draw.declaringClass.name}#${plugin.draw.name}")
+            plugin.animation?.let { animation -> installOptional(hooks, "Content animation hook") {
+                hook(animation.contentFrame).setExceptionMode(ExceptionMode.PROTECTIVE).intercept { chain ->
+                    val restore = try {
+                        chain.thisObject?.let(runtime::stabilizeMediaContentFrame)
+                    } catch (failure: Throwable) {
+                        if (!isExpectedFailure(failure)) throw failure
+                        report("Media content layout", failure)
+                        null
+                    }
+                    try {
+                        chain.proceed()
+                    } finally {
+                        restore?.invoke()
+                    }
+                }
+            } }
+            plugin.contentChanged?.let { method -> installOptional(hooks, "Early content update hook") {
+                after(method) { receiver, _, _ -> runtime.contentChanged(receiver) }
+            } }
+            plugin.layout?.let { method -> installOptional(hooks, "Plugin layout hook") {
+                after(method) { receiver, _, _ -> runtime.containerLaidOut(receiver) }
+            } }
             return hooks
         } catch (failure: Throwable) {
             hooks.forEach { it.unhook() }
             throw failure
         }
+    }
+
+    private inline fun installOptional(hooks: MutableList<HookHandle>, feature: String, install: () -> HookHandle) {
+        try {
+            hooks += install()
+            diagnostics?.note("Optional $feature installed")
+        } catch (failure: Throwable) {
+            if (!isExpectedFailure(failure)) throw failure
+            report("Optional $feature", failure)
+        }
+    }
+
+    private fun optionalMissing(feature: String, failure: NativeContract.Mismatch) = report("Optional $feature", failure)
+
+    private fun report(step: String, failure: Throwable) {
+        reportFailure(step, failure)
+        diagnostics?.failure(step, failure)
     }
 
     private fun after(method: Method, action: (Any, List<Any?>, Any?) -> Unit): HookHandle =
@@ -75,7 +144,7 @@ class TerraMoorModule : XposedModule() {
                 chain.thisObject?.let { action(it, chain.args, result) }
             } catch (failure: Throwable) {
                 if (!isExpectedFailure(failure)) throw failure
-                reportFailure(method.name, failure)
+                report(method.name, failure)
             }
             result
         }
@@ -87,5 +156,5 @@ internal fun isExpectedFailure(failure: Throwable): Boolean =
     failure is Exception || failure is LinkageError || failure is XposedFrameworkError
 
 internal fun reportFailure(step: String, failure: Throwable) {
-    Log.w(TAG, "$step unavailable (${failure.javaClass.simpleName})")
+    diagnosticStack(step, failure).forEach { Log.w(TAG, it) }
 }

@@ -21,6 +21,11 @@
             android:name="io.github.libxposed.service.TrustedXposedProvider"
             android:authorities="${applicationId}.XposedService"
             android:exported="true" />
+        <provider
+            android:name=".diagnostics.DiagnosticProvider"
+            android:authorities="${applicationId}.TerraMoorDiagnostics"
+            android:directBootAware="true"
+            android:exported="true" />
         <activity android:name=".settings.SettingsActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

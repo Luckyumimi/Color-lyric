@@ -11,10 +11,10 @@ android {
 
     defaultConfig {
         applicationId = "io.github.luckyumimi.terramoor"
-        minSdk = 37
+        minSdk = 34
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 4
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,8 +34,9 @@ android {
 
     buildTypes {
         release {
+            isShrinkResources = true
             optimization {
-                enable = false
+                enable = true
             }
         }
     }

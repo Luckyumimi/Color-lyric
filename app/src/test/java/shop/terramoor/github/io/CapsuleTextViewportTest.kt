@@ -39,6 +39,11 @@ class CapsuleTextViewportTest {
         assertEquals(98.5f, capsuleLyricsLeft(wide.artworkLeft + wide.artworkSize, 3.5f), 0.001f)
         assertEquals(597.5f, capsuleLyricsRight(wide.width, wide.waveformLeft, 3.5f), 0.001f)
         assertEquals(354f, wide.cameraCenterX, 0.001f)
-        assertEquals(40.5f, wide.cameraCenterY, 0.001f)
+        for (density in listOf(1f, 2f, 3.5f, 4f)) {
+            for (width in listOf(156, 174, 202)) {
+                val preview = MediaCapsulePreviewGeometry(density, width)
+                assertEquals(preview.height / 2f, preview.cameraCenterY, 0.001f)
+            }
+        }
     }
 }

@@ -15,8 +15,6 @@
     <string name="status_ready">已勾选系统界面</string>
     <string name="status_failed">读取或保存设置失败</string>
     <string name="status_failed_hint">返回此页重试。如果持续失败，请检查 LSPosed。</string>
-    <string name="status_unsupported">当前固件不在适配范围内</string>
-    <string name="status_unsupported_hint">首版仅适配 PKX110 的 ColorOS 17 指定固件。</string>
     <string name="section_text_tuning">歌词样式</string>
     <string name="section_artwork_tuning">封面背景</string>
     <string name="tune_title_size">原文字号</string>
@@ -65,6 +63,7 @@
     <string name="no_lyrics_track">显示歌名和歌手</string>
     <string name="section_reset">恢复默认</string>
     <string name="section_provider">歌词提供者</string>
+    <string name="provider_both_required">两个都要装</string>
     <string name="provider_bridge">ColorOS Live Lyrics Bridge</string>
     <string name="provider_universal">通用播放器 Provider</string>
     <string name="provider_installed">已安装</string>
@@ -91,7 +90,7 @@
     <string name="open_link_failed">无法打开链接，请检查浏览器。</string>
     <string name="section_app_info">应用信息</string>
     <string name="app_version">版本 %1$s</string>
-    <string name="app_compatibility">适配 PKX110 · ColorOS 17.0.0.104(CN01)</string>
+    <string name="app_compatibility">需要兼容的原生流体云与 LSPosed API 102</string>
     <string name="section_backup">配置备份</string>
     <string name="backup_export">导出全部参数</string>
     <string name="backup_export_hint">将开关、滑块和显示选项保存为 JSON</string>
@@ -101,4 +100,8 @@
     <string name="backup_import_ok">配置已恢复</string>
     <string name="backup_unavailable">请先连接 LSPosed 并勾选系统界面</string>
     <string name="backup_failed">读取、校验或保存配置失败</string>
+    <string name="diagnostics_export">导出诊断日志</string>
+    <string name="diagnostics_export_hint">保存设备信息、当前配置和近期模块事件为文本</string>
+    <string name="diagnostics_export_ok">诊断日志已导出</string>
+    <string name="diagnostics_export_failed">无法保存诊断日志，请重试</string>
 </resources>

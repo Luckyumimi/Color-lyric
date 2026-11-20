@@ -11,7 +11,7 @@ internal class MediaCapsulePreviewGeometry(density: Float, requestedWidthDp: Int
     val artworkSize = 70f * scale
     val waveformLeft = width - 99f * scale
     val cameraCenterX = width / 2f + 0.5f * scale
-    val cameraCenterY = 40.5f * scale
+    val cameraCenterY = height / 2f
     val cameraRadius = 39f * scale
 }
 

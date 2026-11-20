@@ -9,14 +9,14 @@ TerraMoor is a single-module Android app for ColorOS 17. Under `app/src/main/jav
 Use Android SDK 37 and the wrapper’s JDK 25 toolchain. Run `./gradlew.bat` on Windows and `./gradlew` elsewhere.
 
 - `:app:assembleLocalDebug :app:testLocalDebugUnitTest :app:lintLocalDebug` builds and checks the local APK.
-- `:app:connectedLocalDebugAndroidTest` runs AndroidX tests. For device testing, confirm that PKX110 is unlocked and uses the exact firmware and plugin versions in `README.md`.
-- `:app:assemblePublicRelease` builds the unsigned `io.github.luckyumimi.terramoor` APK. Sign outside Gradle using the release procedure in `docs/lsposed/submission.md`.
+- `:app:connectedLocalDebugAndroidTest` runs AndroidX tests. For device testing, confirm the device is unlocked. Record its model, firmware, and SystemUI and plugin versions.
+- `:app:assemblePublicRelease` builds the optimized, unsigned `io.github.luckyumimi.terramoor` APK. Sign outside Gradle using the release procedure in `docs/lsposed/submission.md`.
 
 Use JUnit 4 with descriptive `*Test` classes. Test fresh defaults and old backup imports separately. Track actual hardware verification in `docs/acceptance.md`. Reuse successful checks when inputs are unchanged.
 
 ## Implementation
 
-Use four-space Kotlin indentation, `PascalCase` types, `camelCase` members, and `lower_snake_case` resources. Reuse COUI components, color surfaces, and haptic feedback. Keep `CapsuleSettings` as the source of defaults for the app and hook. Route writes through `TerraMoorApp` so SystemUI receives changes in order. Keep the SystemUI scope fixed and verify view ownership before drawing. Restore native presentation when disabled or detached. Keep lyric parsing, provider detection, and setting writes local. The manual update button is the only in-app network request path. Keep it in `settings/GitHubUpdates.kt`, with bounded timeouts and no automatic retries or model calls.
+Use four-space Kotlin indentation, `PascalCase` types, `camelCase` members, and `lower_snake_case` resources. Reuse COUI components, color surfaces, and haptic feedback. Keep `CapsuleSettings` as the source of defaults for the app and hook. Route writes through `TerraMoorApp` so SystemUI receives changes in order. Keep the SystemUI scope fixed. Check native signatures and view ownership before drawing. Resolve OEM view IDs by name and avoid model or firmware allowlists. Keep the LSPosed entry named in `java_init.list` under R8. Restore native presentation when disabled or detached. Keep lyric parsing, provider detection, and setting writes local. The manual update button is the only in-app network request path. Keep it in `settings/GitHubUpdates.kt`, with bounded timeouts and no automatic retries or model calls.
 
 ## Changes and Releases
 
