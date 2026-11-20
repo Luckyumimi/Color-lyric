@@ -52,6 +52,9 @@
     <string name="tab_tuning">调整</string>
     <string name="tab_about">关于</string>
     <string name="section_camera">前摄区域</string>
+    <string name="section_capsule_elements">胶囊元素</string>
+    <string name="show_cover">显示歌曲封面</string>
+    <string name="show_waveform">显示律动频段</string>
     <string name="section_lyric_behavior">歌词行为</string>
     <string name="section_motion">逐句切换动效</string>
     <string name="motion_none">直接切换</string>

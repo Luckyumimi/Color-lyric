@@ -113,15 +113,15 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         coverClip.addOval(coverRect, Path.Direction.CW)
         val coverSave = canvas.save()
         canvas.clipPath(coverClip)
-        canvas.drawBitmap(cover, null, coverRect, paint)
+        if (settings.showCover) canvas.drawBitmap(cover, null, coverRect, paint)
         canvas.restoreToCount(coverSave)
-        strip.draw(canvas, capsuleLyricsLeft(coverRect.right, dp), pill.top,
-            capsuleLyricsRight(geometry.width, geometry.waveformLeft, dp), pill.bottom,
+        strip.draw(canvas, capsuleLyricsLeft(coverRect.right, dp, settings), pill.top,
+            capsuleLyricsRight(geometry.width, geometry.waveformLeft, dp, settings), pill.bottom,
             CapsuleCamera(geometry.cameraCenterX, geometry.cameraRadius), position)
         paint.color = Color.BLACK
         canvas.drawCircle(geometry.cameraCenterX, geometry.cameraCenterY, geometry.cameraRadius, paint)
         paint.color = Color.WHITE
-        repeat(4) { bar ->
+        if (settings.showWaveform) repeat(4) { bar ->
             val x = geometry.waveformLeft + geometry.artworkSize / 2f + (bar * 3 - 5) * dp
             val barHeight = (3.4f + 2.2f * sin(position / 165f + bar * 1.1f)) * dp
             canvas.drawRoundRect(x, halfHeight - barHeight, x + 1.5f * dp, halfHeight + barHeight, dp, dp, paint)

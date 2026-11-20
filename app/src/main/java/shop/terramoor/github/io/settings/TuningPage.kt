@@ -139,6 +139,21 @@ internal fun TuningPage(
                 HorizontalDivider(divider)
                 slider(CapsuleTuning.ISLAND_WIDTH, R.string.tune_island_width, R.string.value_dp, ready)
             }
+            SettingsGroup(stringResource(R.string.section_capsule_elements)) {
+                TactileSwitchPreference(
+                    checked = settings.showCover,
+                    onCheckedChange = { app.set(CapsuleSettings.SHOW_COVER, it) },
+                    title = stringResource(R.string.show_cover),
+                    enabled = ready,
+                )
+                HorizontalDivider(divider)
+                TactileSwitchPreference(
+                    checked = settings.showWaveform,
+                    onCheckedChange = { app.set(CapsuleSettings.SHOW_WAVEFORM, it) },
+                    title = stringResource(R.string.show_waveform),
+                    enabled = ready,
+                )
+            }
             SettingsGroup(stringResource(R.string.section_camera)) {
                 TuningDropdown(
                     title = stringResource(R.string.camera_fade),

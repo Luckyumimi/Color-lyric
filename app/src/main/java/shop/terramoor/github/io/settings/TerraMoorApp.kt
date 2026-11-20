@@ -115,6 +115,8 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             CapsuleSettings.ENABLED -> current.copy(enabled = checked)
             CapsuleSettings.TRANSLATION -> current.copy(translation = checked)
             CapsuleSettings.ARTWORK -> current.copy(artwork = checked)
+            CapsuleSettings.SHOW_COVER -> current.copy(showCover = checked)
+            CapsuleSettings.SHOW_WAVEFORM -> current.copy(showWaveform = checked)
             CapsuleSettings.CAMERA_FADE -> current.copy(cameraFade = checked)
             else -> return
         }
@@ -182,6 +184,8 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             remove(CapsuleSettings.CAMERA_FADE)
             remove(CapsuleSettings.MOTION)
             remove(CapsuleSettings.NO_LYRICS)
+            remove(CapsuleSettings.SHOW_COVER)
+            remove(CapsuleSettings.SHOW_WAVEFORM)
         }
     }
 

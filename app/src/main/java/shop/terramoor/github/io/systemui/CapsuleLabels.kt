@@ -23,6 +23,8 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private val capsule = target.capsule
     private val density = capsule.resources.displayMetrics.density
     private val strip = CapsuleLyricStrip(density)
+    private val coverVisibility = NativeSlotVisibility(target.artwork)
+    private val waveformVisibility = NativeSlotVisibility(target.waveform)
     private val filler = View(capsule.context).apply {
         visibility = View.INVISIBLE
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -49,6 +51,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         this.clock = clock
         displayLine = line
         displaySettings = settings
+        enforceNativeVisibility()
         this.artwork = artwork
         artworkAlpha = alpha(settings[CapsuleTuning.ARTWORK_OPACITY])
         dimAlpha = alpha(settings[CapsuleTuning.ARTWORK_DIM])
@@ -81,6 +84,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             canvas.clipPath(clip)
             drawArtwork(canvas)
             if (displayLine == null) return "ARTWORK_ONLY"
+            val settings = displaySettings ?: return "ARTWORK_ONLY"
             // Display cutout and getLocationOnScreen share display coordinates. Insets
             // delivered to the native capsule may already have consumed the cutout.
             val camera = cameraBounds()
@@ -94,9 +98,10 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
                 )
             }
             val iconStart = viewLeft(target.artwork, 0f)
-            val waveEnd = viewLeft(target.waveform, capsule.width.toFloat())
-            val left = capsuleLyricsLeft(iconStart + target.artwork.width, density)
-            val right = capsuleLyricsRight(capsule.width.toFloat(), waveEnd, density)
+            val width = capsule.width.toFloat()
+            val waveformLeft = viewLeft(target.waveform, width).coerceIn(0f, width)
+            val left = capsuleLyricsLeft(iconStart + target.artwork.width, density, settings)
+            val right = capsuleLyricsRight(width, waveformLeft, density, settings)
             val timing = clock
             val position = timing?.position(SystemClock.elapsedRealtime()) ?: displayLine?.line?.startMs ?: 0L
             val animate = strip.draw(
@@ -169,7 +174,15 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         if (filler.parent === frame) frame.removeView(filler)
     }
 
+    fun enforceNativeVisibility() {
+        val settings = displaySettings ?: return
+        coverVisibility.apply(!settings.showCover)
+        waveformVisibility.apply(!settings.showWaveform)
+    }
+
     fun close() {
+        coverVisibility.restore()
+        waveformVisibility.restore()
         updateCapsuleWidth(null)
         clearFiller()
         displayLine = null

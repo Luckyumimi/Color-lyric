@@ -6,7 +6,7 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 4
+    private const val VERSION = 5
     private const val MAX_BYTES = 16 * 1024
 
     fun encode(settings: CapsuleSettings): String {
@@ -14,6 +14,8 @@ internal object CapsuleBackup {
             .put(CapsuleSettings.ENABLED, settings.enabled)
             .put(CapsuleSettings.TRANSLATION, settings.translation)
             .put(CapsuleSettings.ARTWORK, settings.artwork)
+            .put(CapsuleSettings.SHOW_COVER, settings.showCover)
+            .put(CapsuleSettings.SHOW_WAVEFORM, settings.showWaveform)
             .put(CapsuleSettings.LYRIC_ALIGNMENT, settings.lyricAlignment.name)
             .put(CapsuleSettings.CAMERA_FADE, settings.cameraFade)
             .put(CapsuleSettings.MOTION, settings.motion.name)
@@ -38,6 +40,8 @@ internal object CapsuleBackup {
             enabled = flag(CapsuleSettings.ENABLED),
             translation = flag(CapsuleSettings.TRANSLATION),
             artwork = flag(CapsuleSettings.ARTWORK),
+            showCover = if (version < 5) true else flag(CapsuleSettings.SHOW_COVER),
+            showWaveform = if (version < 5) true else flag(CapsuleSettings.SHOW_WAVEFORM),
             lyricAlignment = if (version < 3) LyricAlignment.CENTER
             else LyricAlignment.valueOf(data.getString(CapsuleSettings.LYRIC_ALIGNMENT)),
             cameraFade = flag(CapsuleSettings.CAMERA_FADE),
@@ -52,6 +56,8 @@ internal fun SharedPreferences.Editor.writeSettings(settings: CapsuleSettings) {
     putBoolean(CapsuleSettings.ENABLED, settings.enabled)
     putBoolean(CapsuleSettings.TRANSLATION, settings.translation)
     putBoolean(CapsuleSettings.ARTWORK, settings.artwork)
+    putBoolean(CapsuleSettings.SHOW_COVER, settings.showCover)
+    putBoolean(CapsuleSettings.SHOW_WAVEFORM, settings.showWaveform)
     remove("camera_shape") // Retired in version 4.
     putString(CapsuleSettings.LYRIC_ALIGNMENT, settings.lyricAlignment.name)
     putBoolean(CapsuleSettings.CAMERA_FADE, settings.cameraFade)

@@ -2,6 +2,8 @@ package shop.terramoor.github.io
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import shop.terramoor.github.io.settings.CapsuleSettings
+import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LyricAlignment
 import shop.terramoor.github.io.systemui.CapsuleTextViewport
 import shop.terramoor.github.io.systemui.MediaCapsulePreviewGeometry
@@ -29,6 +31,37 @@ class CapsuleTextViewportTest {
     }
 
     @Test
+    fun outerFadeTracksEachLinesActualOverflow() {
+        val viewport = CapsuleTextViewport(20f, 220f, LyricAlignment.LEFT)
+        val feather = viewport.outerFeather(1f)
+        assertEquals(2f, feather.left, 0.001f)
+        assertEquals(6f, feather.right, 0.001f)
+        assertEquals(2f, feather.rightGuard, 0.001f)
+        val short = viewport.edgeFade(160f, 0.5f, feather)
+        assertEquals(0f, short.left, 0.001f)
+        assertEquals(0f, short.right, 0.001f)
+        val start = viewport.edgeFade(300f, 0f, feather)
+        assertEquals(0f, start.left, 0.001f)
+        assertEquals(1f, start.right, 0.001f)
+        val early = viewport.edgeFade(300f, 1f / 108f, feather)
+        assertEquals(0.5f, early.left, 0.001f)
+        assertEquals(1f, early.right, 0.001f)
+        val middle = viewport.edgeFade(300f, 0.5f, feather)
+        assertEquals(1f, middle.left, 0.001f)
+        assertEquals(1f, middle.right, 0.001f)
+        assertEquals(1f, viewport.edgeFade(200.1f, 0.99f, feather).right, 0.001f)
+        val end = viewport.edgeFade(300f, 1f, feather)
+        assertEquals(1f, end.left, 0.001f)
+        assertEquals(1f, end.right, 0.001f)
+        val finalRight = viewport.left + viewport.textOffset(300f, 1f, feather.trailingInset) + 300f
+        assertEquals(viewport.right - 8f, finalRight, 0.001f)
+
+        val narrow = CapsuleTextViewport(0f, 3f, LyricAlignment.LEFT).outerFeather(3.5f)
+        assertEquals(1.5f, narrow.left, 0.001f)
+        assertEquals(1.5f, narrow.trailingInset, 0.001f)
+    }
+
+    @Test
     fun previewChangesAtEveryWholeCapsuleWidthStep() {
         val widths = (156..202 step 2).map { MediaCapsulePreviewGeometry(3.5f, it).width }
         assertEquals(546f, widths.first(), 0.001f)
@@ -36,14 +69,32 @@ class CapsuleTextViewportTest {
         widths.zipWithNext { a, b -> assertEquals(7f, b - a, 0.001f) }
         val wide = MediaCapsulePreviewGeometry(3.5f, 202)
         assertEquals(105f, wide.height, 0.001f)
-        assertEquals(98.5f, capsuleLyricsLeft(wide.artworkLeft + wide.artworkSize, 3.5f), 0.001f)
-        assertEquals(597.5f, capsuleLyricsRight(wide.width, wide.waveformLeft, 3.5f), 0.001f)
+        assertEquals(88f, capsuleLyricsLeft(wide.artworkLeft + wide.artworkSize, 3.5f, CapsuleSettings()), 0.001f)
+        assertEquals(625.5f, capsuleLyricsRight(wide.width, wide.waveformLeft, 3.5f, CapsuleSettings()), 0.001f)
         assertEquals(354f, wide.cameraCenterX, 0.001f)
         for (density in listOf(1f, 2f, 3.5f, 4f)) {
-            for (width in listOf(156, 174, 202)) {
+            for (width in listOf(156, 170, 202)) {
                 val preview = MediaCapsulePreviewGeometry(density, width)
                 assertEquals(preview.height / 2f, preview.cameraCenterY, 0.001f)
             }
         }
+    }
+
+    @Test
+    fun hiddenNativeElementsExpandOnlyTheirOwnLyricBoundary() {
+        val defaults = CapsuleSettings()
+        val density = 3.5f
+        val preview = MediaCapsulePreviewGeometry(density, defaults[CapsuleTuning.ISLAND_WIDTH])
+        val coverRight = preview.artworkLeft + preview.artworkSize
+        for (showCover in listOf(false, true)) for (showWaveform in listOf(false, true)) {
+            val settings = defaults.copy(showCover = showCover, showWaveform = showWaveform)
+            val left = capsuleLyricsLeft(coverRight, density, settings)
+            val right = capsuleLyricsRight(preview.width, preview.waveformLeft, density, settings)
+            assertEquals(if (showCover) 88f else 24.5f, left, 0.001f)
+            assertEquals(if (showWaveform) 513.5f else 584.5f, right, 0.001f)
+        }
+        assertEquals(595f, preview.width, 0.001f)
+        // The native waveform view can disappear during an OEM transition.
+        assertEquals(preview.width, capsuleLyricsRight(preview.width, preview.width, density, defaults), 0.001f)
     }
 }

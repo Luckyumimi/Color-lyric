@@ -28,7 +28,7 @@ class CapsuleCameraSettingsTest {
             assertEquals(true, settings.translation)
             assertEquals(true, settings.artwork)
             assertEquals(LyricAlignment.LEFT, settings.lyricAlignment)
-            assertEquals(174, settings[CapsuleTuning.ISLAND_WIDTH])
+            assertEquals(170, settings[CapsuleTuning.ISLAND_WIDTH])
             assertEquals(75, settings[CapsuleTuning.ARTWORK_OPACITY])
             assertEquals(CapsuleSettings().withTuning(CapsuleTuning.entries.associateWith { it.default }), settings)
         } finally {
@@ -84,5 +84,47 @@ class CapsuleCameraSettingsTest {
         assertEquals(9, restored[CapsuleTuning.CAMERA_FADE_RADIUS])
         assertEquals(true, restored.cameraFade)
         assertFalse(JSONObject(CapsuleBackup.encode(restored)).getJSONObject("settings").has("camera_shape"))
+    }
+
+    @Test
+    fun capsuleElementsRoundTripAndOldBackupsKeepBothVisible() {
+        for (cover in listOf(false, true)) for (waveform in listOf(false, true)) {
+            val settings = CapsuleSettings(showCover = cover, showWaveform = waveform)
+            val restored = CapsuleBackup.decode(CapsuleBackup.encode(settings).byteInputStream())
+            assertEquals(cover, restored.showCover)
+            assertEquals(waveform, restored.showWaveform)
+        }
+        val legacy = JSONObject(CapsuleBackup.encode(CapsuleSettings(showCover = false, showWaveform = false)))
+        legacy.put("version", 4)
+        legacy.getJSONObject("settings").apply {
+            remove(CapsuleSettings.SHOW_COVER)
+            remove(CapsuleSettings.SHOW_WAVEFORM)
+        }
+        val restored = CapsuleBackup.decode(legacy.toString().byteInputStream())
+        assertEquals(true, restored.showCover)
+        assertEquals(true, restored.showWaveform)
+    }
+
+    @Test
+    fun backupWithRetiredSlidersPreservesTheSavedIslandWidth() {
+        val saved = CapsuleSettings(showCover = false, showWaveform = false)
+            .withTuning(mapOf(CapsuleTuning.ISLAND_WIDTH to 186))
+        val backup = JSONObject(CapsuleBackup.encode(saved))
+        val settings = backup.getJSONObject("settings")
+        val retiredValues = mapOf(
+            "lyric_cover_gap" to 6,
+            "lyric_left_inset" to 9,
+            "lyric_waveform_gap" to -5,
+            "lyric_right_inset" to 13,
+            "lyric_left_fade_width" to 4,
+            "lyric_right_fade_width" to 18,
+        )
+        retiredValues.forEach { (key, value) -> settings.put(key, value) }
+        val restored = CapsuleBackup.decode(backup.toString().byteInputStream())
+        assertEquals(186, restored[CapsuleTuning.ISLAND_WIDTH])
+        assertFalse(restored.showCover)
+        assertFalse(restored.showWaveform)
+        val exported = JSONObject(CapsuleBackup.encode(restored)).getJSONObject("settings")
+        retiredValues.keys.forEach { assertFalse(exported.has(it)) }
     }
 }

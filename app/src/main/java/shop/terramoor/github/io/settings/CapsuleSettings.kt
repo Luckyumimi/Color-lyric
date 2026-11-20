@@ -7,7 +7,7 @@ internal enum class CapsuleTuning(val key: String, val range: IntRange, val defa
     TRANSLATION_SIZE("translation_size", 7..11, 9),
     TITLE_OPACITY("title_opacity", 50..100, 100, 5),
     TRANSLATION_OPACITY("translation_opacity", 40..100, 80, 5),
-    ISLAND_WIDTH("island_width", 156..202, 174, 2),
+    ISLAND_WIDTH("island_width", 156..202, 170, 2),
     CAMERA_FADE_RADIUS("camera_fade_radius", 1..14, 3),
     BLUR("artwork_blur", 0..24, 14),
     ARTWORK_OPACITY("artwork_opacity", 10..100, 75, 5),
@@ -22,6 +22,8 @@ internal data class CapsuleSettings(
     val enabled: Boolean = true,
     val translation: Boolean = true,
     val artwork: Boolean = true,
+    val showCover: Boolean = true,
+    val showWaveform: Boolean = true,
     val lyricAlignment: LyricAlignment = LyricAlignment.LEFT,
     val cameraFade: Boolean = true,
     val motion: LineMotion = LineMotion.UP,
@@ -46,6 +48,8 @@ internal data class CapsuleSettings(
         const val ENABLED = "enabled"
         const val TRANSLATION = "translation"
         const val ARTWORK = "artwork"
+        const val SHOW_COVER = "show_cover"
+        const val SHOW_WAVEFORM = "show_waveform"
         const val LYRIC_ALIGNMENT = "lyric_alignment"
         const val CAMERA_FADE = "camera_fade"
         const val MOTION = "line_motion"
@@ -58,6 +62,8 @@ internal data class CapsuleSettings(
             enabled = prefs.getBoolean(ENABLED, defaults.enabled),
             translation = prefs.getBoolean(TRANSLATION, defaults.translation),
             artwork = prefs.getBoolean(ARTWORK, defaults.artwork),
+            showCover = prefs.getBoolean(SHOW_COVER, defaults.showCover),
+            showWaveform = prefs.getBoolean(SHOW_WAVEFORM, defaults.showWaveform),
             lyricAlignment = prefs.getString(LYRIC_ALIGNMENT, null).let { value ->
                 LyricAlignment.entries.firstOrNull { it.name == value } ?: defaults.lyricAlignment
             },

@@ -68,6 +68,7 @@ internal class CapsuleRuntime(
             main.removeCallbacks(refresh)
             protect("Capsule update", ::refreshTarget)
         }
+        labels?.enforceNativeVisibility()
         true
     }
     private val applyPreferences = Runnable { protect("Preferences", ::applySettings) }

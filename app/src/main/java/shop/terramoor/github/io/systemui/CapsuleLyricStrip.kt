@@ -63,6 +63,7 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val compactRight = right - skippedWidth
         if (compactRight <= left) return false
         val viewport = CapsuleTextViewport(left, compactRight, lyricAlignment)
+        val feather = viewport.outerFeather(density)
         val phase = if (current.priorLine != null && motion != LineMotion.NONE) {
             ((position - current.displayStartMs) / 260f).coerceIn(0f, 1f)
         } else 1f
@@ -78,10 +79,10 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val crossfade = motion == LineMotion.FADE
         fun drawTrack(destination: Canvas) {
             if (phase < 1f) {
-                drawPair(destination, priorTitle, priorTranslation, viewport,
+                drawPair(destination, priorTitle, priorTranslation, viewport, feather,
                     center - travel * easing, 1f, opacity * if (crossfade) 1f - easing else 1f)
             }
-            drawPair(destination, title, translation, viewport,
+            drawPair(destination, title, translation, viewport, feather,
                 center + travel * (1f - easing), progress, opacity * if (crossfade) easing else 1f)
         }
         fun drawLyrics(destination: Canvas) {
@@ -106,6 +107,7 @@ internal class CapsuleLyricStrip(private val density: Float) {
                 }
             }
         }
+        val scrolling = viewport.travel(maxOf(title.width, translation.width)) > 0f
         val save = canvas.save()
         try {
             if (!canvas.clipRect(left, top, right, bottom)) return false
@@ -120,20 +122,20 @@ internal class CapsuleLyricStrip(private val density: Float) {
         } finally {
             canvas.restoreToCount(save)
         }
-        val scrolling = viewport.travel(maxOf(title.width, translation.width)) > 0f
         return phase < 1f || (scrolling && progress < 1f && current.endMs > current.line.startMs)
     }
 
     private fun drawPair(
         canvas: Canvas, main: Lane, second: Lane, viewport: CapsuleTextViewport,
-        center: Float, progress: Float, alpha: Float,
+        feather: OuterLyricFeather, center: Float, progress: Float, alpha: Float,
     ) {
         val y = center - (main.height + second.height) / 2f
-        main.draw(canvas, viewport, y, progress, alpha)
-        second.draw(canvas, viewport, y + main.height, progress, alpha)
+        main.draw(canvas, viewport, feather, y, progress, alpha)
+        second.draw(canvas, viewport, feather, y + main.height, progress, alpha)
     }
 
     private class Lane(bold: Boolean) {
+        private val outerMask = OuterLyricMask()
         private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }
@@ -156,21 +158,24 @@ internal class CapsuleLyricStrip(private val density: Float) {
             paint.color = Color.argb((opacity * 255 + 50) / 100, 255, 255, 255)
         }
 
-        fun draw(canvas: Canvas, viewport: CapsuleTextViewport, y: Float, progress: Float, alpha: Float) {
+        fun draw(
+            canvas: Canvas, viewport: CapsuleTextViewport, feather: OuterLyricFeather,
+            y: Float, progress: Float, alpha: Float,
+        ) {
             val measured = layout ?: return
             if (alpha <= 0f) return
-            val x = viewport.left + viewport.textOffset(width, progress) - measured.getLineLeft(0)
+            val x = viewport.left + viewport.textOffset(width, progress, feather.trailingInset) - measured.getLineLeft(0)
             val originalAlpha = paint.alpha
-            val save = canvas.save()
             try {
-                if (canvas.clipRect(viewport.left, y, viewport.right, y + measured.height)) {
+                val fade = viewport.edgeFade(width, progress, feather)
+                outerMask.draw(canvas, viewport.left, y, viewport.right, y + measured.height,
+                    feather, fade) { target ->
                     paint.alpha = (originalAlpha * alpha).toInt()
-                    canvas.translate(x, y)
-                    measured.draw(canvas)
+                    target.translate(x, y)
+                    measured.draw(target)
                 }
             } finally {
                 paint.alpha = originalAlpha
-                canvas.restoreToCount(save)
             }
         }
     }

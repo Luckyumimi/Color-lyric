@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +56,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -490,9 +492,13 @@ private fun HomePage(
                 BasicComponent(
                     title = stringResource(provider.title),
                     onClick = { openProvider(provider) },
-                    startAction = if (provider == LyricsProvider.BRIDGE) {
-                        { Image(painterResource(R.drawable.provider_bridge), null, Modifier.size(32.dp)) }
-                    } else null,
+                    startAction = {
+                        Image(
+                            painter = painterResource(provider.icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp).clip(CircleShape),
+                        )
+                    },
                     endActions = {
                         Text(
                             text = stringResource(when (installed) {
