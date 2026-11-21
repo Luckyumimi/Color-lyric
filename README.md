@@ -2,7 +2,7 @@
 
 TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中显示歌词，支持实时调参、无歌词回退和模糊封面背景。
 
-仅支持 ColorOS 17
+**仅支持 ColorOS 17**
 
 ## 预览
 
