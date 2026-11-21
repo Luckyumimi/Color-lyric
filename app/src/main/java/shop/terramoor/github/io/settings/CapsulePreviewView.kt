@@ -35,10 +35,10 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         BitmapFactory.decodeResource(resources, PreviewLanguage.JAPANESE.cover)
     }
     private var language = PreviewLanguage.JAPANESE
+    private var settings = CapsuleSettings()
     private var blurredCover: Bitmap? = null
     private var blurStrength = -1
-    private var sampleFrames = language.frames(resources)
-    private var settings = CapsuleSettings()
+    private var sampleFrames = language.frames(resources, settings)
     private var geometry = MediaCapsulePreviewGeometry(density, settings[CapsuleTuning.ISLAND_WIDTH])
     private var activeFrame = -1
     private var startedAt = SystemClock.elapsedRealtime()
@@ -54,13 +54,13 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         if (settings == newSettings && language == newLanguage) return
         if (language != newLanguage) {
             language = newLanguage
-            sampleFrames = language.frames(resources)
             blurredCover = null
             blurStrength = -1
             startedAt = SystemClock.elapsedRealtime()
         } else if (settings.motion != newSettings.motion) {
             startedAt = SystemClock.elapsedRealtime() + 360L - sampleFrames[1].displayStartMs
         }
+        sampleFrames = language.frames(resources, newSettings)
         if (settings[CapsuleTuning.ISLAND_WIDTH] != newSettings[CapsuleTuning.ISLAND_WIDTH]) {
             geometry = MediaCapsulePreviewGeometry(density, newSettings[CapsuleTuning.ISLAND_WIDTH])
         }

@@ -159,3 +159,11 @@
 - 正式 APK 为 `TerraMoor-1.5.0.apk`，包名 `io.github.luckyumimi.terramoor`，versionCode 为 `5`。正式签名、16 KiB 对齐和 `com.android.systemui` 作用域校验通过。大小为 2,913,481 字节，SHA-256 为 `76C5D5A99FB13EF6C47ED4A28A6B83AD37D503C87231B91336CFB59E0EE70A48`。
 - 本地 Release 构建通过。31 项 JVM 测试通过，Lint 0 错误、35 警告。与上一轮真机安装的固定歌词间距包比对，DEX 和 LSPosed 元数据逐字节一致。复用前述验证结论，固定参数的原生显示仍待真机核对。
 - 版本号更新没有新增模型或网络请求，正常、重试和回退的缓存、延迟与成本沿用上一阶段。
+
+## 双排歌词与独立切换逻辑
+
+- 2026-11-21 将歌词样式设置整理为双排歌词开关、第二排内容、第一/第二排字号与透明度，并新增单排和双排独立切换模式。第二排可显示当前句翻译或下一句原文；无译文时可回退单排或保持双排歌词，回退单排的自动放大独立控制。
+- 旧版 SharedPreferences 和 v5 备份中的 `translation` 字段继续可读。旧配置的切换模式按旧版真实句尾行为迁移；新安装默认双排按下一句真实开始切换。v6 导出使用新字段并移除旧 `translation` 字段。
+- 时间轴移除无句尾时固定提前约 350ms 的预显规则。有真实句尾使用 `endMs`，否则使用下一句真实 `startMs`。预览和 SystemUI 共用同一套行模式和第二排帧数据。
+- 本地 `:app:testLocalDebugUnitTest` 通过，31 项 JVM 测试；主代码和 Android 测试 Kotlin 编译通过；`:app:lintLocalDebug` 通过，0 错误；`:app:assemblePublicRelease` 的 R8/Release 裁剪通过。PKX110（ColorOS `PKX110_17.0.0.104(CN01)`，SystemUI `17.99.02`，SystemUIPlugin `17.000.002`）执行 `:app:connectedLocalDebugAndroidTest`，22 项定向测试全部通过，覆盖备份迁移、双排绘制输入、摄像头遮罩和设置回归。双排原生显示、无译文回退和切换节奏仍需在实际播放器与系统胶囊中人工核对。
+- 正常、重试和回退各新增 0 次模型请求和 0 次运行时网络请求。所有新逻辑使用本地设置、歌词时间轴和当前会话内存，没有新增持久缓存或模型成本。

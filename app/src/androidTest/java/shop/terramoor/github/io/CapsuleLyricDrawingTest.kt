@@ -145,7 +145,7 @@ class CapsuleLyricDrawingTest {
         val end = 5800L
         val frame = LyricFrame(LyricLine(
             start, "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(2), "abcdefghijklmnopqrstuvwxyz".repeat(2),
-        ), end)
+        ), end, secondText = "abcdefghijklmnopqrstuvwxyz".repeat(2))
         val strip = CapsuleLyricStrip(3.5f)
         for (fade in listOf(false, true)) {
             val settings = CapsuleSettings(cameraFade = fade)
@@ -173,6 +173,7 @@ class CapsuleLyricDrawingTest {
         val frame = LyricFrame(
             LyricLine(0, "初音未来缤纷舞台，前方还有更多精彩内容", "它们不再属于任何人"),
             3000,
+            secondText = "它们不再属于任何人",
         )
         strip.update(frame, CapsuleSettings(cameraFade = false))
         for (position in listOf(0L, 400L, 620L, 1150L, 3000L)) {

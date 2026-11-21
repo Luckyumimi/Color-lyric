@@ -9,6 +9,7 @@ import shop.terramoor.github.io.lyrics.LyricLine
 import shop.terramoor.github.io.lyrics.LyricPayload
 import shop.terramoor.github.io.lyrics.PlaybackClock
 import shop.terramoor.github.io.lyrics.Timeline
+import shop.terramoor.github.io.settings.LyricSwitchMode
 
 class LyricTimelineTest {
     @Test fun exactAndNearTranslationsAreUsedOnce() {
@@ -92,10 +93,17 @@ class LyricTimelineTest {
     @Test fun startOnlyLyricsPreviewBrieflyWithoutSkippingGapsOrFirstLine() {
         val timeline = Timeline.parse("[00:02]First\n[00:04]Second\n[00:05]\n[00:15]Third", "", "")!!
         assertEquals(-1, timeline.displayIndexAt(1999))
-        assertEquals(0, timeline.displayIndexAt(3649))
-        assertEquals(1, timeline.displayIndexAt(3650))
+        assertEquals(0, timeline.displayIndexAt(3999, LyricSwitchMode.AFTER_END))
+        assertEquals(1, timeline.displayIndexAt(4000, LyricSwitchMode.AFTER_END))
         assertEquals(2, timeline.displayIndexAt(14999))
         assertEquals(3, timeline.displayIndexAt(15000))
+    }
+
+    @Test fun nextStartModeDoesNotUseFixedLeadTime() {
+        val timeline = Timeline.parse("[00:02]First\n[00:04]Second", "", "")!!
+        assertEquals(0, timeline.displayIndexAt(3999, LyricSwitchMode.AT_NEXT_START))
+        assertEquals(1, timeline.displayIndexAt(4000, LyricSwitchMode.AT_NEXT_START))
+        assertEquals(4000L, timeline.displayStart(1, LyricSwitchMode.AFTER_END))
     }
 
 }

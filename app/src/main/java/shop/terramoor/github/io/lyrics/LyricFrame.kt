@@ -1,11 +1,19 @@
 package shop.terramoor.github.io.lyrics
 
+internal enum class LyricSecondRow { TRANSLATION, LYRIC }
+
 internal data class LyricFrame(
     val line: LyricLine,
     val endMs: Long,
     val priorLine: LyricLine? = null,
     val isTrackInfo: Boolean = false,
     val displayStartMs: Long = line.startMs,
+    val secondText: String? = null,
+    val priorSecondText: String? = null,
+    val secondRow: LyricSecondRow = LyricSecondRow.TRANSLATION,
+    val priorSecondRow: LyricSecondRow = secondRow,
+    val singleLineExpanded: Boolean = false,
+    val priorSingleLineExpanded: Boolean = false,
 ) {
     fun scrollFraction(position: Long): Float = scrollFraction(line.startMs, endMs, position)
 

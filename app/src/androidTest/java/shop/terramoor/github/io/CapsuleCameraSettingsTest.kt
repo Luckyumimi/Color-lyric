@@ -6,12 +6,16 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import shop.terramoor.github.io.settings.CapsuleBackup
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LyricAlignment
+import shop.terramoor.github.io.settings.LyricSwitchMode
+import shop.terramoor.github.io.settings.MissingTranslationMode
+import shop.terramoor.github.io.settings.SecondRowContent
 import shop.terramoor.github.io.settings.writeSettings
 
 @RunWith(AndroidJUnit4::class)
@@ -25,7 +29,12 @@ class CapsuleCameraSettingsTest {
         try {
             val settings = CapsuleSettings.read(preferences)
             assertEquals(true, settings.enabled)
-            assertEquals(true, settings.translation)
+            assertEquals(true, settings.doubleLine)
+            assertEquals(SecondRowContent.TRANSLATION, settings.secondRowContent)
+            assertEquals(LyricSwitchMode.AFTER_END, settings.singleLineSwitchMode)
+            assertEquals(LyricSwitchMode.AT_NEXT_START, settings.doubleLineSwitchMode)
+            assertEquals(MissingTranslationMode.SINGLE_LINE, settings.missingTranslationMode)
+            assertTrue(settings.fallbackSingleLineExpand)
             assertEquals(true, settings.artwork)
             assertEquals(LyricAlignment.LEFT, settings.lyricAlignment)
             assertEquals(170, settings[CapsuleTuning.ISLAND_WIDTH])
@@ -54,6 +63,24 @@ class CapsuleCameraSettingsTest {
             }
         } finally {
             context.deleteSharedPreferences("camera-settings-test")
+        }
+    }
+
+    @Test
+    fun legacyPreferencesUseOldTimingAndTranslationMapping() {
+        val context = InstrumentationRegistry.getInstrumentation().context
+        val name = "capsule-legacy-migration"
+        context.deleteSharedPreferences(name)
+        val preferences = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+        try {
+            preferences.edit().putBoolean(CapsuleSettings.TRANSLATION, false).commit()
+            val settings = CapsuleSettings.read(preferences)
+            assertFalse(settings.doubleLine)
+            assertEquals(SecondRowContent.TRANSLATION, settings.secondRowContent)
+            assertEquals(LyricSwitchMode.AFTER_END, settings.singleLineSwitchMode)
+            assertEquals(LyricSwitchMode.AFTER_END, settings.doubleLineSwitchMode)
+        } finally {
+            context.deleteSharedPreferences(name)
         }
     }
 
@@ -126,5 +153,46 @@ class CapsuleCameraSettingsTest {
         assertFalse(restored.showWaveform)
         val exported = JSONObject(CapsuleBackup.encode(restored)).getJSONObject("settings")
         retiredValues.keys.forEach { assertFalse(exported.has(it)) }
+    }
+
+    @Test
+    fun v5BackupMapsTranslationToDoubleLineTranslationAndLegacyTiming() {
+        val legacy = JSONObject(CapsuleBackup.encode(CapsuleSettings(doubleLine = false)))
+        legacy.put("version", 5)
+        legacy.getJSONObject("settings").apply {
+            remove(CapsuleSettings.DOUBLE_LINE)
+            remove(CapsuleSettings.SECOND_ROW_CONTENT)
+            remove(CapsuleSettings.SINGLE_LINE_SWITCH_MODE)
+            remove(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)
+            remove(CapsuleSettings.MISSING_TRANSLATION_MODE)
+            remove(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND)
+            put(CapsuleSettings.TRANSLATION, false)
+        }
+        val restored = CapsuleBackup.decode(legacy.toString().byteInputStream())
+        assertFalse(restored.doubleLine)
+        assertEquals(SecondRowContent.TRANSLATION, restored.secondRowContent)
+        assertEquals(LyricSwitchMode.AFTER_END, restored.singleLineSwitchMode)
+        assertEquals(LyricSwitchMode.AFTER_END, restored.doubleLineSwitchMode)
+        assertEquals(MissingTranslationMode.SINGLE_LINE, restored.missingTranslationMode)
+        assertTrue(restored.fallbackSingleLineExpand)
+    }
+
+    @Test
+    fun v6BackupRoundTripWritesOnlyNewRowFields() {
+        val expected = CapsuleSettings(
+            doubleLine = true,
+            secondRowContent = SecondRowContent.LYRIC,
+            singleLineSwitchMode = LyricSwitchMode.AT_NEXT_START,
+            doubleLineSwitchMode = LyricSwitchMode.AFTER_END,
+            missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS,
+            fallbackSingleLineExpand = false,
+        ).withTuning(CapsuleTuning.entries.associateWith { it.default } +
+            mapOf(CapsuleTuning.FIRST_ROW_SIZE to 12))
+        val json = JSONObject(CapsuleBackup.encode(expected))
+        val settings = json.getJSONObject("settings")
+        val restored = CapsuleBackup.decode(json.toString().byteInputStream())
+        assertEquals(expected, restored)
+        assertTrue(settings.has(CapsuleSettings.DOUBLE_LINE))
+        assertFalse(settings.has(CapsuleSettings.TRANSLATION))
     }
 }

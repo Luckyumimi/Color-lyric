@@ -6,11 +6,13 @@ import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 
 class CapsuleTypographyTest {
-    @Test fun singleLineGainsTwoDpUnlessCapped() {
+    @Test fun firstRowUsesSliderValueUnlessFallbackExpansionIsEnabled() {
         val settings = CapsuleSettings()
         assertEquals(11, settings.effectiveTitleSize(hasSecondLine = true))
-        assertEquals(13, settings.effectiveTitleSize(hasSecondLine = false))
-        assertEquals(14, settings.withTuning(mapOf(CapsuleTuning.TITLE_SIZE to 13)).effectiveTitleSize(false))
+        assertEquals(11, settings.effectiveTitleSize(hasSecondLine = false))
+        assertEquals(13, settings.effectiveTitleSize(hasSecondLine = false, expandSingleLine = true))
+        assertEquals(14, settings.withTuning(mapOf(CapsuleTuning.TITLE_SIZE to 13))
+            .effectiveTitleSize(false, expandSingleLine = true))
     }
 
     @Test fun translationSliderRangeMatchesEffectiveDrawingSize() {

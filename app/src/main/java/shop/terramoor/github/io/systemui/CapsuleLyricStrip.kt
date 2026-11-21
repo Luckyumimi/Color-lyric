@@ -9,6 +9,7 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.LyricLine
+import shop.terramoor.github.io.lyrics.LyricSecondRow
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LineMotion
@@ -32,14 +33,28 @@ internal class CapsuleLyricStrip(private val density: Float) {
         this.frame = frame
         motion = settings.motion
         lyricAlignment = settings.lyricAlignment
-        fun setup(main: Lane, second: Lane, line: LyricLine?) {
-            val translated = line?.translation?.takeIf { (settings.translation || frame?.isTrackInfo == true) && it.isNotBlank() }
-            val size = settings.effectiveTitleSize(hasSecondLine = translated != null)
+        fun setup(
+            main: Lane,
+            second: Lane,
+            line: LyricLine?,
+            secondText: String?,
+            secondRow: LyricSecondRow,
+            expandSingleLine: Boolean,
+        ) {
+            val value = when (secondRow) {
+                LyricSecondRow.TRANSLATION -> secondText
+                LyricSecondRow.LYRIC -> secondText
+            }?.takeIf(String::isNotBlank)
+            val size = settings.effectiveTitleSize(hasSecondLine = value != null, expandSingleLine = expandSingleLine)
             main.update(line?.text, size * density, settings[CapsuleTuning.TITLE_OPACITY])
-            second.update(translated, settings.effectiveTranslationSize * density, settings[CapsuleTuning.TRANSLATION_OPACITY])
+            second.update(value, settings.effectiveSecondRowSize * density, settings[CapsuleTuning.SECOND_ROW_OPACITY])
         }
-        setup(title, translation, frame?.line)
-        setup(priorTitle, priorTranslation, frame?.priorLine)
+        setup(title, translation, frame?.line, frame?.secondText,
+            frame?.secondRow ?: LyricSecondRow.TRANSLATION,
+            frame?.singleLineExpanded ?: false)
+        setup(priorTitle, priorTranslation, frame?.priorLine, frame?.priorSecondText,
+            frame?.priorSecondRow ?: frame?.secondRow ?: LyricSecondRow.TRANSLATION,
+            frame?.priorSingleLineExpanded ?: false)
         fadePx = if (settings.cameraFade) settings[CapsuleTuning.CAMERA_FADE_RADIUS] * density else 0f
     }
 
