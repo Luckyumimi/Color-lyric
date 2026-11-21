@@ -2,9 +2,7 @@
 
 TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中显示歌词，支持实时调参、无歌词回退和模糊封面背景。
 
-在「调整 → 歌词样式」可开启双排歌词，让第二排显示翻译或下一句歌词。单排和双排的切换时机可在「歌词行为」中分别设置。
-
-可在「调整 → 胶囊元素」分别隐藏歌曲封面和律动频段，歌词会填充腾出的空间，胶囊总宽度保持不变。
+仅支持 ColorOS 17
 
 ## 预览
 
@@ -49,10 +47,9 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 
 ## 安装
 
-1. 在 Releases 下载 APK。应用可安装于 Android 14 及以上。歌词功能需要支持 API 102 的 LSPosed，以及原生媒体胶囊接口兼容的 ColorOS 系统。
-2. 启用 TerraMoor，作用域勾选「系统界面」，重启 SystemUI 或手机后打开 TerraMoor。应用内的重启按钮需要 Root 授权。
-3. 在首页确认 LSPosed 已勾选「系统界面」、已启用流体云歌词、ColorOS Live Lyrics Bridge 和通用播放器 Provider 均已安装，再到「调整」设置显示效果。播放时可按播放器选择专用或通用 Provider。
-4. 旧调试包可在「关于」导出配置，正式包导入后停用旧模块。同一时间启用一个 TerraMoor 包。
+1. 在 Releases 下载 APK。
+2. 启用 TerraMoor，作用域勾选「系统界面」，重启「系统界面」或系统后打开 TerraMoor。应用内的重启按钮需要 Root 授权。
+3. 在首页确认 LSPosed 已勾选「系统界面」、已启用流体云歌词、ColorOS Live Lyrics Bridge 和通用播放器 Provider 均已安装，再到「调整」设置显示效果。
 
 ## 模块结构
 
@@ -77,6 +74,5 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 
 反馈时请同时提供重启后的完整 LSPosed 日志、播放器及版本、复现时间和歌曲、Provider 是否能看到歌词、截图中的歌词来源，以及星流或其他修改系统界面的模块启用情况。应用无法直接读取完整 LSPosed 日志或可靠列出其他模块，需手动提供。Issues 可提交反馈；在「关于」可复制 QQ 群号 `1102727864`。
 
-日语预览包含《ツクヨミステップ》的封面与短句。第三方素材的权利归原权利人。
 
 [ColorOS Live Lyrics Bridge 图标](https://github.com/Andrea-lyz/ColorOS-Live-Lyrics-Bridge/blob/a51c946d1c66f02a6a4a96dc0f568e387fe05844/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png)和本项目代码均使用 Apache-2.0。
