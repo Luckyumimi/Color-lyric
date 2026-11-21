@@ -45,11 +45,16 @@ internal class CapsulePreviewView(context: Context) : View(context) {
     private var activeFrame = Int.MIN_VALUE
     private var startedAt = SystemClock.elapsedRealtime()
     private var previewVisible = false
+    private var holdRedrawPending = false
+    private val redrawAfterHold = Runnable {
+        holdRedrawPending = false
+        if (canAnimate()) invalidate()
+    }
 
     fun setPreviewVisible(visible: Boolean) {
         if (visible == previewVisible) return
         previewVisible = visible
-        if (visible) invalidate()
+        if (visible) invalidate() else cancelHoldRedraw()
     }
 
     fun show(newSettings: CapsuleSettings, newLanguage: PreviewLanguage) {
@@ -73,11 +78,13 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         }
         settings = newSettings
         activeFrame = Int.MIN_VALUE
+        cancelHoldRedraw()
         invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        cancelHoldRedraw()
         val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L)
         val position = elapsed % PREVIEW_DURATION_MS
         val lyrics = presentation
@@ -130,7 +137,7 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         canvas.clipPath(coverClip)
         if (settings.showCover) canvas.drawBitmap(cover, null, coverRect, paint)
         canvas.restoreToCount(coverSave)
-        strip.draw(canvas, capsuleLyricsLeft(coverRect.right, dp, settings), pill.top,
+        val redrawDelay = strip.draw(canvas, capsuleLyricsLeft(coverRect.right, dp, settings), pill.top,
             capsuleLyricsRight(geometry.width, geometry.waveformLeft, dp, settings), pill.bottom,
             CapsuleCamera(geometry.cameraCenterX, geometry.cameraRadius), if (lyrics == null) elapsed else position)
         paint.color = Color.BLACK
@@ -142,12 +149,29 @@ internal class CapsulePreviewView(context: Context) : View(context) {
             canvas.drawRoundRect(x, halfHeight - barHeight, x + 1.5f * dp, halfHeight + barHeight, dp, dp, paint)
         }
         canvas.restoreToCount(save)
-        if (previewVisible && isShown && windowVisibility == VISIBLE) postInvalidateOnAnimation()
+        if (!canAnimate()) return
+        when {
+            lyrics != null || settings.showWaveform || redrawDelay == 0L -> postInvalidateOnAnimation()
+            redrawDelay != null -> holdRedrawPending = postDelayed(redrawAfterHold, redrawDelay)
+        }
     }
 
-    override fun onWindowVisibilityChanged(visibility: Int) {
-        super.onWindowVisibilityChanged(visibility)
-        if (visibility == VISIBLE) invalidate()
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (!isVisible) cancelHoldRedraw() else if (previewVisible) invalidate()
+    }
+
+    override fun onDetachedFromWindow() {
+        cancelHoldRedraw()
+        super.onDetachedFromWindow()
+    }
+
+    private fun canAnimate() = previewVisible && isAttachedToWindow && isShown && windowVisibility == VISIBLE
+
+    private fun cancelHoldRedraw() {
+        if (!holdRedrawPending) return
+        removeCallbacks(redrawAfterHold)
+        holdRedrawPending = false
     }
 
     private fun alpha(percent: Int) = (percent * 2.55f).roundToInt()
