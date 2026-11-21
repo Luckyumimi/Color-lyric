@@ -30,10 +30,11 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
     private var artwork: Bitmap? = null
-    private var artworkAlpha = 0
     private var dimAlpha = 0
     private var displayLine: LyricFrame? = null
     private var clock: PlaybackClock? = null
+    private var trackInfoShownAt = 0L
+    private val redrawTrackInfo = Runnable { if (capsule.isShown) capsule.invalidate() }
     private var displaySettings: CapsuleSettings? = null
     private var sizedParams: ViewGroup.LayoutParams? = null
     private var nativeWidth = 0
@@ -47,13 +48,16 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private val offsets = IntArray(2)
 
     fun render(line: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?, clock: PlaybackClock? = null) {
+        if (displayLine != line) {
+            capsule.removeCallbacks(redrawTrackInfo)
+            if (line?.isTrackInfo == true) trackInfoShownAt = SystemClock.elapsedRealtime()
+        }
         val changed = displayLine != line || displaySettings != settings || this.artwork !== artwork || this.clock != clock
         this.clock = clock
         displayLine = line
         displaySettings = settings
         enforceNativeVisibility()
         this.artwork = artwork
-        artworkAlpha = alpha(settings[CapsuleTuning.ARTWORK_OPACITY])
         dimAlpha = alpha(settings[CapsuleTuning.ARTWORK_DIM])
         if (changed) {
             strip.update(line, settings)
@@ -83,7 +87,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         try {
             canvas.clipPath(clip)
             drawArtwork(canvas)
-            if (displayLine == null) return "ARTWORK_ONLY"
+            val line = displayLine ?: return "ARTWORK_ONLY"
             val settings = displaySettings ?: return "ARTWORK_ONLY"
             // Display cutout and getLocationOnScreen share display coordinates. Insets
             // delivered to the native capsule may already have consumed the cutout.
@@ -103,12 +107,19 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             val left = capsuleLyricsLeft(iconStart + target.artwork.width, density, settings)
             val right = capsuleLyricsRight(width, waveformLeft, density, settings)
             val timing = clock
-            val position = timing?.position(SystemClock.elapsedRealtime()) ?: displayLine?.line?.startMs ?: 0L
-            val animate = strip.draw(
+            val now = SystemClock.elapsedRealtime()
+            val position = if (line.isTrackInfo) now - trackInfoShownAt else timing?.position(now) ?: line.startMs
+            val redrawDelay = strip.draw(
                 canvas, left, area.top, right, area.bottom,
                 lens, position,
             )
-            if (animate && timing?.moving == true && timing.speed > 0f) {
+            if (line.isTrackInfo) {
+                capsule.removeCallbacks(redrawTrackInfo)
+                if (capsule.windowVisibility == View.VISIBLE && redrawDelay != null) {
+                    if (redrawDelay == 0L) capsule.postInvalidateOnAnimation()
+                    else capsule.postDelayed(redrawTrackInfo, redrawDelay)
+                }
+            } else if (redrawDelay == 0L && timing?.moving == true && timing.speed > 0f) {
                 capsule.postInvalidateOnAnimation()
             }
             return "LYRICS_DRAWN"
@@ -132,7 +143,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         val left = (bitmap.width - sourceWidth) / 2
         val top = (bitmap.height - sourceHeight) / 2
         crop.set(left, top, left + sourceWidth, top + sourceHeight)
-        paint.alpha = artworkAlpha
+        paint.alpha = CapsuleSettings.ARTWORK_BACKGROUND_ALPHA
         canvas.drawBitmap(bitmap, crop, area, paint)
         paint.color = Color.argb(dimAlpha, 0, 0, 0)
         canvas.drawRect(area, paint)
@@ -181,6 +192,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     }
 
     fun close() {
+        capsule.removeCallbacks(redrawTrackInfo)
         coverVisibility.restore()
         waveformVisibility.restore()
         updateCapsuleWidth(null)

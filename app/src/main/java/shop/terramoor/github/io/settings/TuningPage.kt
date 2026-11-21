@@ -57,7 +57,7 @@ internal fun TuningPage(
         Box(Modifier.fillMaxWidth().padding(start = sidePadding, top = 8.dp, end = sidePadding, bottom = 4.dp)) {
             SettingsGroup(stringResource(R.string.preview_title)) {
                 TuningDropdown(
-                    title = stringResource(R.string.preview_language),
+                    title = stringResource(R.string.preview_sample),
                     items = PreviewLanguage.entries.map { stringResource(it.label) },
                     selectedIndex = PreviewLanguage.entries.indexOf(previewLanguage),
                     onSelectedIndexChange = { previewLanguage = PreviewLanguage.entries[it] },
@@ -94,8 +94,7 @@ internal fun TuningPage(
             topPadding = transitionHeight + 2.dp,
         ) {
             val slider: @Composable (CapsuleTuning, Int, Int, Boolean) -> Unit = { option, title, format, enabled ->
-                val translationSize = option == CapsuleTuning.TRANSLATION_SIZE
-                val range = if (translationSize) settings.translationSizeRange else option.range
+                val range = if (option == CapsuleTuning.SECOND_ROW_SIZE) settings.secondRowSizeRange else option.range
                 TuningSlider(option, title, format, settings[option].coerceIn(range), range, enabled,
                     onChange = { next ->
                         if (next != settings[option].coerceIn(range)) {
@@ -104,7 +103,7 @@ internal fun TuningPage(
                         }
                     },
                     onFinish = app::flushTuning,
-                    canReset = ready,
+                    canReset = enabled,
                     showReset = settings[option] != option.default,
                     onReset = {
                         haptic(CouiHapticEffect.Strength)
@@ -114,20 +113,49 @@ internal fun TuningPage(
             }
             SettingsGroup(stringResource(R.string.section_text_tuning)) {
                 TactileSwitchPreference(
-                    checked = settings.translation,
-                    onCheckedChange = { app.set(CapsuleSettings.TRANSLATION, it) },
-                    title = stringResource(R.string.show_translation),
-                    summary = stringResource(R.string.show_translation_summary),
+                    checked = settings.doubleLine,
+                    onCheckedChange = { app.set(CapsuleSettings.DOUBLE_LINE, it) },
+                    title = stringResource(R.string.double_line_lyrics),
                     enabled = ready,
                 )
                 HorizontalDivider(divider)
-                slider(CapsuleTuning.TITLE_SIZE, R.string.tune_title_size, R.string.value_dp, ready)
+                TuningDropdown(
+                    title = stringResource(R.string.second_row_content),
+                    items = listOf(stringResource(R.string.second_row_translation), stringResource(R.string.second_row_lyric)),
+                    selectedIndex = settings.secondRowContent.ordinal,
+                    enabled = ready && settings.doubleLine,
+                    onSelectedIndexChange = { app.setSecondRowContent(SecondRowContent.entries[it]) },
+                )
                 HorizontalDivider(divider)
-                slider(CapsuleTuning.TRANSLATION_SIZE, R.string.tune_translation_size, R.string.value_dp, ready && settings.translation)
+                slider(CapsuleTuning.FIRST_ROW_SIZE, R.string.tune_first_row_size, R.string.value_dp, ready)
                 HorizontalDivider(divider)
-                slider(CapsuleTuning.TITLE_OPACITY, R.string.tune_title_opacity, R.string.value_percent, ready)
+                slider(CapsuleTuning.SECOND_ROW_SIZE, R.string.tune_second_row_size, R.string.value_dp, ready && settings.doubleLine)
                 HorizontalDivider(divider)
-                slider(CapsuleTuning.TRANSLATION_OPACITY, R.string.tune_translation_opacity, R.string.value_percent, ready && settings.translation)
+                slider(CapsuleTuning.FIRST_ROW_OPACITY, R.string.tune_first_row_opacity, R.string.value_percent, ready)
+                HorizontalDivider(divider)
+                slider(CapsuleTuning.SECOND_ROW_OPACITY, R.string.tune_second_row_opacity, R.string.value_percent, ready && settings.doubleLine)
+                if (settings.doubleLine && settings.secondRowContent == SecondRowContent.TRANSLATION) {
+                    HorizontalDivider(divider)
+                    TuningDropdown(
+                        title = stringResource(R.string.missing_translation_mode),
+                        items = listOf(
+                            stringResource(R.string.missing_translation_single),
+                            stringResource(R.string.missing_translation_double_lyrics),
+                        ),
+                        selectedIndex = settings.missingTranslationMode.ordinal,
+                        enabled = ready,
+                        onSelectedIndexChange = { app.setMissingTranslationMode(MissingTranslationMode.entries[it]) },
+                    )
+                    if (settings.missingTranslationMode == MissingTranslationMode.SINGLE_LINE) {
+                        HorizontalDivider(divider)
+                        TactileSwitchPreference(
+                            checked = settings.fallbackSingleLineExpand,
+                            onCheckedChange = { app.set(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, it) },
+                            title = stringResource(R.string.fallback_single_line_expand),
+                            enabled = ready,
+                        )
+                    }
+                }
                 HorizontalDivider(divider)
                 TuningDropdown(
                     title = stringResource(R.string.lyric_alignment),
@@ -176,15 +204,33 @@ internal fun TuningPage(
                 HorizontalDivider(divider)
                 slider(CapsuleTuning.BLUR, R.string.tune_blur, R.string.value_number, ready && settings.artwork)
                 HorizontalDivider(divider)
-                slider(CapsuleTuning.ARTWORK_OPACITY, R.string.tune_artwork_opacity, R.string.value_percent, ready && settings.artwork)
                 HorizontalDivider(divider)
                 slider(CapsuleTuning.ARTWORK_DIM, R.string.tune_artwork_dim, R.string.value_percent, ready && settings.artwork)
             }
             SettingsGroup(stringResource(R.string.section_lyric_behavior)) {
+                val switchOptions = listOf(
+                    LyricSwitchMode.AFTER_END to R.string.lyric_switch_after_end,
+                    LyricSwitchMode.AT_NEXT_START to R.string.lyric_switch_next_start,
+                )
+                TuningDropdown(
+                    title = stringResource(R.string.single_line_switch_mode),
+                    items = switchOptions.map { stringResource(it.second) },
+                    selectedIndex = switchOptions.indexOfFirst { it.first == settings.singleLineSwitchMode },
+                    enabled = ready,
+                    onSelectedIndexChange = { app.setSingleLineSwitchMode(switchOptions[it].first) },
+                )
+                HorizontalDivider(divider)
+                TuningDropdown(
+                    title = stringResource(R.string.double_line_switch_mode),
+                    items = switchOptions.map { stringResource(it.second) },
+                    selectedIndex = switchOptions.indexOfFirst { it.first == settings.doubleLineSwitchMode },
+                    enabled = ready && settings.doubleLine,
+                    onSelectedIndexChange = { app.setDoubleLineSwitchMode(switchOptions[it].first) },
+                )
+                HorizontalDivider(divider)
                 val motionOptions = listOf(
                     LineMotion.NONE to R.string.motion_none,
                     LineMotion.UP to R.string.motion_up,
-                    LineMotion.DOWN to R.string.motion_down,
                     LineMotion.FADE to R.string.motion_fade,
                 )
                 TuningDropdown(

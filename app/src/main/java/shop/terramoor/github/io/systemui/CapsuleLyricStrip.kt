@@ -8,7 +8,7 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import shop.terramoor.github.io.lyrics.LyricFrame
-import shop.terramoor.github.io.lyrics.LyricLine
+import shop.terramoor.github.io.lyrics.LyricRows
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LineMotion
@@ -18,10 +18,10 @@ import kotlin.math.floor
 
 /** Draws each lyric lane once, with a fixed mask over the camera. */
 internal class CapsuleLyricStrip(private val density: Float) {
-    private val title = Lane(true)
-    private val translation = Lane(false)
-    private val priorTitle = Lane(true)
-    private val priorTranslation = Lane(false)
+    private val firstRow = Lane()
+    private val secondRow = Lane()
+    private val priorFirstRow = Lane()
+    private val priorSecondRow = Lane()
     private var frame: LyricFrame? = null
     private var motion = LineMotion.UP
     private var lyricAlignment = LyricAlignment.CENTER
@@ -32,24 +32,27 @@ internal class CapsuleLyricStrip(private val density: Float) {
         this.frame = frame
         motion = settings.motion
         lyricAlignment = settings.lyricAlignment
-        fun setup(main: Lane, second: Lane, line: LyricLine?) {
-            val translated = line?.translation?.takeIf { (settings.translation || frame?.isTrackInfo == true) && it.isNotBlank() }
-            val size = settings.effectiveTitleSize(hasSecondLine = translated != null)
-            main.update(line?.text, size * density, settings[CapsuleTuning.TITLE_OPACITY])
-            second.update(translated, settings.effectiveTranslationSize * density, settings[CapsuleTuning.TRANSLATION_OPACITY])
+        fun setup(main: Lane, second: Lane, rows: LyricRows?) {
+            val size = settings.effectiveFirstRowSize(rows?.missingTranslationSingleLine == true)
+            main.update(rows?.first, size * density, settings[CapsuleTuning.FIRST_ROW_OPACITY], Typeface.DEFAULT_BOLD)
+            // An upcoming lyric uses the same glyphs before and after promotion.
+            val secondFace = if (rows?.nextLyricStartMs != null) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            second.update(rows?.second, settings.effectiveSecondRowSize * density,
+                settings[CapsuleTuning.SECOND_ROW_OPACITY], secondFace)
         }
-        setup(title, translation, frame?.line)
-        setup(priorTitle, priorTranslation, frame?.priorLine)
+        setup(firstRow, secondRow, frame?.rows)
+        setup(priorFirstRow, priorSecondRow, frame?.priorRows)
         fadePx = if (settings.cameraFade) settings[CapsuleTuning.CAMERA_FADE_RADIUS] * density else 0f
     }
 
+    /** Returns null for static content, 0 for the next frame, or a delay for the next change. */
     fun draw(
         canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float,
         camera: CapsuleCamera?, position: Long,
         opacity: Float = 1f,
-    ): Boolean {
-        val current = frame ?: return false
-        if (right <= left || bottom <= top || opacity <= 0f) return false
+    ): Long? {
+        val current = frame ?: return null
+        if (right <= left || bottom <= top || opacity <= 0f) return null
         // The same logical strip feeds both sides. Snap the physical seam to pixel boundaries
         // so complementary slices cannot lose a column to fractional clip rounding.
         val seam = camera?.let {
@@ -61,29 +64,43 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val lensRight = seam?.let { (it.x + it.radiusX).coerceIn(left, right) } ?: left
         val skippedWidth = lensRight - lensLeft
         val compactRight = right - skippedWidth
-        if (compactRight <= left) return false
+        if (compactRight <= left) return null
         val viewport = CapsuleTextViewport(left, compactRight, lyricAlignment)
         val feather = viewport.outerFeather(density)
-        val phase = if (current.priorLine != null && motion != LineMotion.NONE) {
+        val phase = if (current.priorRows != null && motion != LineMotion.NONE) {
             ((position - current.displayStartMs) / 260f).coerceIn(0f, 1f)
         } else 1f
         val easing = 1f - (1f - phase) * (1f - phase)
-        val direction = when (motion) {
-            LineMotion.UP -> 1f
-            LineMotion.DOWN -> -1f
-            else -> 0f
-        }
-        val travel = (bottom - top) * direction
+        val travel = if (motion == LineMotion.UP) bottom - top else 0f
         val center = (top + bottom) / 2
-        val progress = current.scrollFraction(position)
+        val marquee = if (current.isTrackInfo) {
+            TrackTitleMarquee.sample(position, viewport.travel(firstRow.width) / density, feather.trailingInset / density)
+        } else null
+        val progress = marquee?.progress ?: current.scrollFraction(position)
+        val secondIsStatic = current.isTrackInfo || current.rows.nextLyricStartMs != null
+        val priorPreviewIsStatic = current.priorRows?.nextLyricStartMs != null
+        val promote = phase < 1f && motion == LineMotion.UP && current.promotesPreviousLyric
         val crossfade = motion == LineMotion.FADE
         fun drawTrack(destination: Canvas) {
-            if (phase < 1f) {
-                drawPair(destination, priorTitle, priorTranslation, viewport, feather,
-                    center - travel * easing, 1f, opacity * if (crossfade) 1f - easing else 1f)
+            if (promote) {
+                val oldFirstTop = pairTop(center, priorFirstRow, priorSecondRow)
+                val newFirstTop = pairTop(center, firstRow, secondRow)
+                val newSecondTop = newFirstTop + firstRow.height
+                priorFirstRow.draw(destination, viewport, feather, oldFirstTop - priorFirstRow.height * easing,
+                    1f, opacity * (1f - easing))
+                secondRow.draw(destination, viewport, feather, newSecondTop + secondRow.height * (1f - easing),
+                    if (secondIsStatic) 0f else progress, opacity * easing)
+                // Draw the promoted lyric once; position, size and opacity meet both row endpoints.
+                firstRow.drawPromoted(destination, viewport, feather, priorSecondRow,
+                    oldFirstTop + priorFirstRow.height, newFirstTop, progress, easing, opacity)
+                return
             }
-            drawPair(destination, title, translation, viewport, feather,
-                center + travel * (1f - easing), progress, opacity * if (crossfade) easing else 1f)
+            if (phase < 1f) {
+                drawPair(destination, priorFirstRow, priorSecondRow, viewport, feather,
+                    center - travel * easing, 1f, priorPreviewIsStatic, opacity * if (crossfade) 1f - easing else 1f)
+            }
+            drawPair(destination, firstRow, secondRow, viewport, feather,
+                center + travel * (1f - easing), progress, secondIsStatic, opacity * if (crossfade) easing else 1f)
         }
         fun drawLyrics(destination: Canvas) {
             if (skippedWidth == 0f) {
@@ -107,10 +124,11 @@ internal class CapsuleLyricStrip(private val density: Float) {
                 }
             }
         }
-        val scrolling = viewport.travel(maxOf(title.width, translation.width)) > 0f
+        val scrollingWidth = if (secondIsStatic) firstRow.width else maxOf(firstRow.width, secondRow.width)
+        val scrolling = viewport.travel(scrollingWidth) > 0f
         val save = canvas.save()
         try {
-            if (!canvas.clipRect(left, top, right, bottom)) return false
+            if (!canvas.clipRect(left, top, right, bottom)) return null
             if (seam != null && seam.x + seam.radiusX + fadePx > left &&
                 seam.x - seam.radiusX - fadePx < right
             ) {
@@ -122,32 +140,34 @@ internal class CapsuleLyricStrip(private val density: Float) {
         } finally {
             canvas.restoreToCount(save)
         }
-        return phase < 1f || (scrolling && progress < 1f && current.endMs > current.line.startMs)
+        if (marquee != null) return marquee.redrawDelayMs
+        return 0L.takeIf { phase < 1f || (scrolling && progress < 1f && current.endMs > current.startMs) }
     }
 
     private fun drawPair(
         canvas: Canvas, main: Lane, second: Lane, viewport: CapsuleTextViewport,
-        feather: OuterLyricFeather, center: Float, progress: Float, alpha: Float,
+        feather: OuterLyricFeather, center: Float, progress: Float, staticSecond: Boolean, alpha: Float,
     ) {
-        val y = center - (main.height + second.height) / 2f
+        val y = pairTop(center, main, second)
         main.draw(canvas, viewport, feather, y, progress, alpha)
-        second.draw(canvas, viewport, feather, y + main.height, progress, alpha)
+        second.draw(canvas, viewport, feather, y + main.height, if (staticSecond) 0f else progress, alpha)
     }
 
-    private class Lane(bold: Boolean) {
+    private fun pairTop(center: Float, first: Lane, second: Lane) = center - (first.height + second.height) / 2f
+
+    private class Lane {
         private val outerMask = OuterLyricMask()
-        private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
-            typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-        }
+        private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG)
         private var layout: StaticLayout? = null
         private var text: String? = null
         val height: Int get() = layout?.height ?: 0
         val width: Float get() = layout?.getLineWidth(0) ?: 0f
 
-        fun update(value: String?, size: Float, opacity: Int) {
-            if (value != text || size != paint.textSize) {
+        fun update(value: String?, size: Float, opacity: Int, face: Typeface) {
+            if (value != text || size != paint.textSize || face != paint.typeface) {
                 text = value
                 paint.textSize = size
+                paint.typeface = face
                 layout = value?.let {
                     val singleLine = it.replace('\n', ' ')
                     val width = (ceil(Layout.getDesiredWidth(singleLine, paint)).toInt() + 2).coerceAtLeast(1)
@@ -162,16 +182,46 @@ internal class CapsuleLyricStrip(private val density: Float) {
             canvas: Canvas, viewport: CapsuleTextViewport, feather: OuterLyricFeather,
             y: Float, progress: Float, alpha: Float,
         ) {
+            drawAt(canvas, viewport, feather, y, viewport.textOffset(width, progress, feather.trailingInset),
+                scale = 1f, inkAlpha = paint.alpha * alpha, fade = viewport.edgeFade(width, progress, feather))
+        }
+
+        fun drawPromoted(
+            canvas: Canvas, viewport: CapsuleTextViewport, feather: OuterLyricFeather, previous: Lane,
+            fromTop: Float, toTop: Float, progress: Float, phase: Float, alpha: Float,
+        ) {
             val measured = layout ?: return
-            if (alpha <= 0f) return
-            val x = viewport.left + viewport.textOffset(width, progress, feather.trailingInset) - measured.getLineLeft(0)
+            if (phase == 0f) {
+                previous.draw(canvas, viewport, feather, fromTop, 0f, alpha)
+                return
+            }
+            val baseline = measured.getLineBaseline(0)
+            val oldBaseline = previous.layout?.getLineBaseline(0) ?: return
+            val scale = lerp(previous.paint.textSize / paint.textSize, 1f, phase)
+            val y = lerp(fromTop + oldBaseline, toTop + baseline, phase) - baseline * scale
+            val x = lerp(viewport.textOffset(previous.width, 0f, feather.trailingInset),
+                viewport.textOffset(width, progress, feather.trailingInset), phase)
+            val fromFade = viewport.edgeFade(previous.width, 0f, feather)
+            val toFade = viewport.edgeFade(width, progress, feather)
+            val fade = EdgeFade(lerp(fromFade.left, toFade.left, phase), lerp(fromFade.right, toFade.right, phase))
+            drawAt(canvas, viewport, feather, y, x, scale,
+                lerp(previous.paint.alpha.toFloat(), paint.alpha.toFloat(), phase) * alpha, fade)
+        }
+
+        private fun drawAt(
+            canvas: Canvas, viewport: CapsuleTextViewport, feather: OuterLyricFeather,
+            y: Float, offset: Float, scale: Float, inkAlpha: Float, fade: EdgeFade,
+        ) {
+            val measured = layout ?: return
+            if (inkAlpha <= 0f) return
+            val x = viewport.left + offset - measured.getLineLeft(0) * scale
             val originalAlpha = paint.alpha
             try {
-                val fade = viewport.edgeFade(width, progress, feather)
-                outerMask.draw(canvas, viewport.left, y, viewport.right, y + measured.height,
+                outerMask.draw(canvas, viewport.left, y, viewport.right, y + measured.height * scale,
                     feather, fade) { target ->
-                    paint.alpha = (originalAlpha * alpha).toInt()
+                    paint.alpha = inkAlpha.toInt()
                     target.translate(x, y)
+                    if (scale != 1f) target.scale(scale, scale)
                     measured.draw(target)
                 }
             } finally {
@@ -180,3 +230,5 @@ internal class CapsuleLyricStrip(private val density: Float) {
         }
     }
 }
+
+private fun lerp(start: Float, end: Float, fraction: Float): Float = start + (end - start) * fraction

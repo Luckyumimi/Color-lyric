@@ -6,13 +6,18 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 5
+    private const val VERSION = 6
     private const val MAX_BYTES = 16 * 1024
 
     fun encode(settings: CapsuleSettings): String {
         val data = JSONObject()
             .put(CapsuleSettings.ENABLED, settings.enabled)
-            .put(CapsuleSettings.TRANSLATION, settings.translation)
+            .put(CapsuleSettings.DOUBLE_LINE, settings.doubleLine)
+            .put(CapsuleSettings.SECOND_ROW_CONTENT, settings.secondRowContent.name)
+            .put(CapsuleSettings.SINGLE_LINE_SWITCH_MODE, settings.singleLineSwitchMode.name)
+            .put(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE, settings.doubleLineSwitchMode.name)
+            .put(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)
+            .put(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, settings.fallbackSingleLineExpand)
             .put(CapsuleSettings.ARTWORK, settings.artwork)
             .put(CapsuleSettings.SHOW_COVER, settings.showCover)
             .put(CapsuleSettings.SHOW_WAVEFORM, settings.showWaveform)
@@ -36,25 +41,44 @@ internal object CapsuleBackup {
             if (version < 3 && option == CapsuleTuning.ISLAND_WIDTH) return@associateWith 202 // Historical width for backups before v3.
             (data.get(option.key) as? Int)?.takeIf { it in option.range } ?: error("Invalid tuning")
         }
-        return CapsuleSettings(
+        val lyrics = if (version < 6) {
+            CapsuleSettings.migratedLegacy(flag(CapsuleSettings.LEGACY_TRANSLATION))
+        } else CapsuleSettings(
+            doubleLine = flag(CapsuleSettings.DOUBLE_LINE),
+            secondRowContent = SecondRowContent.valueOf(data.getString(CapsuleSettings.SECOND_ROW_CONTENT)),
+            singleLineSwitchMode = LyricSwitchMode.valueOf(data.getString(CapsuleSettings.SINGLE_LINE_SWITCH_MODE)),
+            doubleLineSwitchMode = LyricSwitchMode.valueOf(data.getString(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)),
+            missingTranslationMode = MissingTranslationMode.valueOf(data.getString(CapsuleSettings.MISSING_TRANSLATION_MODE)),
+            fallbackSingleLineExpand = flag(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND),
+        )
+        return lyrics.copy(
             enabled = flag(CapsuleSettings.ENABLED),
-            translation = flag(CapsuleSettings.TRANSLATION),
             artwork = flag(CapsuleSettings.ARTWORK),
             showCover = if (version < 5) true else flag(CapsuleSettings.SHOW_COVER),
             showWaveform = if (version < 5) true else flag(CapsuleSettings.SHOW_WAVEFORM),
             lyricAlignment = if (version < 3) LyricAlignment.CENTER
             else LyricAlignment.valueOf(data.getString(CapsuleSettings.LYRIC_ALIGNMENT)),
             cameraFade = flag(CapsuleSettings.CAMERA_FADE),
-            motion = LineMotion.valueOf(data.getString(CapsuleSettings.MOTION)),
+            motion = LineMotion.fromStored(data.getString(CapsuleSettings.MOTION)) ?: error("Invalid line motion"),
             noLyricsMode = NoLyricsMode.valueOf(data.getString(CapsuleSettings.NO_LYRICS)),
             tuning = tuning,
         )
     }
 }
 
+internal fun SharedPreferences.Editor.writeLyricSettings(settings: CapsuleSettings) {
+    putBoolean(CapsuleSettings.DOUBLE_LINE, settings.doubleLine)
+    putString(CapsuleSettings.SECOND_ROW_CONTENT, settings.secondRowContent.name)
+    putString(CapsuleSettings.SINGLE_LINE_SWITCH_MODE, settings.singleLineSwitchMode.name)
+    putString(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE, settings.doubleLineSwitchMode.name)
+    putString(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)
+    putBoolean(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, settings.fallbackSingleLineExpand)
+    remove(CapsuleSettings.LEGACY_TRANSLATION)
+}
+
 internal fun SharedPreferences.Editor.writeSettings(settings: CapsuleSettings) {
     putBoolean(CapsuleSettings.ENABLED, settings.enabled)
-    putBoolean(CapsuleSettings.TRANSLATION, settings.translation)
+    writeLyricSettings(settings)
     putBoolean(CapsuleSettings.ARTWORK, settings.artwork)
     putBoolean(CapsuleSettings.SHOW_COVER, settings.showCover)
     putBoolean(CapsuleSettings.SHOW_WAVEFORM, settings.showWaveform)

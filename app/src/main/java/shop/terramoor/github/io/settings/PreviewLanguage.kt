@@ -7,10 +7,11 @@ import androidx.annotation.StringRes
 import shop.terramoor.github.io.R
 import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.LyricLine
+import shop.terramoor.github.io.lyrics.Timeline
 
 internal const val PREVIEW_DURATION_MS = 9100L
-private const val PREVIEW_LEAD_MS = 350L
 private val lineStarts = longArrayOf(0L, 3500L, 5400L)
+private val lineEnds = longArrayOf(3000L, 4900L, 8700L)
 
 internal enum class PreviewLanguage(
     @StringRes val label: Int,
@@ -21,21 +22,20 @@ internal enum class PreviewLanguage(
     JAPANESE(R.string.preview_japanese, R.array.preview_lyrics_japanese,
         R.array.preview_lyrics_japanese_chinese, R.drawable.preview_tsukuyomi_step),
     ENGLISH(R.string.preview_english, R.array.preview_lyrics_english),
-    KOREAN(R.string.preview_korean, R.array.preview_lyrics_korean);
+    KOREAN(R.string.preview_korean, R.array.preview_lyrics_korean),
+    NO_SYNC_LYRICS(R.string.preview_no_sync_lyrics, 0);
 
-    fun frames(resources: Resources): List<LyricFrame> {
+    fun timeline(resources: Resources): Timeline? {
+        if (this == NO_SYNC_LYRICS) return null
         val originals = resources.getStringArray(lyrics)
         val translations = resources.getStringArray(translation)
         val lines = lineStarts.mapIndexed { index, time ->
-            LyricLine(time, originals[index], translations[index])
+            LyricLine(time, originals[index], translations[index], lineEnds[index])
         }
-        return lines.mapIndexed { index, line ->
-            LyricFrame(
-                line = line,
-                endMs = lines.getOrNull(index + 1)?.let { it.startMs - PREVIEW_LEAD_MS } ?: PREVIEW_DURATION_MS,
-                displayStartMs = (line.startMs - PREVIEW_LEAD_MS).coerceAtLeast(0L),
-                priorLine = lines.getOrElse(index - 1) { lines.last() },
-            )
-        }
+        return Timeline.fromLines(lines)
     }
+
+    fun trackInfo(resources: Resources): LyricFrame? = if (this == NO_SYNC_LYRICS) {
+        LyricFrame.trackInfo(resources.getString(R.string.preview_track_title), resources.getString(R.string.preview_track_artist))
+    } else null
 }

@@ -101,23 +101,28 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
                 updateState(State(Connection.FAILED, confirmed))
                 return@launch
             }
-            if (initial != null) confirmed = initial
-            if (!inScope) discardWrites()
-            preferences = prefs
-            updateState(if (!inScope) State(Connection.NO_SCOPE, confirmed) else
-                State(Connection.READY, initial ?: state.value.settings))
+            attachPreferences(prefs, inScope, initial)
         }
+    }
+
+    internal fun attachPreferences(prefs: SharedPreferences, inScope: Boolean, initial: CapsuleSettings?) {
+        if (initial != null) confirmed = initial
+        if (!inScope) discardWrites()
+        preferences = prefs
+        updateState(if (!inScope) State(Connection.NO_SCOPE, confirmed) else
+            State(Connection.READY, initial ?: state.value.settings))
     }
 
     internal fun set(key: String, checked: Boolean) {
         val current = state.value.settings
         val next = when (key) {
             CapsuleSettings.ENABLED -> current.copy(enabled = checked)
-            CapsuleSettings.TRANSLATION -> current.copy(translation = checked)
+            CapsuleSettings.DOUBLE_LINE -> current.copy(doubleLine = checked)
             CapsuleSettings.ARTWORK -> current.copy(artwork = checked)
             CapsuleSettings.SHOW_COVER -> current.copy(showCover = checked)
             CapsuleSettings.SHOW_WAVEFORM -> current.copy(showWaveform = checked)
             CapsuleSettings.CAMERA_FADE -> current.copy(cameraFade = checked)
+            CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND -> current.copy(fallbackSingleLineExpand = checked)
             else -> return
         }
         save(next) { putBoolean(key, checked) }
@@ -155,6 +160,30 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         save(state.value.settings.copy(lyricAlignment = alignment)) { putString(CapsuleSettings.LYRIC_ALIGNMENT, alignment.name) }
     }
 
+    internal fun setSecondRowContent(content: SecondRowContent) {
+        save(state.value.settings.copy(secondRowContent = content)) {
+            putString(CapsuleSettings.SECOND_ROW_CONTENT, content.name)
+        }
+    }
+
+    internal fun setSingleLineSwitchMode(mode: LyricSwitchMode) {
+        save(state.value.settings.copy(singleLineSwitchMode = mode)) {
+            putString(CapsuleSettings.SINGLE_LINE_SWITCH_MODE, mode.name)
+        }
+    }
+
+    internal fun setDoubleLineSwitchMode(mode: LyricSwitchMode) {
+        save(state.value.settings.copy(doubleLineSwitchMode = mode)) {
+            putString(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE, mode.name)
+        }
+    }
+
+    internal fun setMissingTranslationMode(mode: MissingTranslationMode) {
+        save(state.value.settings.copy(missingTranslationMode = mode)) {
+            putString(CapsuleSettings.MISSING_TRANSLATION_MODE, mode.name)
+        }
+    }
+
     internal fun setMotion(motion: LineMotion) {
         save(state.value.settings.copy(motion = motion)) { putString(CapsuleSettings.MOTION, motion.name) }
     }
@@ -178,12 +207,14 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         pendingTuning.clear()
         val defaults = CapsuleSettings()
         val current = state.value.settings
-        save(defaults.copy(enabled = current.enabled, translation = current.translation, artwork = current.artwork)) {
+        val reset = defaults.copy(enabled = current.enabled, doubleLine = current.doubleLine, artwork = current.artwork)
+        save(reset) {
             CapsuleTuning.entries.forEach { remove(it.key) }
             remove(CapsuleSettings.LYRIC_ALIGNMENT)
             remove(CapsuleSettings.CAMERA_FADE)
             remove(CapsuleSettings.MOTION)
             remove(CapsuleSettings.NO_LYRICS)
+            writeLyricSettings(reset)
             remove(CapsuleSettings.SHOW_COVER)
             remove(CapsuleSettings.SHOW_WAVEFORM)
         }
@@ -209,10 +240,16 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             return
         }
         writerRunning = true
+        val before = confirmed
         scope.launch {
             val stored = withContext(Dispatchers.IO) {
                 runCatching {
-                    if (prefs.edit().apply(write.edit).commit()) CapsuleSettings.read(prefs) else {
+                    val edit = prefs.edit().apply {
+                        // Persist defaults/migration in the same transaction as the first edit.
+                        if (!prefs.contains(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)) writeLyricSettings(before)
+                        write.edit(this)
+                    }
+                    if (edit.commit()) CapsuleSettings.read(prefs) else {
                         diagnostics.note("LSPosed preference commit rejected")
                         null
                     }

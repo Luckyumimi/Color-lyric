@@ -7,6 +7,7 @@ coui = "1.1.0"
 couiKit = "0.0.1-alpha11"
 xposed = "102.0.0"
 junit = "4.13.2"
+json = "20240303"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 
@@ -20,6 +21,7 @@ coui-preference = { module = "io.github.suqi8.coui.kmp:coui-preference", version
 xposed-api = { module = "io.github.libxposed:api", version.ref = "xposed" }
 xposed-service = { module = "io.github.libxposed:service", version.ref = "xposed" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+json = { module = "org.json:json", version.ref = "json" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 

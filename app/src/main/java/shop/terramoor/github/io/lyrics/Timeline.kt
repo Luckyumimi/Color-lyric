@@ -1,5 +1,7 @@
 package shop.terramoor.github.io.lyrics
 
+import shop.terramoor.github.io.settings.LyricSwitchMode
+
 internal data class LyricLine(val startMs: Long, val text: String, val translation: String? = null, val endMs: Long? = null)
 
 internal class Timeline private constructor(internal val lines: List<LyricLine>) {
@@ -13,27 +15,39 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
         return low - 1
     }
 
-    fun displayStart(index: Int): Long {
+    // The outgoing row layout controls when the next line replaces it.
+    fun displayStart(index: Int, outgoingMode: LyricSwitchMode = LyricSwitchMode.AFTER_END): Long {
         val current = lines[index]
         val previous = lines.getOrNull(index - 1) ?: return current.startMs
-        if (previous.text.isBlank() || current.text.isBlank()) return current.startMs
+        if (outgoingMode == LyricSwitchMode.AT_NEXT_START || previous.text.isBlank() || current.text.isBlank()) {
+            return current.startMs
+        }
         return previous.endMs?.coerceIn(previous.startMs + 1, current.startMs)
-            ?: (current.startMs - minOf(350L, (current.startMs - previous.startMs) / 4))
+            ?: current.startMs
     }
 
-    fun displayIndexAt(positionMs: Long): Int {
+    fun displayIndexAt(positionMs: Long, mode: LyricSwitchMode = LyricSwitchMode.AFTER_END): Int =
+        displayIndexAt(positionMs) { mode }
+
+    fun displayIndexAt(positionMs: Long, modeForLine: (Int) -> LyricSwitchMode): Int {
         val timedIndex = indexAt(positionMs)
         val next = timedIndex + 1
-        return if (next in lines.indices && displayStart(next) <= positionMs) next else timedIndex
+        return if (timedIndex >= 0 && next in lines.indices &&
+            displayStart(next, modeForLine(timedIndex)) <= positionMs
+        ) next else timedIndex
     }
 
-    fun scrollEnd(index: Int, durationMs: Long): Long {
-        val next = if (index + 1 in lines.indices) displayStart(index + 1) else durationMs
-        val explicitEnd = lines[index].endMs ?: return next
-        return if (next > 0L) minOf(next, explicitEnd) else explicitEnd
+    fun scrollEnd(index: Int, durationMs: Long, mode: LyricSwitchMode = LyricSwitchMode.AFTER_END): Long {
+        val boundary = if (index + 1 in lines.indices) displayStart(index + 1, mode) else durationMs
+        // A real end still bounds scrolling into an explicit gap or past the last line.
+        if (index + 1 in lines.indices && lines[index + 1].text.isNotBlank()) return boundary
+        val explicitEnd = lines[index].endMs ?: return boundary
+        return if (boundary > 0L) minOf(boundary, explicitEnd) else explicitEnd
     }
 
     companion object {
+        fun fromLines(lines: List<LyricLine>): Timeline = Timeline(lines.sortedBy { it.startMs }.distinctBy { it.startMs })
+
         private val time = Regex("""(?:\[(\d{1,4}):(\d{2})(?:[.:](\d{1,3}))?]|<(\d{1,4}):(\d{2})(?:[.:](\d{1,3}))?>)""")
 
         fun parse(lyric: String, rawLyric: String, translation: String, ends: Map<Long, Long> = emptyMap()): Timeline? {

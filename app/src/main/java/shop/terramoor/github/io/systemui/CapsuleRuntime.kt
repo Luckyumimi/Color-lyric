@@ -22,7 +22,7 @@ import io.github.libxposed.api.XposedInterface.HookHandle
 import shop.terramoor.github.io.diagnostics.DiagnosticLog
 import shop.terramoor.github.io.lyrics.LyricPayload
 import shop.terramoor.github.io.lyrics.LyricFrame
-import shop.terramoor.github.io.lyrics.LyricLine
+import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.PlaybackClock
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
@@ -388,17 +388,17 @@ internal class CapsuleRuntime(
         }
         val clock = watch.playbackClock()
         val position = clock.position(SystemClock.elapsedRealtime())
-        val index = timeline.displayIndexAt(position)
+        val presentation = LyricPresentation(timeline, settings)
+        val index = presentation.indexAt(position)
         val line = timeline.lines.getOrNull(index)?.takeIf { it.text.isNotBlank() }
-        val next = (index + 1).takeIf { it in timeline.lines.indices }?.let(timeline::displayStart)
+        val next = presentation.nextBoundary(index)
+        val frame = presentation.frameAt(index, watch.duration)
         if (watch.lastLoggedLine != index) {
             watch.lastLoggedLine = index
-            diagnostics.note("[lyric schedule] index=$index/${timeline.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, scrollEnd=${if (line != null) timeline.scrollEnd(index, watch.duration) else null}, displayStart=${if (index >= 0) timeline.displayStart(index) else null}, next=$next, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
+            val mode = index.takeIf { it >= 0 }?.let(presentation::switchMode)
+            diagnostics.note("[lyric schedule] index=$index/${timeline.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, scrollEnd=${frame?.endMs}, displayStart=${frame?.displayStartMs}, next=$next, mode=$mode, secondRow=${frame?.rows?.second != null}, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
         }
-        if (line != null) {
-            val prior = timeline.lines.getOrNull(index - 1)?.takeIf { it.text.isNotBlank() }
-            val frame = LyricFrame(line, timeline.scrollEnd(index, watch.duration), prior,
-                displayStartMs = timeline.displayStart(index))
+        if (frame != null) {
             binding.render(frame, settings, background, clock)
             setStatus("Rendering lyrics in native media capsule")
         } else {
@@ -625,7 +625,7 @@ internal class CapsuleRuntime(
             if (!trackInfoAvailable) return null
             val name = track?.title?.trim()?.take(512)?.takeIf { it.isNotEmpty() } ?: return null
             val byline = track?.artist?.trim()?.take(512)?.takeIf { it.isNotEmpty() }
-            return LyricFrame(LyricLine(0, name, byline), 0, isTrackInfo = true)
+            return LyricFrame.trackInfo(name, byline)
         }
 
         fun artwork(fallback: Icon?, strength: Int): Bitmap? {
