@@ -3,8 +3,6 @@
     <string name="section_capsule">流体云歌词</string>
     <string name="section_connection">模块状态</string>
     <string name="enable_lyrics">启用流体云歌词</string>
-    <string name="show_translation">显示翻译</string>
-    <string name="show_translation_summary">有对应译文时显示第二行，单行原文自动加大 2 dp（最高 14 dp）</string>
     <string name="double_line_lyrics">双排歌词</string>
     <string name="double_line_lyrics_summary">显示当前原文和第二排内容</string>
     <string name="artwork_background">使用封面背景</string>
@@ -19,10 +17,6 @@
     <string name="status_failed_hint">返回此页重试。如果持续失败，请检查 LSPosed。</string>
     <string name="section_text_tuning">歌词样式</string>
     <string name="section_artwork_tuning">封面背景</string>
-    <string name="tune_title_size">原文字号</string>
-    <string name="tune_translation_size">译文字号</string>
-    <string name="tune_title_opacity">原文不透明度</string>
-    <string name="tune_translation_opacity">译文不透明度</string>
     <string name="tune_first_row_size">第一排字号</string>
     <string name="tune_second_row_size">第二排字号</string>
     <string name="tune_first_row_opacity">第一排不透明度</string>
