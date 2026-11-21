@@ -57,7 +57,7 @@ internal fun TuningPage(
         Box(Modifier.fillMaxWidth().padding(start = sidePadding, top = 8.dp, end = sidePadding, bottom = 4.dp)) {
             SettingsGroup(stringResource(R.string.preview_title)) {
                 TuningDropdown(
-                    title = stringResource(R.string.preview_language),
+                    title = stringResource(R.string.preview_sample),
                     items = PreviewLanguage.entries.map { stringResource(it.label) },
                     selectedIndex = PreviewLanguage.entries.indexOf(previewLanguage),
                     onSelectedIndexChange = { previewLanguage = PreviewLanguage.entries[it] },
@@ -94,8 +94,7 @@ internal fun TuningPage(
             topPadding = transitionHeight + 2.dp,
         ) {
             val slider: @Composable (CapsuleTuning, Int, Int, Boolean) -> Unit = { option, title, format, enabled ->
-                val translationSize = option == CapsuleTuning.SECOND_ROW_SIZE
-                val range = if (translationSize) settings.translationSizeRange else option.range
+                val range = if (option == CapsuleTuning.SECOND_ROW_SIZE) settings.secondRowSizeRange else option.range
                 TuningSlider(option, title, format, settings[option].coerceIn(range), range, enabled,
                     onChange = { next ->
                         if (next != settings[option].coerceIn(range)) {
@@ -104,7 +103,7 @@ internal fun TuningPage(
                         }
                     },
                     onFinish = app::flushTuning,
-                    canReset = ready,
+                    canReset = enabled,
                     showReset = settings[option] != option.default,
                     onReset = {
                         haptic(CouiHapticEffect.Strength)
@@ -117,7 +116,6 @@ internal fun TuningPage(
                     checked = settings.doubleLine,
                     onCheckedChange = { app.set(CapsuleSettings.DOUBLE_LINE, it) },
                     title = stringResource(R.string.double_line_lyrics),
-                    summary = stringResource(R.string.double_line_lyrics_summary),
                     enabled = ready,
                 )
                 HorizontalDivider(divider)
@@ -154,7 +152,6 @@ internal fun TuningPage(
                             checked = settings.fallbackSingleLineExpand,
                             onCheckedChange = { app.set(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, it) },
                             title = stringResource(R.string.fallback_single_line_expand),
-                            summary = stringResource(R.string.fallback_single_line_expand_summary),
                             enabled = ready,
                         )
                     }
@@ -207,7 +204,6 @@ internal fun TuningPage(
                 HorizontalDivider(divider)
                 slider(CapsuleTuning.BLUR, R.string.tune_blur, R.string.value_number, ready && settings.artwork)
                 HorizontalDivider(divider)
-                slider(CapsuleTuning.ARTWORK_OPACITY, R.string.tune_artwork_opacity, R.string.value_percent, ready && settings.artwork)
                 HorizontalDivider(divider)
                 slider(CapsuleTuning.ARTWORK_DIM, R.string.tune_artwork_dim, R.string.value_percent, ready && settings.artwork)
             }
@@ -235,7 +231,6 @@ internal fun TuningPage(
                 val motionOptions = listOf(
                     LineMotion.NONE to R.string.motion_none,
                     LineMotion.UP to R.string.motion_up,
-                    LineMotion.DOWN to R.string.motion_down,
                     LineMotion.FADE to R.string.motion_fade,
                 )
                 TuningDropdown(

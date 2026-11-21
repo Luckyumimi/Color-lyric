@@ -101,19 +101,23 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
                 updateState(State(Connection.FAILED, confirmed))
                 return@launch
             }
-            if (initial != null) confirmed = initial
-            if (!inScope) discardWrites()
-            preferences = prefs
-            updateState(if (!inScope) State(Connection.NO_SCOPE, confirmed) else
-                State(Connection.READY, initial ?: state.value.settings))
+            attachPreferences(prefs, inScope, initial)
         }
+    }
+
+    internal fun attachPreferences(prefs: SharedPreferences, inScope: Boolean, initial: CapsuleSettings?) {
+        if (initial != null) confirmed = initial
+        if (!inScope) discardWrites()
+        preferences = prefs
+        updateState(if (!inScope) State(Connection.NO_SCOPE, confirmed) else
+            State(Connection.READY, initial ?: state.value.settings))
     }
 
     internal fun set(key: String, checked: Boolean) {
         val current = state.value.settings
         val next = when (key) {
             CapsuleSettings.ENABLED -> current.copy(enabled = checked)
-            CapsuleSettings.DOUBLE_LINE, CapsuleSettings.TRANSLATION -> current.copy(doubleLine = checked)
+            CapsuleSettings.DOUBLE_LINE -> current.copy(doubleLine = checked)
             CapsuleSettings.ARTWORK -> current.copy(artwork = checked)
             CapsuleSettings.SHOW_COVER -> current.copy(showCover = checked)
             CapsuleSettings.SHOW_WAVEFORM -> current.copy(showWaveform = checked)
@@ -203,18 +207,14 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         pendingTuning.clear()
         val defaults = CapsuleSettings()
         val current = state.value.settings
-        save(defaults.copy(enabled = current.enabled, doubleLine = current.doubleLine, artwork = current.artwork)) {
+        val reset = defaults.copy(enabled = current.enabled, doubleLine = current.doubleLine, artwork = current.artwork)
+        save(reset) {
             CapsuleTuning.entries.forEach { remove(it.key) }
             remove(CapsuleSettings.LYRIC_ALIGNMENT)
             remove(CapsuleSettings.CAMERA_FADE)
             remove(CapsuleSettings.MOTION)
             remove(CapsuleSettings.NO_LYRICS)
-            remove(CapsuleSettings.SECOND_ROW_CONTENT)
-            remove(CapsuleSettings.SINGLE_LINE_SWITCH_MODE)
-            remove(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)
-            remove(CapsuleSettings.MISSING_TRANSLATION_MODE)
-            remove(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND)
-            remove(CapsuleSettings.TRANSLATION)
+            writeLyricSettings(reset)
             remove(CapsuleSettings.SHOW_COVER)
             remove(CapsuleSettings.SHOW_WAVEFORM)
         }
@@ -240,10 +240,16 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             return
         }
         writerRunning = true
+        val before = confirmed
         scope.launch {
             val stored = withContext(Dispatchers.IO) {
                 runCatching {
-                    if (prefs.edit().apply(write.edit).commit()) CapsuleSettings.read(prefs) else {
+                    val edit = prefs.edit().apply {
+                        // Persist defaults/migration in the same transaction as the first edit.
+                        if (!prefs.contains(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)) writeLyricSettings(before)
+                        write.edit(this)
+                    }
+                    if (edit.commit()) CapsuleSettings.read(prefs) else {
                         diagnostics.note("LSPosed preference commit rejected")
                         null
                     }

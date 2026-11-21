@@ -6,19 +6,18 @@ import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 
 class CapsuleTypographyTest {
-    @Test fun firstRowUsesSliderValueUnlessFallbackExpansionIsEnabled() {
+    @Test fun singleLineGainsTwoDpUnlessCapped() {
         val settings = CapsuleSettings()
-        assertEquals(11, settings.effectiveTitleSize(hasSecondLine = true))
-        assertEquals(11, settings.effectiveTitleSize(hasSecondLine = false))
-        assertEquals(13, settings.effectiveTitleSize(hasSecondLine = false, expandSingleLine = true))
-        assertEquals(14, settings.withTuning(mapOf(CapsuleTuning.TITLE_SIZE to 13))
-            .effectiveTitleSize(false, expandSingleLine = true))
+        assertEquals(13, settings.effectiveFirstRowSize(true))
+        assertEquals(11, settings.effectiveFirstRowSize(false))
+        assertEquals(11, settings.copy(fallbackSingleLineExpand = false).effectiveFirstRowSize(true))
+        assertEquals(14, settings.withTuning(mapOf(CapsuleTuning.FIRST_ROW_SIZE to 13)).effectiveFirstRowSize(true))
     }
 
     @Test fun translationSliderRangeMatchesEffectiveDrawingSize() {
-        val settings = CapsuleSettings().withTuning(mapOf(CapsuleTuning.TITLE_SIZE to 14, CapsuleTuning.TRANSLATION_SIZE to 11))
-        assertEquals(7..9, settings.translationSizeRange)
-        assertEquals(9, settings.effectiveTranslationSize)
-        assertEquals(11, settings.withTuning(mapOf(CapsuleTuning.TITLE_SIZE to 12)).effectiveTranslationSize)
+        val settings = CapsuleSettings().withTuning(mapOf(CapsuleTuning.FIRST_ROW_SIZE to 14, CapsuleTuning.SECOND_ROW_SIZE to 11))
+        assertEquals(7..9, settings.secondRowSizeRange)
+        assertEquals(9, settings.effectiveSecondRowSize)
+        assertEquals(11, settings.withTuning(mapOf(CapsuleTuning.FIRST_ROW_SIZE to 12)).effectiveSecondRowSize)
     }
 }

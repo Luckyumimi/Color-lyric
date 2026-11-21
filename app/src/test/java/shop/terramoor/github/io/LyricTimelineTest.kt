@@ -6,7 +6,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import shop.terramoor.github.io.lyrics.LyricLine
+import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.LyricPayload
+import shop.terramoor.github.io.lyrics.LyricRows
 import shop.terramoor.github.io.lyrics.PlaybackClock
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.LyricSwitchMode
@@ -85,25 +87,29 @@ class LyricTimelineTest {
         assertEquals(0, timeline.displayIndexAt(2599))
         assertEquals(1, timeline.displayIndexAt(2600))
         assertEquals(2600L, timeline.scrollEnd(0, 8000))
-        val frame = shop.terramoor.github.io.lyrics.LyricFrame(timeline.lines[1], 8000, displayStartMs = 2600)
+        val byStart = LyricSwitchMode.AT_NEXT_START
+        assertEquals(5000L, timeline.displayStart(1, byStart))
+        assertEquals(5000L, timeline.scrollEnd(0, 8000, byStart))
+        assertEquals(0, timeline.displayIndexAt(4999, byStart))
+        assertEquals(1, timeline.displayIndexAt(5000, byStart))
+        val frame = LyricFrame(LyricRows("Second"), startMs = 5000, endMs = 8000, displayStartMs = 2600)
         assertEquals(0f, frame.scrollFraction(4999))
         assertTrue(frame.scrollFraction(6000) > 0f)
     }
 
-    @Test fun startOnlyLyricsPreviewBrieflyWithoutSkippingGapsOrFirstLine() {
+    @Test fun noEndUsesRealStartWithoutSkippingGapsOrFirstLine() {
         val timeline = Timeline.parse("[00:02]First\n[00:04]Second\n[00:05]\n[00:15]Third", "", "")!!
-        assertEquals(-1, timeline.displayIndexAt(1999))
-        assertEquals(0, timeline.displayIndexAt(3999, LyricSwitchMode.AFTER_END))
-        assertEquals(1, timeline.displayIndexAt(4000, LyricSwitchMode.AFTER_END))
-        assertEquals(2, timeline.displayIndexAt(14999))
-        assertEquals(3, timeline.displayIndexAt(15000))
-    }
-
-    @Test fun nextStartModeDoesNotUseFixedLeadTime() {
-        val timeline = Timeline.parse("[00:02]First\n[00:04]Second", "", "")!!
-        assertEquals(0, timeline.displayIndexAt(3999, LyricSwitchMode.AT_NEXT_START))
-        assertEquals(1, timeline.displayIndexAt(4000, LyricSwitchMode.AT_NEXT_START))
-        assertEquals(4000L, timeline.displayStart(1, LyricSwitchMode.AFTER_END))
+        for (mode in LyricSwitchMode.entries) {
+            assertEquals(-1, timeline.displayIndexAt(1999, mode))
+            assertEquals(2000L, timeline.displayStart(0, mode))
+            assertEquals(0, timeline.displayIndexAt(3999, mode))
+            assertEquals(4000L, timeline.scrollEnd(0, 18000, mode))
+            assertEquals(1, timeline.displayIndexAt(4000, mode))
+            assertEquals(2, timeline.displayIndexAt(14999, mode))
+            assertEquals(3, timeline.displayIndexAt(15000, mode))
+            assertEquals(18000L, timeline.scrollEnd(3, 18000, mode))
+            assertEquals(0, timeline.displayIndexAt(2000, mode))
+        }
     }
 
 }

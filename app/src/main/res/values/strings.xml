@@ -4,7 +4,6 @@
     <string name="section_connection">模块状态</string>
     <string name="enable_lyrics">启用流体云歌词</string>
     <string name="double_line_lyrics">双排歌词</string>
-    <string name="double_line_lyrics_summary">显示当前原文和第二排内容</string>
     <string name="artwork_background">使用封面背景</string>
     <string name="artwork_background_summary">在胶囊内显示当前歌曲的模糊封面</string>
     <string name="status_checking">正在检查 LSPosed</string>
@@ -28,13 +27,11 @@
     <string name="missing_translation_single">回退单排歌词</string>
     <string name="missing_translation_double_lyrics">保持双排歌词</string>
     <string name="fallback_single_line_expand">回退单排时自动加大字号</string>
-    <string name="fallback_single_line_expand_summary">第一排字号增加 2 dp，最高 14 dp</string>
     <string name="tune_island_width">流体云歌词岛最大宽度</string>
     <string name="lyric_alignment">歌词对齐</string>
     <string name="lyric_align_center">居中</string>
     <string name="lyric_align_left">左对齐</string>
     <string name="tune_blur">封面模糊程度</string>
-    <string name="tune_artwork_opacity">封面不透明度</string>
     <string name="tune_artwork_dim">封面暗化程度</string>
     <string name="reset_slider">恢复%1$s的默认值</string>
     <string name="restart_system_ui">重启系统界面</string>
@@ -52,7 +49,10 @@
     <string name="camera_fade_on">开启</string>
     <string name="tune_camera_radius">模糊渐隐半径</string>
     <string name="preview_title">胶囊预览</string>
-    <string name="preview_language">预览语言</string>
+    <string name="preview_sample">预览样例</string>
+    <string name="preview_no_sync_lyrics">无同步歌词</string>
+    <string name="preview_track_title">沿着城市最后一班电车驶向看得见海的地方</string>
+    <string name="preview_track_artist">示例歌手</string>
     <string name="preview_japanese">日语 · ツクヨミステップ</string>
     <string name="preview_english">英语</string>
     <string name="preview_korean">韩语</string>
@@ -71,7 +71,6 @@
     <string name="section_motion">逐句切换动效</string>
     <string name="motion_none">直接切换</string>
     <string name="motion_up">向上滚动</string>
-    <string name="motion_down">向下滚动</string>
     <string name="motion_fade">交叉淡入淡出</string>
     <string name="section_no_lyrics">无同步歌词时</string>
     <string name="no_lyrics_empty">不显示文字</string>

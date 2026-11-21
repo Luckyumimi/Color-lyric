@@ -12,6 +12,7 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.os.SystemClock
 import android.view.View
+import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.systemui.CapsuleCamera
 import shop.terramoor.github.io.systemui.CapsuleLyricStrip
 import shop.terramoor.github.io.systemui.MediaCapsulePreviewGeometry
@@ -35,12 +36,13 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         BitmapFactory.decodeResource(resources, PreviewLanguage.JAPANESE.cover)
     }
     private var language = PreviewLanguage.JAPANESE
-    private var settings = CapsuleSettings()
     private var blurredCover: Bitmap? = null
     private var blurStrength = -1
-    private var sampleFrames = language.frames(resources, settings)
+    private var settings = CapsuleSettings()
+    private var timeline = language.timeline(resources)
+    private var presentation = timeline?.let { LyricPresentation(it, settings) }
     private var geometry = MediaCapsulePreviewGeometry(density, settings[CapsuleTuning.ISLAND_WIDTH])
-    private var activeFrame = -1
+    private var activeFrame = Int.MIN_VALUE
     private var startedAt = SystemClock.elapsedRealtime()
     private var previewVisible = false
 
@@ -52,20 +54,25 @@ internal class CapsulePreviewView(context: Context) : View(context) {
 
     fun show(newSettings: CapsuleSettings, newLanguage: PreviewLanguage) {
         if (settings == newSettings && language == newLanguage) return
-        if (language != newLanguage) {
+        val motionChanged = settings.motion != newSettings.motion
+        val languageChanged = language != newLanguage
+        if (languageChanged) {
             language = newLanguage
+            timeline = language.timeline(resources)
             blurredCover = null
             blurStrength = -1
             startedAt = SystemClock.elapsedRealtime()
-        } else if (settings.motion != newSettings.motion) {
-            startedAt = SystemClock.elapsedRealtime() + 360L - sampleFrames[1].displayStartMs
         }
-        sampleFrames = language.frames(resources, newSettings)
+        presentation = timeline?.let { LyricPresentation(it, newSettings) }
+        if (motionChanged && !languageChanged) presentation?.nextBoundary(0)?.let {
+            startedAt = SystemClock.elapsedRealtime() + 360L - it
+        }
+        if (presentation == null && newSettings.noLyricsMode != settings.noLyricsMode) startedAt = SystemClock.elapsedRealtime()
         if (settings[CapsuleTuning.ISLAND_WIDTH] != newSettings[CapsuleTuning.ISLAND_WIDTH]) {
             geometry = MediaCapsulePreviewGeometry(density, newSettings[CapsuleTuning.ISLAND_WIDTH])
         }
         settings = newSettings
-        activeFrame = -1
+        activeFrame = Int.MIN_VALUE
         invalidate()
     }
 
@@ -73,12 +80,20 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         super.onDraw(canvas)
         val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L)
         val position = elapsed % PREVIEW_DURATION_MS
-        val index = sampleFrames.indexOfLast { it.displayStartMs <= position }
+        val lyrics = presentation
+        val index = lyrics?.indexAt(position) ?: -1
         if (activeFrame != index) {
             activeFrame = index
-            val frame = sampleFrames[index]
-            val firstFrame = index == 0 && elapsed < PREVIEW_DURATION_MS
-            strip.update(if (firstFrame) frame.copy(priorLine = null) else frame, settings)
+            val frame = if (lyrics == null) {
+                language.trackInfo(resources).takeIf { settings.noLyricsMode == NoLyricsMode.TRACK }
+            } else {
+                val timed = lyrics.frameAt(index, PREVIEW_DURATION_MS)
+                val lastIndex = timeline?.lines?.lastIndex
+                if (index == 0 && elapsed >= PREVIEW_DURATION_MS && lastIndex != null) {
+                    timed?.copy(priorRows = lyrics.frameAt(lastIndex, PREVIEW_DURATION_MS)?.rows)
+                } else timed
+            }
+            strip.update(frame, settings)
         }
         val dp = density
         val availableWidth = width - 24 * dp
@@ -100,7 +115,7 @@ internal class CapsulePreviewView(context: Context) : View(context) {
                 blurStrength = strength
                 blurredCover = blurArtwork(cover, strength)
             }
-            paint.alpha = alpha(settings[CapsuleTuning.ARTWORK_OPACITY])
+            paint.alpha = CapsuleSettings.ARTWORK_BACKGROUND_ALPHA
             canvas.drawBitmap(blurredCover ?: cover, null, pill, paint)
             paint.color = Color.BLACK
             paint.alpha = alpha(settings[CapsuleTuning.ARTWORK_DIM])
@@ -117,7 +132,7 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         canvas.restoreToCount(coverSave)
         strip.draw(canvas, capsuleLyricsLeft(coverRect.right, dp, settings), pill.top,
             capsuleLyricsRight(geometry.width, geometry.waveformLeft, dp, settings), pill.bottom,
-            CapsuleCamera(geometry.cameraCenterX, geometry.cameraRadius), position)
+            CapsuleCamera(geometry.cameraCenterX, geometry.cameraRadius), if (lyrics == null) elapsed else position)
         paint.color = Color.BLACK
         canvas.drawCircle(geometry.cameraCenterX, geometry.cameraCenterY, geometry.cameraRadius, paint)
         paint.color = Color.WHITE

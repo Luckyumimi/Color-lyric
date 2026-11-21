@@ -22,16 +22,12 @@ import io.github.libxposed.api.XposedInterface.HookHandle
 import shop.terramoor.github.io.diagnostics.DiagnosticLog
 import shop.terramoor.github.io.lyrics.LyricPayload
 import shop.terramoor.github.io.lyrics.LyricFrame
-import shop.terramoor.github.io.lyrics.LyricLine
-import shop.terramoor.github.io.lyrics.LyricSecondRow
+import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.PlaybackClock
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
-import shop.terramoor.github.io.settings.LyricSwitchMode
-import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.NoLyricsMode
-import shop.terramoor.github.io.settings.SecondRowContent
 import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
 
@@ -368,75 +364,6 @@ internal class CapsuleRuntime(
         render()
     }
 
-    private data class LyricLayout(
-        val switchMode: LyricSwitchMode,
-        val secondRow: LyricSecondRow,
-        val secondText: String?,
-        val expandedSingleLine: Boolean,
-        val doubleLine: Boolean,
-    )
-
-    private fun nextNonBlank(timeline: Timeline, index: Int): LyricLine? =
-        timeline.lines.drop(index + 1).firstOrNull { it.text.isNotBlank() }
-
-    private fun layoutFor(timeline: Timeline, index: Int): LyricLayout {
-        val line = timeline.lines[index]
-        if (!settings.doubleLine) {
-            return LyricLayout(settings.singleLineSwitchMode, LyricSecondRow.TRANSLATION, null, false, false)
-        }
-        if (settings.secondRowContent == SecondRowContent.LYRIC) {
-            return LyricLayout(
-                settings.doubleLineSwitchMode,
-                LyricSecondRow.LYRIC,
-                nextNonBlank(timeline, index)?.text,
-                false,
-                true,
-            )
-        }
-        val translation = line.translation?.takeIf(String::isNotBlank)
-        if (translation != null) {
-            return LyricLayout(settings.doubleLineSwitchMode, LyricSecondRow.TRANSLATION, translation, false, true)
-        }
-        if (settings.missingTranslationMode == MissingTranslationMode.DOUBLE_LYRICS) {
-            return LyricLayout(
-                settings.doubleLineSwitchMode,
-                LyricSecondRow.LYRIC,
-                nextNonBlank(timeline, index)?.text,
-                false,
-                true,
-            )
-        }
-        return LyricLayout(
-            settings.singleLineSwitchMode,
-            LyricSecondRow.TRANSLATION,
-            null,
-            settings.fallbackSingleLineExpand,
-            false,
-        )
-    }
-
-    private fun frameFor(timeline: Timeline, index: Int, duration: Long): LyricFrame {
-        val layout = layoutFor(timeline, index)
-        val previousIndex = index - 1
-        val previous = timeline.lines.getOrNull(previousIndex)?.takeIf { it.text.isNotBlank() }
-        val previousLayout = previous?.let { layoutFor(timeline, previousIndex) }
-        val transitionMode = timeline.lines.getOrNull(index + 1)?.let {
-            layoutFor(timeline, index + 1).switchMode
-        } ?: layout.switchMode
-        return LyricFrame(
-            line = timeline.lines[index],
-            endMs = timeline.scrollEnd(index, duration, transitionMode),
-            priorLine = previous,
-            displayStartMs = timeline.displayStart(index, layout.switchMode),
-            secondText = layout.secondText,
-            priorSecondText = previousLayout?.secondText,
-            secondRow = layout.secondRow,
-            priorSecondRow = previousLayout?.secondRow ?: layout.secondRow,
-            singleLineExpanded = layout.expandedSingleLine,
-            priorSingleLineExpanded = previousLayout?.expandedSingleLine ?: false,
-        )
-    }
-
     private fun render() {
         main.removeCallbacks(tick)
         val binding = labels ?: return
@@ -461,17 +388,17 @@ internal class CapsuleRuntime(
         }
         val clock = watch.playbackClock()
         val position = clock.position(SystemClock.elapsedRealtime())
-        val index = timeline.displayIndexAt(position) { layoutFor(timeline, it).switchMode }
+        val presentation = LyricPresentation(timeline, settings)
+        val index = presentation.indexAt(position)
         val line = timeline.lines.getOrNull(index)?.takeIf { it.text.isNotBlank() }
-        val next = (index + 1).takeIf { it in timeline.lines.indices }
-            ?.let { timeline.displayStart(it, layoutFor(timeline, it).switchMode) }
-        val currentMode = timeline.lines.getOrNull(index)?.let { layoutFor(timeline, index).switchMode }
+        val next = presentation.nextBoundary(index)
+        val frame = presentation.frameAt(index, watch.duration)
         if (watch.lastLoggedLine != index) {
             watch.lastLoggedLine = index
-            diagnostics.note("[lyric schedule] index=$index/${timeline.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, mode=$currentMode, scrollEnd=${if (line != null) timeline.scrollEnd(index, watch.duration, currentMode ?: LyricSwitchMode.AFTER_END) else null}, displayStart=${if (index >= 0) timeline.displayStart(index, currentMode ?: LyricSwitchMode.AFTER_END) else null}, next=$next, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
+            val mode = index.takeIf { it >= 0 }?.let(presentation::switchMode)
+            diagnostics.note("[lyric schedule] index=$index/${timeline.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, scrollEnd=${frame?.endMs}, displayStart=${frame?.displayStartMs}, next=$next, mode=$mode, secondRow=${frame?.rows?.second != null}, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
         }
-        if (line != null) {
-            val frame = frameFor(timeline, index, watch.duration)
+        if (frame != null) {
             binding.render(frame, settings, background, clock)
             setStatus("Rendering lyrics in native media capsule")
         } else {
@@ -698,7 +625,7 @@ internal class CapsuleRuntime(
             if (!trackInfoAvailable) return null
             val name = track?.title?.trim()?.take(512)?.takeIf { it.isNotEmpty() } ?: return null
             val byline = track?.artist?.trim()?.take(512)?.takeIf { it.isNotEmpty() }
-            return LyricFrame(LyricLine(0, name, byline), 0, isTrackInfo = true, secondText = byline)
+            return LyricFrame.trackInfo(name, byline)
         }
 
         fun artwork(fallback: Icon?, strength: Int): Bitmap? {

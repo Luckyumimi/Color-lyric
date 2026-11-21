@@ -1,6 +1,8 @@
 # TerraMoor
 
-TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中显示双语歌词，支持实时调参、无歌词回退和模糊封面背景。
+TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中显示歌词，支持实时调参、无歌词回退和模糊封面背景。
+
+在「调整 → 歌词样式」可开启双排歌词，让第二排显示翻译或下一句歌词。单排和双排的切换时机可在「歌词行为」中分别设置。
 
 可在「调整 → 胶囊元素」分别隐藏歌曲封面和律动频段，歌词会填充腾出的空间，胶囊总宽度保持不变。
 
@@ -26,7 +28,7 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 | 目录 | 职责 |
 | --- | --- |
 | `settings/` | COUI 首页、调整页和关于页，Provider 状态与入口，后台串行远程配置写入，预览和 JSON 备份。 |
-| `lyrics/` | 读取媒体会话的 `lyricInfo`，解析 LRC 和可匹配的 TTML 句尾，计算下一句预显和横向滚动进度。 |
+| `lyrics/` | 读取媒体会话的 `lyricInfo`，解析 LRC 和可匹配的 TTML 句尾，为预览与原生胶囊生成同样的歌词帧和切换边界。 |
 | `systemui/` | 挂载媒体胶囊 Hook，校验系统接口、媒体会话及视图所有权。沿用系统动画绘制歌词与背景，停用时恢复原生胶囊。 |
 | `app/src/main/java/io/github/libxposed/service/` | API 102 设置服务入口校验。 |
 | `app/src/main/resources/META-INF/xposed/` | 模块入口和静态 `com.android.systemui` 作用域。 |

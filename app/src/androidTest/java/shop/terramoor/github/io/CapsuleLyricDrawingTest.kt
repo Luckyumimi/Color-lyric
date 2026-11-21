@@ -9,13 +9,21 @@ import android.graphics.RenderNode
 import android.hardware.HardwareBuffer
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.LyricLine
+import shop.terramoor.github.io.lyrics.LyricPresentation
+import shop.terramoor.github.io.lyrics.LyricRows
+import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
+import shop.terramoor.github.io.settings.MissingTranslationMode
+import shop.terramoor.github.io.settings.PreviewLanguage
+import shop.terramoor.github.io.settings.SecondRowContent
+import androidx.test.platform.app.InstrumentationRegistry
 import shop.terramoor.github.io.systemui.CameraLyricMask
 import shop.terramoor.github.io.systemui.CapsuleCamera
 import shop.terramoor.github.io.systemui.CapsuleLyricStrip
@@ -143,9 +151,9 @@ class CapsuleLyricDrawingTest {
     fun originalAndTranslationDrawOnBothSidesWithAndWithoutFade() {
         val start = 1200L
         val end = 5800L
-        val frame = LyricFrame(LyricLine(
-            start, "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(2), "abcdefghijklmnopqrstuvwxyz".repeat(2),
-        ), end, secondText = "abcdefghijklmnopqrstuvwxyz".repeat(2))
+        val frame = LyricFrame(LyricRows(
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(2), "abcdefghijklmnopqrstuvwxyz".repeat(2),
+        ), start, end)
         val strip = CapsuleLyricStrip(3.5f)
         for (fade in listOf(false, true)) {
             val settings = CapsuleSettings(cameraFade = fade)
@@ -171,9 +179,8 @@ class CapsuleLyricDrawingTest {
         // Fractional bounds exercise pixel snapping at both edges of the cutout.
         val camera = CapsuleCamera(179.75f, 38.75f)
         val frame = LyricFrame(
-            LyricLine(0, "初音未来缤纷舞台，前方还有更多精彩内容", "它们不再属于任何人"),
-            3000,
-            secondText = "它们不再属于任何人",
+            LyricRows("初音未来缤纷舞台，前方还有更多精彩内容", "它们不再属于任何人"),
+            startMs = 0, endMs = 3000,
         )
         strip.update(frame, CapsuleSettings(cameraFade = false))
         for (position in listOf(0L, 400L, 620L, 1150L, 3000L)) {
@@ -194,6 +201,163 @@ class CapsuleLyricDrawingTest {
             }
         }
     }
+
+    @Test
+    fun translationAndNextLyricBothUseSecondRowSizeAndOpacity() {
+        val first = "FIRST"
+        val second = "MMMM"
+        val timeline = Timeline.fromLines(listOf(LyricLine(0, first, second), LyricLine(2000, second)))
+        val settings = CapsuleSettings().withTuning(mapOf(
+            CapsuleTuning.SECOND_ROW_OPACITY to 40, CapsuleTuning.SECOND_ROW_SIZE to 7,
+        ))
+        val lyrics = settings.copy(secondRowContent = SecondRowContent.LYRIC)
+        val translated = LyricPresentation(timeline, settings).frameAt(0, 5000)
+        val next = LyricPresentation(timeline, lyrics).frameAt(0, 5000)
+        for ((frame, config) in listOf(translated to settings, next to lyrics)) {
+            val normal = drawRows(frame, config)
+            val brighter = drawRows(frame, config.withTuning(mapOf(CapsuleTuning.SECOND_ROW_OPACITY to 100)))
+            val larger = drawRows(frame, config.withTuning(mapOf(CapsuleTuning.SECOND_ROW_SIZE to 11)))
+            try {
+                assertTrue(normal.ink(20 until 300, 61 until 120) > 0)
+                assertTrue(!normal.sameAs(brighter))
+                assertTrue(!normal.sameAs(larger))
+            } finally {
+                listOf(normal, brighter, larger).forEach(Bitmap::recycle)
+            }
+        }
+    }
+
+    @Test
+    fun wideUpcomingLyricStaysStillAndDoesNotDriveFrameInvalidation() {
+        val timeline = Timeline.fromLines(listOf(LyricLine(0, "I"), LyricLine(2000, "Next lyric ".repeat(30))))
+        val settings = CapsuleSettings(secondRowContent = SecondRowContent.LYRIC)
+        val strip = CapsuleLyricStrip(3f)
+        val frame = checkNotNull(LyricPresentation(timeline, settings).frameAt(0, 4000))
+        strip.update(frame, settings)
+        val start = Bitmap.createBitmap(320, 120, Bitmap.Config.ARGB_8888)
+        val middle = Bitmap.createBitmap(320, 120, Bitmap.Config.ARGB_8888)
+        try {
+            assertNull(strip.draw(Canvas(start), 20f, 0f, 300f, 120f, null, 0))
+            assertNull(strip.draw(Canvas(middle), 20f, 0f, 300f, 120f, null, 1300))
+            assertTrue(start.ink(20 until 300, 61 until 120) > 0)
+            assertTrue(start.sameAs(middle))
+        } finally {
+            start.recycle()
+            middle.recycle()
+        }
+    }
+
+    @Test
+    fun upcomingLyricMovesUpAndGrowsWithoutDisappearingAtTheBoundary() {
+        val timeline = Timeline.fromLines(listOf(LyricLine(0, "I"), LyricLine(2000, "MMMMMM"), LyricLine(4500, "I")))
+        val settings = CapsuleSettings(secondRowContent = SecondRowContent.LYRIC)
+            .withTuning(mapOf(CapsuleTuning.FIRST_ROW_SIZE to 14, CapsuleTuning.SECOND_ROW_SIZE to 7))
+        val presentation = LyricPresentation(timeline, settings)
+        val previous = presentation.frameAt(0, 6000)
+        val current = presentation.frameAt(1, 6000)
+        val before = drawRows(previous, settings, 1999)
+        val boundary = drawRows(current, settings, 2000)
+        val settled = drawRows(current, settings, 2260)
+        try {
+            assertTrue(before.sameAs(boundary))
+            // Ignore the short outgoing and incoming rows at the left edge.
+            fun inkTop(image: Bitmap) = (0 until 120).first { y -> image.ink(80 until 300, y..y) > 0 }
+            val oldTop = inkTop(before)
+            val settledTop = inkTop(settled)
+            assertTrue(settledTop < oldTop)
+            var lastTop = oldTop
+            for (position in listOf(2030L, 2070L, 2120L)) {
+                val animating = drawRows(current, settings, position)
+                try {
+                    val top = inkTop(animating)
+                    // Rounding at intermediate scales can shift a glyph edge by a pixel.
+                    assertTrue(top in settledTop - 1..lastTop + 1)
+                    lastTop = top
+                } finally {
+                    animating.recycle()
+                }
+            }
+            assertTrue(lastTop < oldTop)
+            assertTrue(settled.ink(160 until 300, 0 until 120) > before.ink(160 until 300, 0 until 120))
+        } finally {
+            listOf(before, boundary, settled).forEach(Bitmap::recycle)
+        }
+    }
+
+    @Test
+    fun missingTranslationDrawsTheSelectedFallbackAndOnlyExpandsTheSingleFallback() {
+        val timeline = Timeline.fromLines(listOf(LyricLine(0, "FIRST"), LyricLine(2000, "Next lyric")))
+        val defaults = CapsuleSettings()
+        val single = defaults.copy(doubleLine = false)
+        val compact = defaults.copy(fallbackSingleLineExpand = false)
+        val double = defaults.copy(missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS)
+        fun draw(settings: CapsuleSettings) = drawRows(LyricPresentation(timeline, settings).frameAt(0, 5000), settings)
+        val ordinary = draw(single)
+        val fallback = draw(compact)
+        val expanded = draw(defaults)
+        val twoRows = draw(double)
+        val explicitLyrics = draw(defaults.copy(secondRowContent = SecondRowContent.LYRIC))
+        try {
+            assertTrue(ordinary.sameAs(fallback))
+            assertTrue(expanded.ink(20 until 300, 0 until 120) > fallback.ink(20 until 300, 0 until 120))
+            assertTrue(twoRows.sameAs(explicitLyrics))
+            assertTrue(!ordinary.sameAs(twoRows))
+        } finally {
+            listOf(ordinary, fallback, expanded, twoRows, explicitLyrics).forEach(Bitmap::recycle)
+        }
+    }
+
+    @Test
+    fun untimedTrackPreviewScrollsItsTitleAndLeavesTheArtistStill() {
+        val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+        val sample = PreviewLanguage.NO_SYNC_LYRICS
+        assertNull(sample.timeline(resources))
+        val frame = checkNotNull(sample.trackInfo(resources))
+        val strip = CapsuleLyricStrip(3f)
+        val settings = CapsuleSettings()
+        val start = Bitmap.createBitmap(320, 120, Bitmap.Config.ARGB_8888)
+        val during = Bitmap.createBitmap(320, 120, Bitmap.Config.ARGB_8888)
+        try {
+            strip.update(frame, settings)
+            assertEquals(900L, strip.draw(Canvas(start), 20f, 0f, 300f, 120f, null, 0))
+            assertEquals(0L, strip.draw(Canvas(during), 20f, 0f, 300f, 120f, null, 1500))
+            assertTrue(!start.sameAs(during))
+            assertTrue(start.ink(20 until 300, 66 until 120) > 0)
+            for (y in 66 until 120) for (x in 20 until 300) {
+                assertEquals(start.getPixel(x, y), during.getPixel(x, y))
+            }
+            strip.update(LyricFrame.trackInfo("Short", "Artist"), settings)
+            assertNull(strip.draw(Canvas(during), 20f, 0f, 300f, 120f, null, 1500))
+        } finally {
+            start.recycle()
+            during.recycle()
+        }
+    }
+
+    @Test
+    fun previewSamplesUseTheSameFrameAndBoundaryRules() {
+        val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+        for (language in PreviewLanguage.entries) {
+            val timeline = language.timeline(resources) ?: continue
+            val settings = CapsuleSettings(secondRowContent = SecondRowContent.LYRIC)
+            val presentation = LyricPresentation(timeline, settings)
+            assertEquals(timeline.lines[1].startMs, presentation.nextBoundary(0))
+            assertEquals(timeline.lines[1].text, checkNotNull(presentation.frameAt(0, 9100)).rows.second)
+            val bitmap = drawRows(presentation.frameAt(0, 9100), settings)
+            try {
+                assertTrue(bitmap.ink(20 until 300, 0 until 120) > 0)
+            } finally {
+                bitmap.recycle()
+            }
+        }
+    }
+
+    private fun drawRows(frame: LyricFrame?, settings: CapsuleSettings, position: Long = 0): Bitmap =
+        Bitmap.createBitmap(320, 120, Bitmap.Config.ARGB_8888).also { bitmap ->
+            val strip = CapsuleLyricStrip(3f)
+            strip.update(frame, settings)
+            strip.draw(Canvas(bitmap), 20f, 0f, 300f, 120f, null, position)
+        }
 
     @Test
     fun softwareMaskFadesBothStraightEdges() {

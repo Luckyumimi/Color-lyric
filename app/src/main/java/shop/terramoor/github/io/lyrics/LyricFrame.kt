@@ -1,23 +1,28 @@
 package shop.terramoor.github.io.lyrics
 
-internal enum class LyricSecondRow { TRANSLATION, LYRIC }
+internal data class LyricRows(
+    val first: String,
+    val second: String? = null,
+    val missingTranslationSingleLine: Boolean = false,
+    val nextLyricStartMs: Long? = null,
+)
 
 internal data class LyricFrame(
-    val line: LyricLine,
+    val rows: LyricRows,
+    val startMs: Long,
     val endMs: Long,
-    val priorLine: LyricLine? = null,
+    val priorRows: LyricRows? = null,
+    val displayStartMs: Long = startMs,
     val isTrackInfo: Boolean = false,
-    val displayStartMs: Long = line.startMs,
-    val secondText: String? = null,
-    val priorSecondText: String? = null,
-    val secondRow: LyricSecondRow = LyricSecondRow.TRANSLATION,
-    val priorSecondRow: LyricSecondRow = secondRow,
-    val singleLineExpanded: Boolean = false,
-    val priorSingleLineExpanded: Boolean = false,
 ) {
-    fun scrollFraction(position: Long): Float = scrollFraction(line.startMs, endMs, position)
+    val promotesPreviousLyric: Boolean get() = priorRows?.nextLyricStartMs == startMs
+
+    fun scrollFraction(position: Long): Float = scrollFraction(startMs, endMs, position)
 
     companion object {
+        fun trackInfo(title: String, artist: String?) =
+            LyricFrame(LyricRows(title, artist), startMs = 0L, endMs = 0L, isTrackInfo = true)
+
         fun scrollFraction(start: Long, end: Long, position: Long): Float {
             if (end <= start) return 0f
             val duration = end - start
