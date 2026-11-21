@@ -8,7 +8,44 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 
 ## 预览
 
-![原生胶囊动态预览](docs/previews/capsule-preview.gif)
+<table>
+  <tr>
+    <th scope="col">双排歌词 + 翻译</th>
+    <th scope="col">单行歌词</th>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source type="image/webp" srcset="docs/previews/capsule-preview.webp">
+        <img src="docs/previews/capsule-preview.gif" alt="双排歌词 + 翻译">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source type="image/webp" srcset="docs/previews/capsule-preview-single-line.webp">
+        <img src="docs/previews/capsule-preview-single-line.gif" alt="单行歌词">
+      </picture>
+    </td>
+  </tr>
+  <tr>
+    <th scope="col">双排原文（当前句 + 下一句）</th>
+    <th scope="col">关闭着色（双排翻译）</th>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source type="image/webp" srcset="docs/previews/capsule-preview-two-line-lyrics.webp">
+        <img src="docs/previews/capsule-preview-two-line-lyrics.gif" alt="双排原文（当前句 + 下一句）">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source type="image/webp" srcset="docs/previews/capsule-preview-tint-off.webp">
+        <img src="docs/previews/capsule-preview-tint-off.gif" alt="关闭着色（双排翻译）">
+      </picture>
+    </td>
+  </tr>
+</table>
 
 | 应用内预览 | 系统流体云 |
 | --- | --- |
