@@ -47,10 +47,6 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
   </tr>
 </table>
 
-| 应用内预览 | 系统流体云 |
-| --- | --- |
-| ![应用内胶囊](docs/previews/app-capsule.png) | ![系统媒体胶囊](docs/previews/system-capsule.png) |
-
 ## 安装
 
 1. 在 Releases 下载 APK。应用可安装于 Android 14 及以上。歌词功能需要支持 API 102 的 LSPosed，以及原生媒体胶囊接口兼容的 ColorOS 系统。
