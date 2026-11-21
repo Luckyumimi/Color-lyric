@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.HardwareBufferRenderer
 import android.graphics.Paint
 import android.graphics.RenderNode
+import android.graphics.drawable.Icon
 import android.hardware.HardwareBuffer
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -20,22 +21,50 @@ import shop.terramoor.github.io.lyrics.LyricRows
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
+import shop.terramoor.github.io.settings.LyricTintMode
 import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.PreviewLanguage
 import shop.terramoor.github.io.settings.SecondRowContent
 import androidx.test.platform.app.InstrumentationRegistry
+import shop.terramoor.github.io.systemui.ArtworkLyricTint
 import shop.terramoor.github.io.systemui.CameraLyricMask
 import shop.terramoor.github.io.systemui.CapsuleCamera
 import shop.terramoor.github.io.systemui.CapsuleLyricStrip
 import shop.terramoor.github.io.systemui.EdgeFade
+import shop.terramoor.github.io.systemui.LyricInk
 import shop.terramoor.github.io.systemui.OuterLyricFeather
 import shop.terramoor.github.io.systemui.OuterLyricMask
+import shop.terramoor.github.io.systemui.artworkBitmap
 import java.time.Duration
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class CapsuleLyricDrawingTest {
+    @Test
+    fun adaptiveNotificationCoverSuppliesLyricTint() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val cover = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        try {
+            cover.eraseColor(Color.rgb(230, 68, 72))
+            val plain = artworkBitmap(Icon.createWithBitmap(cover).loadDrawable(context))
+            val adaptive = artworkBitmap(Icon.createWithAdaptiveBitmap(cover).loadDrawable(context))
+            val tint = ArtworkLyricTint()
+            val settings = CapsuleSettings(lyricTintMode = LyricTintMode.MEDIAN_CUT)
+            val expected = tint.resolve(plain, null, settings)
+            assertTrue(expected != LyricInk.WHITE)
+            assertEquals(expected, tint.resolve(adaptive, null, settings))
+            assertEquals("TINTED", tint.outcome)
+            assertEquals(LyricInk.WHITE, tint.resolve(adaptive, null, settings.copy(lyricTintEnabled = false)))
+            assertEquals("DISABLED", tint.outcome)
+            assertEquals(expected, tint.resolve(adaptive, null, settings))
+            assertEquals(LyricInk.WHITE, tint.resolve(null, null, settings))
+            assertEquals("NO_ARTWORK", tint.outcome)
+        } finally {
+            cover.recycle()
+        }
+    }
+
     @Test
     fun outerEdgesFadeWithoutChangingTheBackground() {
         val image = Bitmap.createBitmap(200, 80, Bitmap.Config.ARGB_8888)

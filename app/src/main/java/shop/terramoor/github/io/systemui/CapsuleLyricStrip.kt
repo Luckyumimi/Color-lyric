@@ -1,7 +1,6 @@
 package shop.terramoor.github.io.systemui
 
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.text.Layout
@@ -28,17 +27,18 @@ internal class CapsuleLyricStrip(private val density: Float) {
     private var fadePx = 0f
     private val cameraMask = CameraLyricMask()
 
-    fun update(frame: LyricFrame?, settings: CapsuleSettings) {
+    fun update(frame: LyricFrame?, settings: CapsuleSettings, ink: LyricInk = LyricInk.WHITE) {
         this.frame = frame
         motion = settings.motion
         lyricAlignment = settings.lyricAlignment
         fun setup(main: Lane, second: Lane, rows: LyricRows?) {
             val size = settings.effectiveFirstRowSize(rows?.missingTranslationSingleLine == true)
-            main.update(rows?.first, size * density, settings[CapsuleTuning.FIRST_ROW_OPACITY], Typeface.DEFAULT_BOLD)
+            main.update(rows?.first, size * density, settings[CapsuleTuning.FIRST_ROW_OPACITY], Typeface.DEFAULT_BOLD,
+                ink.first)
             // An upcoming lyric uses the same glyphs before and after promotion.
             val secondFace = if (rows?.nextLyricStartMs != null) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             second.update(rows?.second, settings.effectiveSecondRowSize * density,
-                settings[CapsuleTuning.SECOND_ROW_OPACITY], secondFace)
+                settings[CapsuleTuning.SECOND_ROW_OPACITY], secondFace, ink.second)
         }
         setup(firstRow, secondRow, frame?.rows)
         setup(priorFirstRow, priorSecondRow, frame?.priorRows)
@@ -163,7 +163,7 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val height: Int get() = layout?.height ?: 0
         val width: Float get() = layout?.getLineWidth(0) ?: 0f
 
-        fun update(value: String?, size: Float, opacity: Int, face: Typeface) {
+        fun update(value: String?, size: Float, opacity: Int, face: Typeface, rgb: Int) {
             if (value != text || size != paint.textSize || face != paint.typeface) {
                 text = value
                 paint.textSize = size
@@ -175,7 +175,8 @@ internal class CapsuleLyricStrip(private val density: Float) {
                         .setIncludePad(false).setMaxLines(1).build()
                 }
             }
-            paint.color = Color.argb((opacity * 255 + 50) / 100, 255, 255, 255)
+            paint.color = rgb
+            paint.alpha = (opacity * 255 + 50) / 100
         }
 
         fun draw(
@@ -205,27 +206,29 @@ internal class CapsuleLyricStrip(private val density: Float) {
             val toFade = viewport.edgeFade(width, progress, feather)
             val fade = EdgeFade(lerp(fromFade.left, toFade.left, phase), lerp(fromFade.right, toFade.right, phase))
             drawAt(canvas, viewport, feather, y, x, scale,
-                lerp(previous.paint.alpha.toFloat(), paint.alpha.toFloat(), phase) * alpha, fade)
+                lerp(previous.paint.alpha.toFloat(), paint.alpha.toFloat(), phase) * alpha, fade,
+                blendInk(previous.paint.color, paint.color, phase.toDouble()))
         }
 
         private fun drawAt(
             canvas: Canvas, viewport: CapsuleTextViewport, feather: OuterLyricFeather,
-            y: Float, offset: Float, scale: Float, inkAlpha: Float, fade: EdgeFade,
+            y: Float, offset: Float, scale: Float, inkAlpha: Float, fade: EdgeFade, color: Int = paint.color,
         ) {
             val measured = layout ?: return
             if (inkAlpha <= 0f) return
             val x = viewport.left + offset - measured.getLineLeft(0) * scale
-            val originalAlpha = paint.alpha
+            val originalColor = paint.color
             try {
                 outerMask.draw(canvas, viewport.left, y, viewport.right, y + measured.height * scale,
                     feather, fade) { target ->
+                    paint.color = color
                     paint.alpha = inkAlpha.toInt()
                     target.translate(x, y)
                     if (scale != 1f) target.scale(scale, scale)
                     measured.draw(target)
                 }
             } finally {
-                paint.alpha = originalAlpha
+                paint.color = originalColor
             }
         }
     }

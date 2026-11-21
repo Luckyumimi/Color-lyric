@@ -6,7 +6,7 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 6
+    private const val VERSION = 9
     private const val MAX_BYTES = 16 * 1024
 
     fun encode(settings: CapsuleSettings): String {
@@ -19,6 +19,8 @@ internal object CapsuleBackup {
             .put(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)
             .put(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, settings.fallbackSingleLineExpand)
             .put(CapsuleSettings.ARTWORK, settings.artwork)
+            .put(CapsuleSettings.LYRIC_TINT_ENABLED, settings.lyricTintEnabled)
+            .put(CapsuleSettings.LYRIC_TINT_MODE, settings.lyricTintMode.name)
             .put(CapsuleSettings.SHOW_COVER, settings.showCover)
             .put(CapsuleSettings.SHOW_WAVEFORM, settings.showWaveform)
             .put(CapsuleSettings.LYRIC_ALIGNMENT, settings.lyricAlignment.name)
@@ -38,8 +40,15 @@ internal object CapsuleBackup {
         val data = root.getJSONObject("settings")
         fun flag(key: String) = data.get(key) as? Boolean ?: error("Invalid setting")
         val tuning = CapsuleTuning.entries.associateWith { option ->
+            if (version == 7 && option == CapsuleTuning.TINT_STRENGTH) {
+                return@associateWith CapsuleSettings.migrateTintStrength(
+                    data.getInt(CapsuleSettings.LEGACY_FIRST_ROW_TINT), data.getInt(CapsuleSettings.LEGACY_SECOND_ROW_TINT),
+                )
+            }
+            if (version < option.since) return@associateWith option.default
             if (version < 3 && option == CapsuleTuning.ISLAND_WIDTH) return@associateWith 202 // Historical width for backups before v3.
-            (data.get(option.key) as? Int)?.takeIf { it in option.range } ?: error("Invalid tuning")
+            (data.get(option.key) as? Int)?.takeIf { it in option.range && option.normalize(it) == it }
+                ?: error("Invalid tuning")
         }
         val lyrics = if (version < 6) {
             CapsuleSettings.migratedLegacy(flag(CapsuleSettings.LEGACY_TRANSLATION))
@@ -51,9 +60,14 @@ internal object CapsuleBackup {
             missingTranslationMode = MissingTranslationMode.valueOf(data.getString(CapsuleSettings.MISSING_TRANSLATION_MODE)),
             fallbackSingleLineExpand = flag(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND),
         )
+        val storedTintMode = if (version >= 7) data.getString(CapsuleSettings.LYRIC_TINT_MODE)
+            else CapsuleSettings.LEGACY_WHITE_TINT
+        val legacyTintDisabled = version < 9 && storedTintMode == CapsuleSettings.LEGACY_WHITE_TINT
         return lyrics.copy(
             enabled = flag(CapsuleSettings.ENABLED),
             artwork = flag(CapsuleSettings.ARTWORK),
+            lyricTintEnabled = if (version >= 9) flag(CapsuleSettings.LYRIC_TINT_ENABLED) else !legacyTintDisabled,
+            lyricTintMode = if (legacyTintDisabled) lyrics.lyricTintMode else LyricTintMode.valueOf(storedTintMode),
             showCover = if (version < 5) true else flag(CapsuleSettings.SHOW_COVER),
             showWaveform = if (version < 5) true else flag(CapsuleSettings.SHOW_WAVEFORM),
             lyricAlignment = if (version < 3) LyricAlignment.CENTER
@@ -80,6 +94,8 @@ internal fun SharedPreferences.Editor.writeSettings(settings: CapsuleSettings) {
     putBoolean(CapsuleSettings.ENABLED, settings.enabled)
     writeLyricSettings(settings)
     putBoolean(CapsuleSettings.ARTWORK, settings.artwork)
+    putBoolean(CapsuleSettings.LYRIC_TINT_ENABLED, settings.lyricTintEnabled)
+    putString(CapsuleSettings.LYRIC_TINT_MODE, settings.lyricTintMode.name)
     putBoolean(CapsuleSettings.SHOW_COVER, settings.showCover)
     putBoolean(CapsuleSettings.SHOW_WAVEFORM, settings.showWaveform)
     remove("camera_shape") // Retired in version 4.
@@ -87,5 +103,6 @@ internal fun SharedPreferences.Editor.writeSettings(settings: CapsuleSettings) {
     putBoolean(CapsuleSettings.CAMERA_FADE, settings.cameraFade)
     putString(CapsuleSettings.MOTION, settings.motion.name)
     putString(CapsuleSettings.NO_LYRICS, settings.noLyricsMode.name)
+    CapsuleSettings.retiredTintKeys.forEach { remove(it) }
     CapsuleTuning.entries.forEach { putInt(it.key, settings[it]) }
 }

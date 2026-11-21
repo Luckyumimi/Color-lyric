@@ -13,8 +13,10 @@ import android.graphics.Shader
 import android.os.SystemClock
 import android.view.View
 import shop.terramoor.github.io.lyrics.LyricPresentation
+import shop.terramoor.github.io.systemui.ArtworkLyricTint
 import shop.terramoor.github.io.systemui.CapsuleCamera
 import shop.terramoor.github.io.systemui.CapsuleLyricStrip
+import shop.terramoor.github.io.systemui.LyricInk
 import shop.terramoor.github.io.systemui.MediaCapsulePreviewGeometry
 import shop.terramoor.github.io.systemui.capsuleLyricsLeft
 import shop.terramoor.github.io.systemui.capsuleLyricsRight
@@ -26,6 +28,9 @@ import kotlin.math.sin
 internal class CapsulePreviewView(context: Context) : View(context) {
     private val density = resources.displayMetrics.density
     private val strip = CapsuleLyricStrip(density)
+    private val tint = ArtworkLyricTint()
+    private var ink = LyricInk.WHITE
+    private val baseColor = Color.rgb(15, 16, 19)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val pill = RectF()
     private val coverRect = RectF()
@@ -77,6 +82,8 @@ internal class CapsulePreviewView(context: Context) : View(context) {
             geometry = MediaCapsulePreviewGeometry(density, newSettings[CapsuleTuning.ISLAND_WIDTH])
         }
         settings = newSettings
+        val cover = previewCover()
+        ink = tint.resolve(cover, previewBackground(cover), settings, baseColor = baseColor)
         activeFrame = Int.MIN_VALUE
         cancelHoldRedraw()
         invalidate()
@@ -100,7 +107,7 @@ internal class CapsulePreviewView(context: Context) : View(context) {
                     timed?.copy(priorRows = lyrics.frameAt(lastIndex, PREVIEW_DURATION_MS)?.rows)
                 } else timed
             }
-            strip.update(frame, settings)
+            strip.update(frame, settings, ink)
         }
         val dp = density
         val availableWidth = width - 24 * dp
@@ -114,16 +121,11 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         canvas.translate((width - geometry.width * scale) / 2f, (height - geometry.height * scale) / 2f)
         canvas.scale(scale, scale)
         canvas.clipPath(clip)
-        canvas.drawColor(Color.rgb(15, 16, 19))
-        val cover = if (language == PreviewLanguage.JAPANESE) japaneseCover ?: fallbackCover else fallbackCover
-        if (settings.artwork) {
-            val strength = settings[CapsuleTuning.BLUR]
-            if (blurStrength != strength) {
-                blurStrength = strength
-                blurredCover = blurArtwork(cover, strength)
-            }
+        canvas.drawColor(baseColor)
+        val cover = previewCover()
+        previewBackground(cover)?.let { background ->
             paint.alpha = CapsuleSettings.ARTWORK_BACKGROUND_ALPHA
-            canvas.drawBitmap(blurredCover ?: cover, null, pill, paint)
+            canvas.drawBitmap(background, null, pill, paint)
             paint.color = Color.BLACK
             paint.alpha = alpha(settings[CapsuleTuning.ARTWORK_DIM])
             canvas.drawRect(pill, paint)
@@ -175,6 +177,19 @@ internal class CapsulePreviewView(context: Context) : View(context) {
     }
 
     private fun alpha(percent: Int) = (percent * 2.55f).roundToInt()
+
+    private fun previewCover(): Bitmap =
+        if (language == PreviewLanguage.JAPANESE) japaneseCover ?: fallbackCover else fallbackCover
+
+    private fun previewBackground(cover: Bitmap): Bitmap? {
+        if (!settings.artwork) return null
+        val strength = settings[CapsuleTuning.BLUR]
+        if (blurStrength != strength) {
+            blurStrength = strength
+            blurredCover = blurArtwork(cover, strength)
+        }
+        return blurredCover ?: cover
+    }
 
     private fun createCover(): Bitmap {
         val size = 96

@@ -1,8 +1,11 @@
 package shop.terramoor.github.io.settings
 
 import android.content.SharedPreferences
+import kotlin.math.roundToInt
 
-internal enum class CapsuleTuning(val key: String, val range: IntRange, val default: Int, val step: Int = 1) {
+internal enum class CapsuleTuning(
+    val key: String, val range: IntRange, val default: Int, val step: Int = 1, val since: Int = 1,
+) {
     FIRST_ROW_SIZE("title_size", 9..14, 11),
     SECOND_ROW_SIZE("translation_size", 7..11, 9),
     FIRST_ROW_OPACITY("title_opacity", 50..100, 100, 5),
@@ -11,6 +14,13 @@ internal enum class CapsuleTuning(val key: String, val range: IntRange, val defa
     CAMERA_FADE_RADIUS("camera_fade_radius", 1..14, 3),
     BLUR("artwork_blur", 0..24, 14),
     ARTWORK_DIM("artwork_dim", 0..80, 25, 5),
+    TINT_STRENGTH("tint_strength", 25..100, 100, 25, since = 8);
+
+    fun normalize(value: Int): Int {
+        val bounded = value.coerceIn(range)
+        if (this != TINT_STRENGTH) return bounded
+        return range.first + ((bounded - range.first) / step.toDouble()).roundToInt() * step
+    }
 }
 
 internal enum class LyricAlignment { CENTER, LEFT }
@@ -26,6 +36,7 @@ internal enum class NoLyricsMode { EMPTY, TRACK }
 internal enum class SecondRowContent { TRANSLATION, LYRIC }
 internal enum class LyricSwitchMode { AFTER_END, AT_NEXT_START }
 internal enum class MissingTranslationMode { SINGLE_LINE, DOUBLE_LYRICS }
+internal enum class LyricTintMode { MEDIAN_CUT, WALLPAPER, OKLCH }
 
 internal data class CapsuleSettings(
     val enabled: Boolean = true,
@@ -36,6 +47,8 @@ internal data class CapsuleSettings(
     val missingTranslationMode: MissingTranslationMode = MissingTranslationMode.SINGLE_LINE,
     val fallbackSingleLineExpand: Boolean = true,
     val artwork: Boolean = true,
+    val lyricTintEnabled: Boolean = true,
+    val lyricTintMode: LyricTintMode = LyricTintMode.WALLPAPER,
     val showCover: Boolean = true,
     val showWaveform: Boolean = true,
     val lyricAlignment: LyricAlignment = LyricAlignment.LEFT,
@@ -69,6 +82,17 @@ internal data class CapsuleSettings(
         const val MISSING_TRANSLATION_MODE = "missing_translation_mode"
         const val FALLBACK_SINGLE_LINE_EXPAND = "fallback_single_line_expand"
         const val ARTWORK = "artwork"
+        const val LYRIC_TINT_ENABLED = "lyric_tint_enabled"
+        const val LYRIC_TINT_MODE = "lyric_tint_mode"
+        const val LEGACY_WHITE_TINT = "WHITE"
+        const val LEGACY_FIRST_ROW_TINT = "first_row_tint"
+        const val LEGACY_SECOND_ROW_TINT = "second_row_tint"
+        val retiredTintKeys = listOf(LEGACY_FIRST_ROW_TINT, LEGACY_SECOND_ROW_TINT,
+            "tint_saturation", "tint_lightness", "tint_hue", "tint_contrast")
+
+        fun migrateTintStrength(first: Int, second: Int): Int = CapsuleTuning.TINT_STRENGTH.normalize(
+            ((first.coerceIn(0..100) + second.coerceIn(0..100)) / 2.0).roundToInt(),
+        )
         // Preserve the original default blend with the native capsule surface.
         const val ARTWORK_BACKGROUND_ALPHA = 191
         const val SHOW_COVER = "show_cover"
@@ -83,7 +107,7 @@ internal data class CapsuleSettings(
         private val legacyKeys = setOf(ENABLED, LEGACY_TRANSLATION, ARTWORK, SHOW_COVER,
             SHOW_WAVEFORM, LYRIC_ALIGNMENT, CAMERA_FADE, MOTION, NO_LYRICS, "camera_shape", "text_width",
             "artwork_opacity") +
-            CapsuleTuning.entries.map { it.key }
+            CapsuleTuning.entries.filter { it.since < 6 }.map { it.key }
 
         fun migratedLegacy(translation: Boolean = defaults.doubleLine) =
             defaults.copy(doubleLine = translation, doubleLineSwitchMode = LyricSwitchMode.AFTER_END)
@@ -92,6 +116,7 @@ internal data class CapsuleSettings(
             val legacy = if (legacyKeys.any(prefs::contains)) {
                 migratedLegacy(prefs.getBoolean(LEGACY_TRANSLATION, defaults.doubleLine))
             } else defaults
+            val storedTintMode = prefs.getString(LYRIC_TINT_MODE, null)
             return legacy.copy(
                 enabled = prefs.getBoolean(ENABLED, defaults.enabled),
                 doubleLine = prefs.getBoolean(DOUBLE_LINE, legacy.doubleLine),
@@ -101,13 +126,21 @@ internal data class CapsuleSettings(
                 missingTranslationMode = prefs.enumValue(MISSING_TRANSLATION_MODE, legacy.missingTranslationMode),
                 fallbackSingleLineExpand = prefs.getBoolean(FALLBACK_SINGLE_LINE_EXPAND, legacy.fallbackSingleLineExpand),
                 artwork = prefs.getBoolean(ARTWORK, defaults.artwork),
+                lyricTintEnabled = prefs.getBoolean(LYRIC_TINT_ENABLED,
+                    defaults.lyricTintEnabled && storedTintMode != LEGACY_WHITE_TINT),
+                lyricTintMode = LyricTintMode.entries.firstOrNull { it.name == storedTintMode } ?: defaults.lyricTintMode,
                 showCover = prefs.getBoolean(SHOW_COVER, defaults.showCover),
                 showWaveform = prefs.getBoolean(SHOW_WAVEFORM, defaults.showWaveform),
                 lyricAlignment = prefs.enumValue(LYRIC_ALIGNMENT, defaults.lyricAlignment),
                 cameraFade = prefs.getBoolean(CAMERA_FADE, defaults.cameraFade),
                 motion = LineMotion.fromStored(prefs.getString(MOTION, null)) ?: defaults.motion,
                 noLyricsMode = prefs.enumValue(NO_LYRICS, defaults.noLyricsMode),
-                tuning = CapsuleTuning.entries.associateWith { prefs.getInt(it.key, it.default).coerceIn(it.range) },
+                tuning = CapsuleTuning.entries.associateWith { option ->
+                    if (option == CapsuleTuning.TINT_STRENGTH && !prefs.contains(option.key) &&
+                        (prefs.contains(LEGACY_FIRST_ROW_TINT) || prefs.contains(LEGACY_SECOND_ROW_TINT))) {
+                        migrateTintStrength(prefs.getInt(LEGACY_FIRST_ROW_TINT, 60), prefs.getInt(LEGACY_SECOND_ROW_TINT, 45))
+                    } else option.normalize(prefs.getInt(option.key, option.default))
+                },
             )
         }
 

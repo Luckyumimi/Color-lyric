@@ -1,6 +1,10 @@
 package shop.terramoor.github.io.settings
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,13 +16,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -28,6 +36,8 @@ import io.github.suqi8.coui.kmp.basic.HorizontalDivider
 import io.github.suqi8.coui.kmp.basic.Icon
 import io.github.suqi8.coui.kmp.basic.IconButton
 import io.github.suqi8.coui.kmp.basic.SliderDefaults
+import io.github.suqi8.coui.kmp.icon.COUIIcons
+import io.github.suqi8.coui.kmp.icon.basic.ArrowRight
 import io.github.suqi8.coui.kmp.preference.SliderPreference
 import io.github.suqi8.coui.kmp.theme.COUITheme
 import io.github.suqi8.coui.kmp.utils.CouiHapticEffect
@@ -127,13 +137,16 @@ internal fun TuningPage(
                     onSelectedIndexChange = { app.setSecondRowContent(SecondRowContent.entries[it]) },
                 )
                 HorizontalDivider(divider)
-                slider(CapsuleTuning.FIRST_ROW_SIZE, R.string.tune_first_row_size, R.string.value_dp, ready)
-                HorizontalDivider(divider)
-                slider(CapsuleTuning.SECOND_ROW_SIZE, R.string.tune_second_row_size, R.string.value_dp, ready && settings.doubleLine)
-                HorizontalDivider(divider)
-                slider(CapsuleTuning.FIRST_ROW_OPACITY, R.string.tune_first_row_opacity, R.string.value_percent, ready)
-                HorizontalDivider(divider)
-                slider(CapsuleTuning.SECOND_ROW_OPACITY, R.string.tune_second_row_opacity, R.string.value_percent, ready && settings.doubleLine)
+                ExpandableTuning(R.string.tune_text_details) {
+                    HorizontalDivider(divider)
+                    slider(CapsuleTuning.FIRST_ROW_SIZE, R.string.tune_first_row_size, R.string.value_dp, ready)
+                    HorizontalDivider(divider)
+                    slider(CapsuleTuning.SECOND_ROW_SIZE, R.string.tune_second_row_size, R.string.value_dp, ready && settings.doubleLine)
+                    HorizontalDivider(divider)
+                    slider(CapsuleTuning.FIRST_ROW_OPACITY, R.string.tune_first_row_opacity, R.string.value_percent, ready)
+                    HorizontalDivider(divider)
+                    slider(CapsuleTuning.SECOND_ROW_OPACITY, R.string.tune_second_row_opacity, R.string.value_percent, ready && settings.doubleLine)
+                }
                 if (settings.doubleLine && settings.secondRowContent == SecondRowContent.TRANSLATION) {
                     HorizontalDivider(divider)
                     TuningDropdown(
@@ -202,10 +215,37 @@ internal fun TuningPage(
                     enabled = ready,
                 )
                 HorizontalDivider(divider)
-                slider(CapsuleTuning.BLUR, R.string.tune_blur, R.string.value_number, ready && settings.artwork)
-                HorizontalDivider(divider)
-                HorizontalDivider(divider)
-                slider(CapsuleTuning.ARTWORK_DIM, R.string.tune_artwork_dim, R.string.value_percent, ready && settings.artwork)
+                ExpandableTuning(R.string.tune_blur_details) {
+                    HorizontalDivider(divider)
+                    slider(CapsuleTuning.BLUR, R.string.tune_blur, R.string.value_number, ready && settings.artwork)
+                    HorizontalDivider(divider)
+                    slider(CapsuleTuning.ARTWORK_DIM, R.string.tune_artwork_dim, R.string.value_percent, ready && settings.artwork)
+                }
+            }
+            SettingsGroup(stringResource(R.string.section_lyric_tint)) {
+                TactileSwitchPreference(
+                    checked = settings.lyricTintEnabled,
+                    onCheckedChange = { app.set(CapsuleSettings.LYRIC_TINT_ENABLED, it) },
+                    title = stringResource(R.string.lyric_tint_enabled),
+                    enabled = ready,
+                )
+                if (settings.lyricTintEnabled) {
+                    val modes = listOf(
+                        LyricTintMode.MEDIAN_CUT to R.string.lyric_tint_median_cut,
+                        LyricTintMode.WALLPAPER to R.string.lyric_tint_wallpaper,
+                        LyricTintMode.OKLCH to R.string.lyric_tint_oklch,
+                    )
+                    HorizontalDivider(divider)
+                    TuningDropdown(
+                        title = stringResource(R.string.lyric_tint_mode),
+                        items = modes.map { stringResource(it.second) },
+                        selectedIndex = modes.indexOfFirst { it.first == settings.lyricTintMode },
+                        enabled = ready,
+                        onSelectedIndexChange = { app.setLyricTintMode(modes[it].first) },
+                    )
+                    HorizontalDivider(divider)
+                    slider(CapsuleTuning.TINT_STRENGTH, R.string.tune_tint_strength, R.string.value_percent, ready)
+                }
             }
             SettingsGroup(stringResource(R.string.section_lyric_behavior)) {
                 val switchOptions = listOf(
@@ -263,6 +303,35 @@ internal fun TuningPage(
 }
 
 @Composable
+private fun ExpandableTuning(@StringRes title: Int, content: @Composable () -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val haptic = rememberCouiHaptic()
+    val rotation by animateFloatAsState(if (expanded) 90f else 0f, label = "Tuning chevron")
+    val stateText = stringResource(if (expanded) R.string.tune_expanded else R.string.tune_collapsed)
+    BasicComponent(
+        modifier = Modifier.semantics { stateDescription = stateText },
+        title = stringResource(title),
+        onClick = {
+            haptic(CouiHapticEffect.Strength)
+            expanded = !expanded
+        },
+        endActions = {
+            Icon(
+                imageVector = COUIIcons.Basic.ArrowRight,
+                contentDescription = null,
+                tint = COUITheme.colorScheme.onSurfaceVariantActions,
+                modifier = Modifier.align(Alignment.CenterVertically).size(20.dp).rotate(rotation),
+            )
+        },
+    )
+    AnimatedVisibility(
+        visible = expanded,
+        enter = expandVertically(expandFrom = Alignment.Top),
+        exit = shrinkVertically(shrinkTowards = Alignment.Top),
+    ) { Column { content() } }
+}
+
+@Composable
 private fun TuningSlider(
     option: CapsuleTuning,
     @StringRes title: Int,
@@ -302,7 +371,7 @@ private fun TuningSlider(
         valueRange = range.first.toFloat()..range.last.toFloat(),
         steps = (range.last - range.first) / option.step - 1,
         enabled = enabled,
-        onValueChange = { onChange(it.roundToInt().coerceIn(range)) },
+        onValueChange = { onChange(option.normalize(it.roundToInt()).coerceIn(range)) },
         onValueChangeFinished = onFinish,
         hapticEffect = SliderDefaults.SliderHapticEffect.None,
     )

@@ -9,6 +9,7 @@ import shop.terramoor.github.io.settings.CapsuleBackup
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LineMotion
+import shop.terramoor.github.io.settings.LyricTintMode
 import shop.terramoor.github.io.settings.LyricSwitchMode
 import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.SecondRowContent
@@ -26,6 +27,9 @@ class CapsuleBackupTest {
         assertEquals(9, fresh[CapsuleTuning.SECOND_ROW_SIZE])
         assertEquals(100, fresh[CapsuleTuning.FIRST_ROW_OPACITY])
         assertEquals(80, fresh[CapsuleTuning.SECOND_ROW_OPACITY])
+        assertTrue(fresh.lyricTintEnabled)
+        assertEquals(LyricTintMode.WALLPAPER, fresh.lyricTintMode)
+        assertEquals(100, fresh[CapsuleTuning.TINT_STRENGTH])
     }
 
     @Test fun v5TranslationFlagMigratesWithLegacyTimingAndSliderKeys() {
@@ -57,7 +61,7 @@ class CapsuleBackupTest {
         }
     }
 
-    @Test fun v6RoundTripPreservesInactiveSettingsAndDoesNotExportTheOldToggle() {
+    @Test fun v9RoundTripPreservesTintAndInactiveSettings() {
         val expected = CapsuleSettings(
             doubleLine = false,
             secondRowContent = SecondRowContent.LYRIC,
@@ -65,12 +69,66 @@ class CapsuleBackupTest {
             doubleLineSwitchMode = LyricSwitchMode.AFTER_END,
             missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS,
             fallbackSingleLineExpand = false,
-        ).withTuning(CapsuleTuning.entries.associateWith { it.range.last })
+            lyricTintEnabled = false,
+            lyricTintMode = LyricTintMode.OKLCH,
+        ).withTuning(CapsuleTuning.entries.associateWith {
+            if (it == CapsuleTuning.TINT_STRENGTH) 75 else it.range.last
+        })
         val encoded = CapsuleBackup.encode(expected)
         val root = JSONObject(encoded)
-        assertEquals(6, root.getInt("version"))
-        assertFalse(root.getJSONObject("settings").has("translation"))
+        assertEquals(9, root.getInt("version"))
+        val data = root.getJSONObject("settings")
+        assertFalse(data.getBoolean(CapsuleSettings.LYRIC_TINT_ENABLED))
+        assertFalse(data.has("translation"))
+        assertTrue(CapsuleSettings.retiredTintKeys.none(data::has))
         assertEquals(expected, CapsuleBackup.decode(encoded.byteInputStream()))
+    }
+
+    @Test fun v8TintModesMigrateToAnExplicitSwitchWithoutChangingStrength() {
+        val saved = CapsuleSettings(lyricTintMode = LyricTintMode.OKLCH)
+            .withTuning(mapOf(CapsuleTuning.TINT_STRENGTH to 50))
+        val backup = JSONObject(CapsuleBackup.encode(saved)).put("version", 8)
+        val data = backup.getJSONObject("settings")
+        data.remove(CapsuleSettings.LYRIC_TINT_ENABLED)
+        val enabled = CapsuleBackup.decode(backup.toString().byteInputStream())
+        assertTrue(enabled.lyricTintEnabled)
+        assertEquals(LyricTintMode.OKLCH, enabled.lyricTintMode)
+        assertEquals(50, enabled[CapsuleTuning.TINT_STRENGTH])
+
+        data.put(CapsuleSettings.LYRIC_TINT_MODE, "WHITE")
+        val disabled = CapsuleBackup.decode(backup.toString().byteInputStream())
+        assertFalse(disabled.lyricTintEnabled)
+        assertEquals(LyricTintMode.WALLPAPER, disabled.lyricTintMode)
+        assertEquals(50, disabled[CapsuleTuning.TINT_STRENGTH])
+    }
+
+    @Test fun v7TintStrengthsMergeIntoTheNearestSharedStep() {
+        val backup = JSONObject(CapsuleBackup.encode(CapsuleSettings(lyricTintMode = LyricTintMode.OKLCH)))
+        backup.put("version", 7)
+        val data = backup.getJSONObject("settings")
+        data.remove(CapsuleTuning.TINT_STRENGTH.key)
+        data.remove(CapsuleSettings.LYRIC_TINT_ENABLED)
+        data.put(CapsuleSettings.LEGACY_FIRST_ROW_TINT, 100)
+        data.put(CapsuleSettings.LEGACY_SECOND_ROW_TINT, 40)
+        val imported = CapsuleBackup.decode(backup.toString().byteInputStream())
+        assertTrue(imported.lyricTintEnabled)
+        assertEquals(LyricTintMode.OKLCH, imported.lyricTintMode)
+        assertEquals(75, imported[CapsuleTuning.TINT_STRENGTH])
+    }
+
+    @Test fun v6WithoutTintSettingsImportsAsWhiteWithoutChangingLyrics() {
+        val backup = JSONObject(CapsuleBackup.encode(CapsuleSettings(secondRowContent = SecondRowContent.LYRIC)))
+        backup.put("version", 6)
+        val data = backup.getJSONObject("settings")
+        data.remove(CapsuleSettings.LYRIC_TINT_ENABLED)
+        data.remove(CapsuleSettings.LYRIC_TINT_MODE)
+        data.remove(CapsuleTuning.TINT_STRENGTH.key)
+        val imported = CapsuleBackup.decode(backup.toString().byteInputStream())
+        assertFalse(imported.lyricTintEnabled)
+        assertEquals(LyricTintMode.WALLPAPER, imported.lyricTintMode)
+        assertEquals(SecondRowContent.LYRIC, imported.secondRowContent)
+        assertEquals(LyricSwitchMode.AT_NEXT_START, imported.doubleLineSwitchMode)
+        assertEquals(100, imported[CapsuleTuning.TINT_STRENGTH])
     }
 
     @Test fun removedDownwardMotionImportsAndReexportsAsUpwardMotion() {

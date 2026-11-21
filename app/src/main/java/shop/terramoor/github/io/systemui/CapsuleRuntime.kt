@@ -3,7 +3,6 @@ package shop.terramoor.github.io.systemui
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Icon
 import android.media.MediaMetadata
 import android.media.session.MediaController
@@ -18,6 +17,7 @@ import android.view.Display
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.widget.ImageView
 import io.github.libxposed.api.XposedInterface.HookHandle
 import shop.terramoor.github.io.diagnostics.DiagnosticLog
 import shop.terramoor.github.io.lyrics.LyricPayload
@@ -68,7 +68,12 @@ internal class CapsuleRuntime(
             main.removeCallbacks(refresh)
             protect("Capsule update", ::refreshTarget)
         }
-        labels?.enforceNativeVisibility()
+        val binding = labels
+        binding?.enforceNativeVisibility()
+        if (binding != null && settings.lyricTintEnabled &&
+            session?.nativeArtworkChanged(binding.target.artwork) == true) {
+            protect("Native artwork update", ::render)
+        }
         true
     }
     private val applyPreferences = Runnable { protect("Preferences", ::applySettings) }
@@ -376,11 +381,24 @@ internal class CapsuleRuntime(
             return
         }
         val watch = session ?: return
-        val background = if (settings.artwork) watch.artwork(candidate.artwork, settings[CapsuleTuning.BLUR]) else null
+        val tintEnabled = settings.lyricTintEnabled
+        val artwork = if (settings.artwork || tintEnabled) {
+            watch.artworkSource(candidate.artwork, binding.target.artwork.takeIf { tintEnabled })
+        } else null
+        val background = if (settings.artwork) watch.background(artwork, settings[CapsuleTuning.BLUR]) else null
+        val ink = watch.tint.resolve(artwork, background, settings,
+            settings[CapsuleTuning.ISLAND_WIDTH] / 30f)
+        if (tintEnabled) {
+            trace("lyric tint", "mode=${settings.lyricTintMode}, source=${watch.artworkOrigin}, " +
+                "iconType=${candidate.artwork?.type}, background=${background != null}, " +
+                "result=${watch.tint.outcome}, first=${ink.first.toUInt().toString(16)}, second=${ink.second.toUInt().toString(16)}")
+        } else {
+            trace("lyric tint", watch.tint.outcome)
+        }
         val timeline = watch.timeline
         if (timeline == null) {
             val trackInfo = if (settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
-            binding.render(trackInfo, settings, background)
+            binding.render(trackInfo, settings, background, ink = ink)
             trace("render", "NO_TIMELINE, trackInfo=${trackInfo != null}, artwork=${background != null}, shown=${binding.target.capsule.isShown}, size=${binding.target.capsule.width}x${binding.target.capsule.height}")
             setStatus(if (trackInfo != null) "Showing track info without usable lyric timing"
                 else "Waiting for timed lyrics from the active session")
@@ -399,11 +417,11 @@ internal class CapsuleRuntime(
             diagnostics.note("[lyric schedule] index=$index/${timeline.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, scrollEnd=${frame?.endMs}, displayStart=${frame?.displayStartMs}, next=$next, mode=$mode, secondRow=${frame?.rows?.second != null}, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
         }
         if (frame != null) {
-            binding.render(frame, settings, background, clock)
+            binding.render(frame, settings, background, clock, ink)
             setStatus("Rendering lyrics in native media capsule")
         } else {
             val introInfo = if (index < 0 && settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
-            binding.render(introInfo, settings, background)
+            binding.render(introInfo, settings, background, ink = ink)
             setStatus("Waiting for next lyric boundary")
         }
         if (next != null && binding.target.capsule.isShown) {
@@ -481,8 +499,16 @@ internal class CapsuleRuntime(
         private var previousTrackPayload: String? = null
         private var lastTrackPayload: String? = null
         private var metadataArtwork: Bitmap? = null
+        private var nativeArtwork: Bitmap? = null
+        private var previousNativeArtwork: Bitmap? = null
+        private var selectedArtwork: Bitmap? = null
         private var bitmap: Bitmap? = null
+        private var waitsForNativeArtwork = false
+        var artworkOrigin = "NONE"
+            private set
+        val tint = ArtworkLyricTint()
         private var icon: Icon? = null
+        private var iconArtwork: Bitmap? = null
         private var blurred: Bitmap? = null
         private var blurStrength = -1
         private var previousArtwork: Bitmap? = null
@@ -580,6 +606,7 @@ internal class CapsuleRuntime(
                     // The OEM may still be displaying the old notification artwork during a handoff.
                     previousArtwork = metadataArtwork
                     previousArtworkIcon = icon
+                    previousNativeArtwork = nativeArtwork
                     clearArtworkCache()
                 }
                 raw = null
@@ -628,8 +655,7 @@ internal class CapsuleRuntime(
             return LyricFrame.trackInfo(name, byline)
         }
 
-        fun artwork(fallback: Icon?, strength: Int): Bitmap? {
-            val source = artworkSource(fallback)
+        fun background(source: Bitmap?, strength: Int): Bitmap? {
             if (blurStrength != strength) {
                 blurred = source?.let { blurArtwork(it, strength) }
                 blurStrength = strength
@@ -639,28 +665,57 @@ internal class CapsuleRuntime(
 
         private fun clearArtworkCache() {
             metadataArtwork = null
+            nativeArtwork = null
+            selectedArtwork = null
             icon = null
+            iconArtwork = null
             bitmap = null
             blurred = null
             blurStrength = -1
         }
 
-        private fun artworkSource(fallback: Icon?): Bitmap? {
-            val current = ( metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-                ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
-                ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON))
-                ?.takeUnless { it === previousArtwork }
+        private fun coverBitmap(view: View?): Bitmap? = artworkBitmap((view as? ImageView)?.drawable)
+
+        fun nativeArtworkChanged(cover: View): Boolean = waitsForNativeArtwork && coverBitmap(cover) !== nativeArtwork
+
+        fun artworkSource(fallback: Icon?, cover: View?): Bitmap? {
+            val data = metadata
+            val current = data?.let {
+                fun currentBitmap(key: String) = it.getBitmap(key)?.takeUnless { image ->
+                    image.isRecycled || image === previousArtwork
+                }
+                currentBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                    ?: currentBitmap(MediaMetadata.METADATA_KEY_ART)
+                    ?: currentBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+            }
             val currentIcon = fallback?.takeUnless { it === previousArtworkIcon }
-            if (current != null && metadataArtwork === current && bitmap?.isRecycled != true) return bitmap
-            if (current == null && metadataArtwork == null && icon === currentIcon) return bitmap
+            if (icon !== currentIcon) {
+                icon = currentIcon
+                iconArtwork = null
+            }
+            if (current == null && iconArtwork == null && currentIcon != null &&
+                (currentIcon.type == Icon.TYPE_BITMAP || currentIcon.type == Icon.TYPE_ADAPTIVE_BITMAP)) {
+                val context = hostView?.context
+                if (context != null) iconArtwork = artworkBitmap(currentIcon.loadDrawable(context))
+            }
             metadataArtwork = current
-            icon = currentIcon
-            val source = current ?: currentIcon?.takeIf {
-                it.type == Icon.TYPE_BITMAP || it.type == Icon.TYPE_ADAPTIVE_BITMAP
-            }?.let { (hostView?.context?.let(it::loadDrawable) as? BitmapDrawable)?.bitmap }
+            nativeArtwork = coverBitmap(cover)
+            val iconBitmap = iconArtwork?.takeUnless { it.isRecycled }
+            waitsForNativeArtwork = cover is ImageView && current == null && iconBitmap == null
+            // The verified slot may still carry the preceding track's cover while the OEM updates it.
+            val nativeBitmap = nativeArtwork?.takeUnless { it === previousNativeArtwork }
+            val source = current ?: iconBitmap ?: nativeBitmap
+            artworkOrigin = when {
+                current != null -> "MEDIA_METADATA"
+                iconBitmap != null -> "NOTIFICATION_BITMAP"
+                nativeBitmap != null -> "NATIVE_COVER"
+                else -> "NONE"
+            }
+            if (selectedArtwork === source && bitmap?.isRecycled != true) return bitmap
+            selectedArtwork = source
             blurred = null
             blurStrength = -1
-            bitmap = source?.takeUnless { it.isRecycled }?.let {
+            bitmap = source?.let {
                 val longest = maxOf(it.width, it.height)
                 if (longest <= 128) it else Bitmap.createScaledBitmap(it,
                     (it.width * 128f / longest).roundToInt().coerceAtLeast(1),

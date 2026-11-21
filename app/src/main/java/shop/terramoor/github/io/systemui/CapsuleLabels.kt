@@ -30,6 +30,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
     private var artwork: Bitmap? = null
+    private var ink = LyricInk.WHITE
     private var dimAlpha = 0
     private var displayLine: LyricFrame? = null
     private var clock: PlaybackClock? = null
@@ -47,20 +48,25 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private val location = IntArray(2)
     private val offsets = IntArray(2)
 
-    fun render(line: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?, clock: PlaybackClock? = null) {
+    fun render(
+        line: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?,
+        clock: PlaybackClock? = null, ink: LyricInk = LyricInk.WHITE,
+    ) {
         if (displayLine != line) {
             capsule.removeCallbacks(redrawTrackInfo)
             if (line?.isTrackInfo == true) trackInfoShownAt = SystemClock.elapsedRealtime()
         }
-        val changed = displayLine != line || displaySettings != settings || this.artwork !== artwork || this.clock != clock
+        val changed = displayLine != line || displaySettings != settings || this.artwork !== artwork ||
+            this.clock != clock || this.ink != ink
         this.clock = clock
         displayLine = line
         displaySettings = settings
         enforceNativeVisibility()
         this.artwork = artwork
+        this.ink = ink
         dimAlpha = alpha(settings[CapsuleTuning.ARTWORK_DIM])
         if (changed) {
-            strip.update(line, settings)
+            strip.update(line, settings, ink)
             capsule.invalidate()
         }
         // Keep the verified slot measured across gaps and card transitions. A single invisible
@@ -137,12 +143,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
 
     private fun drawArtwork(canvas: Canvas) {
         val bitmap = artwork?.takeUnless { it.isRecycled } ?: return
-        val aspect = area.width() / area.height()
-        val sourceWidth = minOf(bitmap.width, (bitmap.height * aspect).roundToInt().coerceAtLeast(1))
-        val sourceHeight = minOf(bitmap.height, (sourceWidth / aspect).roundToInt().coerceAtLeast(1))
-        val left = (bitmap.width - sourceWidth) / 2
-        val top = (bitmap.height - sourceHeight) / 2
-        crop.set(left, top, left + sourceWidth, top + sourceHeight)
+        artworkCrop(bitmap, area.width() / area.height(), crop)
         paint.alpha = CapsuleSettings.ARTWORK_BACKGROUND_ALPHA
         canvas.drawBitmap(bitmap, crop, area, paint)
         paint.color = Color.argb(dimAlpha, 0, 0, 0)

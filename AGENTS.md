@@ -20,8 +20,8 @@ Use four-space Kotlin indentation, `PascalCase` types, `camelCase` members, and 
 
 ## Maintenance
 
-Read `HANDOFF.md` if present. Fix reproducible bugs with targeted changes. Preserve OEM transitions, live settings, backups, and native restoration. Compare firmware, plugin contracts, and media ownership for device-specific reports. Use signed `io.github.luckyumimi.terramoor` on the maintainer's unlocked phone. Ask for an unlock if it locks. Choose local checks or CI per change and reuse matching evidence.
+Read `HANDOFF.md` if present. Fix reproducible bugs with targeted changes. Preserve OEM transitions, live settings, backups, and native restoration. Compare firmware, plugin contracts, and media ownership for device-specific reports. Use signed `io.github.luckyumimi.terramoor` on the maintainer's unlocked phone. Ask for an unlock if it locks. Do not capture screenshots from the maintainer's phone, including over ADB. Use an emulator or dedicated test device, and save verification screenshots under the local `captures/<version>/` directory, for example `captures/1.7.0/`. Choose local checks or CI per change and reuse matching evidence.
 
 ## Changes and Releases
 
-Use short imperative commit subjects. Include what changed, how it was verified, and before/after screenshots for visible changes. Keep APKs out of source commits, and keep signing keys, credentials, local settings, logs, and reference APKs out of Git. Update `README.md` for user-facing setup changes and reuse the same release signing key for upgrades.
+Use short imperative commit subjects. Include what changed and how it was verified. Include before/after screenshots for visible changes when available from an allowed source. Keep APKs out of source commits, and keep signing keys, credentials, local settings, logs, and reference APKs out of Git. Update `README.md` for user-facing setup changes and reuse the same release signing key for upgrades.

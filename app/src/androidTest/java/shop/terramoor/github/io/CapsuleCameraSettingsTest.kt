@@ -19,6 +19,7 @@ import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LyricAlignment
 import shop.terramoor.github.io.settings.LyricSwitchMode
+import shop.terramoor.github.io.settings.LyricTintMode
 import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.SecondRowContent
 import shop.terramoor.github.io.settings.TerraMoorApp
@@ -177,6 +178,9 @@ class CapsuleCameraSettingsTest {
                 app.setSingleLineSwitchMode(LyricSwitchMode.AT_NEXT_START)
                 app.setMissingTranslationMode(MissingTranslationMode.DOUBLE_LYRICS)
                 app.set(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, false)
+                app.setLyricTintMode(LyricTintMode.OKLCH)
+                app.previewTuning(CapsuleTuning.TINT_STRENGTH, 50)
+                app.set(CapsuleSettings.LYRIC_TINT_ENABLED, false)
             }
             val confirmed = runBlocking { withTimeout(5000) { withContext(Dispatchers.Main) { app.snapshotForBackup() } } }
             instrumentation.waitForIdleSync()
@@ -190,6 +194,9 @@ class CapsuleCameraSettingsTest {
             assertEquals(LyricSwitchMode.AT_NEXT_START, settings.doubleLineSwitchMode)
             assertEquals(MissingTranslationMode.DOUBLE_LYRICS, settings.missingTranslationMode)
             assertFalse(settings.fallbackSingleLineExpand)
+            assertFalse(settings.lyricTintEnabled)
+            assertEquals(LyricTintMode.OKLCH, settings.lyricTintMode)
+            assertEquals(50, settings[CapsuleTuning.TINT_STRENGTH])
         } finally {
             prefs.unregisterOnSharedPreferenceChangeListener(listener)
             context.deleteSharedPreferences(name)

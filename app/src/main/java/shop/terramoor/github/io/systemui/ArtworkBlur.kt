@@ -1,7 +1,28 @@
 package shop.terramoor.github.io.systemui
 
 import android.graphics.Bitmap
+import android.graphics.Rect
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import kotlin.math.roundToInt
+
+internal fun artworkBitmap(drawable: Drawable?): Bitmap? {
+    val bitmapDrawable = when (drawable) {
+        is BitmapDrawable -> drawable
+        is AdaptiveIconDrawable -> drawable.foreground as? BitmapDrawable
+        else -> null
+    }
+    return bitmapDrawable?.bitmap?.takeUnless { it.isRecycled }
+}
+
+internal fun artworkCrop(bitmap: Bitmap, aspect: Float, out: Rect) {
+    val width = minOf(bitmap.width, (bitmap.height * aspect).roundToInt().coerceAtLeast(1))
+    val height = minOf(bitmap.height, (width / aspect).roundToInt().coerceAtLeast(1))
+    val left = (bitmap.width - width) / 2
+    val top = (bitmap.height - height) / 2
+    out.set(left, top, left + width, top + height)
+}
 
 /** The caller supplies a bounded thumbnail and caches the result by source and strength. */
 internal fun blurArtwork(source: Bitmap, strength: Int): Bitmap {

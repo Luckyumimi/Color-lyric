@@ -119,6 +119,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             CapsuleSettings.ENABLED -> current.copy(enabled = checked)
             CapsuleSettings.DOUBLE_LINE -> current.copy(doubleLine = checked)
             CapsuleSettings.ARTWORK -> current.copy(artwork = checked)
+            CapsuleSettings.LYRIC_TINT_ENABLED -> current.copy(lyricTintEnabled = checked)
             CapsuleSettings.SHOW_COVER -> current.copy(showCover = checked)
             CapsuleSettings.SHOW_WAVEFORM -> current.copy(showWaveform = checked)
             CapsuleSettings.CAMERA_FADE -> current.copy(cameraFade = checked)
@@ -130,7 +131,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
 
     internal fun previewTuning(option: CapsuleTuning, value: Int) {
         if (state.value.connection != Connection.READY) return
-        val next = value.coerceIn(option.range)
+        val next = option.normalize(value)
         pendingTuning[option] = next
         idle.value = false
         showSettings(state.value.settings.withTuning(mapOf(option to next)))
@@ -153,11 +154,18 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
 
     internal fun reset(option: CapsuleTuning) {
         pendingTuning.remove(option)
-        save(state.value.settings.withTuning(mapOf(option to option.default))) { remove(option.key) }
+        save(state.value.settings.withTuning(mapOf(option to option.default))) {
+            remove(option.key)
+            if (option == CapsuleTuning.TINT_STRENGTH) CapsuleSettings.retiredTintKeys.forEach { remove(it) }
+        }
     }
 
     internal fun setLyricAlignment(alignment: LyricAlignment) {
         save(state.value.settings.copy(lyricAlignment = alignment)) { putString(CapsuleSettings.LYRIC_ALIGNMENT, alignment.name) }
+    }
+
+    internal fun setLyricTintMode(mode: LyricTintMode) {
+        save(state.value.settings.copy(lyricTintMode = mode)) { putString(CapsuleSettings.LYRIC_TINT_MODE, mode.name) }
     }
 
     internal fun setSecondRowContent(content: SecondRowContent) {
@@ -211,6 +219,9 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         save(reset) {
             CapsuleTuning.entries.forEach { remove(it.key) }
             remove(CapsuleSettings.LYRIC_ALIGNMENT)
+            remove(CapsuleSettings.LYRIC_TINT_ENABLED)
+            remove(CapsuleSettings.LYRIC_TINT_MODE)
+            CapsuleSettings.retiredTintKeys.forEach { remove(it) }
             remove(CapsuleSettings.CAMERA_FADE)
             remove(CapsuleSettings.MOTION)
             remove(CapsuleSettings.NO_LYRICS)
