@@ -1,7 +1,13 @@
 package shop.terramoor.github.io.systemui
 
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Shader
 import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.text.Layout
 import android.text.StaticLayout
@@ -27,6 +33,8 @@ internal class CapsuleLyricStrip(private val density: Float) {
     private var fadePx = 0f
     private val cameraMask = CameraLyricMask()
 
+    fun paintDiagnostics() = "first=${firstRow.paintDiagnostics()}, second=${secondRow.paintDiagnostics()}, cameraFadePx=$fadePx"
+
     fun update(frame: LyricFrame?, settings: CapsuleSettings, ink: LyricInk = LyricInk.WHITE) {
         this.frame = frame
         motion = settings.motion
@@ -34,11 +42,11 @@ internal class CapsuleLyricStrip(private val density: Float) {
         fun setup(main: Lane, second: Lane, rows: LyricRows?) {
             val size = settings.effectiveFirstRowSize(rows?.missingTranslationSingleLine == true)
             main.update(rows?.first, size * density, settings[CapsuleTuning.FIRST_ROW_OPACITY], Typeface.DEFAULT_BOLD,
-                ink.first)
+                ink.first, ink.texture)
             // An upcoming lyric uses the same glyphs before and after promotion.
             val secondFace = if (rows?.nextLyricStartMs != null) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
             second.update(rows?.second, settings.effectiveSecondRowSize * density,
-                settings[CapsuleTuning.SECOND_ROW_OPACITY], secondFace, ink.second)
+                settings[CapsuleTuning.SECOND_ROW_OPACITY], secondFace, ink.second, ink.texture)
         }
         setup(firstRow, secondRow, frame?.rows)
         setup(priorFirstRow, priorSecondRow, frame?.priorRows)
@@ -50,6 +58,7 @@ internal class CapsuleLyricStrip(private val density: Float) {
         canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float,
         camera: CapsuleCamera?, position: Long,
         opacity: Float = 1f,
+        artworkArea: RectF? = null,
     ): Long? {
         val current = frame ?: return null
         if (right <= left || bottom <= top || opacity <= 0f) return null
@@ -66,6 +75,9 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val compactRight = right - skippedWidth
         if (compactRight <= left) return null
         val viewport = CapsuleTextViewport(left, compactRight, lyricAlignment)
+        val textureArea = artworkArea ?: RectF(left, top, right, bottom)
+        val lanes = listOf(firstRow, secondRow, priorFirstRow, priorSecondRow)
+        for (lane in lanes) lane.textureArea.set(textureArea)
         val feather = viewport.outerFeather(density)
         val phase = if (current.priorRows != null && motion != LineMotion.NONE) {
             ((position - current.displayStartMs) / 260f).coerceIn(0f, 1f)
@@ -81,7 +93,8 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val priorPreviewIsStatic = current.priorRows?.nextLyricStartMs != null
         val promote = phase < 1f && motion == LineMotion.UP && current.promotesPreviousLyric
         val crossfade = motion == LineMotion.FADE
-        fun drawTrack(destination: Canvas) {
+        fun drawTrack(destination: Canvas, physicalOffset: Float = 0f) {
+            for (lane in lanes) lane.textureOffsetX = physicalOffset
             if (promote) {
                 val oldFirstTop = pairTop(center, priorFirstRow, priorSecondRow)
                 val newFirstTop = pairTop(center, firstRow, secondRow)
@@ -117,7 +130,7 @@ internal class CapsuleLyricStrip(private val density: Float) {
                 try {
                     if (destination.clipRect(lensRight, top, right, bottom)) {
                         destination.translate(skippedWidth, 0f)
-                        drawTrack(destination)
+                        drawTrack(destination, skippedWidth)
                     }
                 } finally {
                     destination.restoreToCount(rightSave)
@@ -160,10 +173,23 @@ internal class CapsuleLyricStrip(private val density: Float) {
         private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG)
         private var layout: StaticLayout? = null
         private var text: String? = null
+        private var texture: Bitmap? = null
+        private var textureShader: BitmapShader? = null
+        private val textureMatrix = Matrix()
+        val textureArea = RectF()
+        var textureOffsetX = 0f
+        private val textureCrop = Rect()
+        fun paintDiagnostics() = "#${paint.color.toUInt().toString(16)}/alpha=${paint.alpha}/present=${layout != null}"
         val height: Int get() = layout?.height ?: 0
         val width: Float get() = layout?.getLineWidth(0) ?: 0f
 
-        fun update(value: String?, size: Float, opacity: Int, face: Typeface, rgb: Int) {
+        fun update(value: String?, size: Float, opacity: Int, face: Typeface, rgb: Int, bitmap: Bitmap?) {
+            if (texture !== bitmap) {
+                texture = bitmap
+                textureShader = bitmap?.takeUnless { it.isRecycled }?.let {
+                    BitmapShader(it, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+                }
+            }
             if (value != text || size != paint.textSize || face != paint.typeface) {
                 text = value
                 paint.textSize = size
@@ -223,11 +249,27 @@ internal class CapsuleLyricStrip(private val density: Float) {
                     feather, fade) { target ->
                     paint.color = color
                     paint.alpha = inkAlpha.toInt()
+                    val image = texture
+                    val shader = textureShader
+                    if (image != null && shader != null && !image.isRecycled &&
+                        textureArea.width() > 0f && textureArea.height() > 0f) {
+                        artworkCrop(image, textureArea.width() / textureArea.height(), textureCrop)
+                        val sx = textureArea.width() / textureCrop.width()
+                        val sy = textureArea.height() / textureCrop.height()
+                        textureMatrix.setScale(sx / scale, sy / scale)
+                        textureMatrix.postTranslate(
+                            (textureArea.left - textureCrop.left * sx - textureOffsetX - x) / scale,
+                            (textureArea.top - textureCrop.top * sy - y) / scale,
+                        )
+                        shader.setLocalMatrix(textureMatrix)
+                        paint.shader = shader
+                    }
                     target.translate(x, y)
                     if (scale != 1f) target.scale(scale, scale)
                     measured.draw(target)
                 }
             } finally {
+                paint.shader = null
                 paint.color = originalColor
             }
         }

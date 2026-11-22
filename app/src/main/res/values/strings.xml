@@ -143,4 +143,9 @@
     <string name="diagnostics_export_hint">Save the diagnostic log before asking for help.</string>
     <string name="diagnostics_export_ok">Diagnostic log exported</string>
     <string name="diagnostics_export_failed">Could not save the diagnostic log. Try again.</string>
+    <string name="lyric_tint_texture">Texture</string>
+    <string name="tune_texture_brightness">Texture brightness</string>
+    <string name="tune_texture_contrast">Texture contrast</string>
+    <string name="tune_texture_saturation">Texture saturation</string>
+    <string name="tune_texture_blur">Texture blur</string>
 </resources>

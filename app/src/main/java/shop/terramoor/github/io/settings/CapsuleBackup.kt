@@ -6,7 +6,7 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 10
+    private const val VERSION = 11
     private const val MAX_BYTES = 16 * 1024
     const val TRANSLATION_HELP_HIDDEN = "translation_help_hidden"
 
@@ -74,7 +74,7 @@ internal object CapsuleBackup {
             enabled = flag(CapsuleSettings.ENABLED),
             artwork = flag(CapsuleSettings.ARTWORK),
             lyricTintEnabled = if (version >= 9) flag(CapsuleSettings.LYRIC_TINT_ENABLED) else !legacyTintDisabled,
-            lyricTintMode = if (legacyTintDisabled) lyrics.lyricTintMode else LyricTintMode.valueOf(storedTintMode),
+            lyricTintMode = if (legacyTintDisabled) lyrics.lyricTintMode else LyricTintMode.fromStored(storedTintMode) ?: error("Invalid lyric tint mode"),
             showCover = if (version < 5) true else flag(CapsuleSettings.SHOW_COVER),
             showWaveform = if (version < 5) true else flag(CapsuleSettings.SHOW_WAVEFORM),
             lyricAlignment = if (version < 3) LyricAlignment.CENTER

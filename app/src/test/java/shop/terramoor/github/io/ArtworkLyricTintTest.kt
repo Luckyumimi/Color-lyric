@@ -38,14 +38,21 @@ class ArtworkLyricTintTest {
         assertTrue(levels.zipWithNext().all { (a, b) -> channel(a.first, 8) > channel(b.first, 8) })
     }
 
-    @Test fun brightBackgroundFallsBackToWhiteAndSecondRowAccountsForOpacity() {
+    @Test fun brightBackgroundAndLowOpacityPreserveTint() {
         val seed = LabColor.fromRgb(red)
         val settings = CapsuleSettings().withTuning(mapOf(
             CapsuleTuning.SECOND_ROW_OPACITY to 40,
         ))
-        assertEquals(LyricInk.WHITE, lyricInk(seed, intArrayOf(black, white), settings))
+        val brightInk = lyricInk(seed, intArrayOf(black, white), settings)
         val darkInk = lyricInk(seed, intArrayOf(black), settings)
-        assertTrue(darkInk.first != white)
-        assertEquals(white, darkInk.second)
+        assertEquals(darkInk, brightInk)
+        assertEquals(brightInk.first, brightInk.second)
+        assertTrue(brightInk.first != white)
+    }
+
+    @Test fun neutralArtworkRetainsANeutralInkInsteadOfWhite() {
+        val ink = lyricInk(LabColor.fromRgb(0xFF777777.toInt()), intArrayOf(black), CapsuleSettings())
+        assertTrue(ink.first != white)
+        assertEquals(ink.first, ink.second)
     }
 }

@@ -49,6 +49,21 @@ class CapsuleCameraSettingsTest {
     }
 
     @Test
+    fun oldTintModesMigrateToOklch() {
+        val context = InstrumentationRegistry.getInstrumentation().context
+        val name = "capsule-legacy-tint-modes"
+        val preferences = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+        try {
+            for (mode in listOf("MEDIAN_CUT", "WALLPAPER")) {
+                preferences.edit().putString(CapsuleSettings.LYRIC_TINT_MODE, mode).commit()
+                assertEquals(LyricTintMode.OKLCH, CapsuleSettings.read(preferences).lyricTintMode)
+            }
+        } finally {
+            context.deleteSharedPreferences(name)
+        }
+    }
+
+    @Test
     fun backupRestorePersistsFadeAndRadius() {
         val context = InstrumentationRegistry.getInstrumentation().context
         val prefs = context.getSharedPreferences("camera-settings-test", 0)

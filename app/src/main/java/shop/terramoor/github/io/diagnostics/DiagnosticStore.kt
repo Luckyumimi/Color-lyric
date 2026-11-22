@@ -14,7 +14,13 @@ internal object DiagnosticStore {
     @Synchronized
     fun append(context: Context, batch: List<String>): Boolean {
         val file = file(context)
-        val lines = (read(file) + batch).distinct().takeLast(MAX_LINES)
+        val all = (read(file) + batch).distinct()
+        val latestStages = all.indices.reversed().mapNotNull { index ->
+            val match = Regex("\\[tint/[^\\]]+\\]").find(all[index])
+            match?.value?.let { it to index }
+        }.distinctBy { it.first }.map { it.second }.toSet()
+        val retained = all.indices.toList().takeLast((MAX_LINES - latestStages.size).coerceAtLeast(0)).toSet() + latestStages
+        val lines = all.filterIndexed { index, _ -> index in retained }
         val stream = file.startWrite()
         try {
             stream.write(lines.joinToString("\n", postfix = "\n").toByteArray(Charsets.UTF_8))

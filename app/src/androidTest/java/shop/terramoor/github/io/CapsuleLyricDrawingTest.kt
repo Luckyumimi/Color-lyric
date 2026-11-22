@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.HardwareBufferRenderer
 import android.graphics.Paint
 import android.graphics.RenderNode
+import android.graphics.RectF
 import android.graphics.drawable.Icon
 import android.hardware.HardwareBuffer
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -228,6 +229,69 @@ class CapsuleLyricDrawingTest {
                 masked.recycle()
                 reference.recycle()
             }
+        }
+    }
+
+    @Test
+    fun textureUsesFixedParametersAndRetainsBrightnessControl() {
+        val cover = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
+        cover.eraseColor(Color.rgb(90, 120, 180))
+        val base = CapsuleSettings(lyricTintEnabled = true, lyricTintMode = LyricTintMode.TEXTURE)
+            .withTuning(mapOf(CapsuleTuning.TEXTURE_BRIGHTNESS to 70, CapsuleTuning.TINT_STRENGTH to 100))
+        val legacy = base.withTuning(mapOf(
+            CapsuleTuning.TEXTURE_CONTRAST to 0,
+            CapsuleTuning.TEXTURE_SATURATION to 0,
+            CapsuleTuning.TEXTURE_BLUR to 0,
+        ))
+        try {
+            val tint = ArtworkLyricTint()
+            val expected = tint.resolve(cover, null, base).texture!!
+            val actual = tint.resolve(cover, null, legacy).texture!!
+            assertEquals(expected.getPixel(8, 8), actual.getPixel(8, 8))
+            val darker = tint.resolve(cover, null, base.withTuning(mapOf(CapsuleTuning.TEXTURE_BRIGHTNESS to 0))).texture!!
+            assertTrue(Color.red(darker.getPixel(8, 8)) < Color.red(expected.getPixel(8, 8)))
+            val weaker = tint.resolve(cover, null, base.withTuning(mapOf(CapsuleTuning.TINT_STRENGTH to 25))).texture!!
+            assertTrue(Color.red(weaker.getPixel(8, 8)) > Color.red(expected.getPixel(8, 8)))
+        } finally {
+            cover.recycle()
+        }
+    }
+
+    @Test
+    fun textureUsesTheCapsuleCropAndPhysicalPositionAcrossTheCamera() {
+        val texture = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+        for (y in 0 until 64) for (x in 0 until 64) {
+            texture.setPixel(x, y, when {
+                y < 20 || y >= 44 -> Color.GREEN
+                x < 32 -> Color.RED
+                else -> Color.BLUE
+            })
+        }
+        val image = Bitmap.createBitmap(300, 60, Bitmap.Config.ARGB_8888)
+        val strip = CapsuleLyricStrip(3f)
+        val frame = LyricFrame(LyricRows("MMMMMMMMMMMMMMMMMMMMMMMM"), 0, 5000)
+        try {
+            strip.update(frame, CapsuleSettings(cameraFade = false), LyricInk(Color.WHITE, Color.WHITE, texture))
+            strip.draw(Canvas(image), 20f, 0f, 280f, 60f, CapsuleCamera(150f, 40f), 0,
+                artworkArea = RectF(0f, 0f, 300f, 60f))
+            var leftPixels = 0
+            var rightPixels = 0
+            for (y in 0 until 60) for (x in 35 until 230) {
+                val pixel = image.getPixel(x, y)
+                if (Color.alpha(pixel) < 240) continue
+                if (x < 100) {
+                    assertTrue("Left texture does not follow the artwork", Color.red(pixel) > 220 && Color.green(pixel) < 20)
+                    leftPixels++
+                } else if (x in 195 until 230) {
+                    assertTrue("Right texture does not follow the artwork", Color.blue(pixel) > 220 && Color.green(pixel) < 20)
+                    rightPixels++
+                }
+            }
+            assertTrue("Missing left lyric pixels", leftPixels > 0)
+            assertTrue("Missing right lyric pixels", rightPixels > 0)
+        } finally {
+            image.recycle()
+            texture.recycle()
         }
     }
 

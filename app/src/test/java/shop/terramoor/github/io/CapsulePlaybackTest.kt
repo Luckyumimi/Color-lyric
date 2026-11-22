@@ -4,6 +4,7 @@ import android.media.session.PlaybackState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import shop.terramoor.github.io.systemui.CapsulePlayback
 
@@ -26,8 +27,10 @@ class CapsulePlaybackTest {
         playback.update(PlaybackState.STATE_PLAYING, 35_000L, 50_000L, 1f, 120_000L, 50_000L)
         playback.newTrack()
         playback.update(PlaybackState.STATE_PLAYING, 35_000L, 50_000L, 1f, 120_000L, 50_500L)
+        assertFalse(playback.hasPosition)
         assertEquals(0L, playback.clock(120_000L).position(50_500L))
         playback.update(PlaybackState.STATE_PLAYING, 500L, 50_500L, 1f, 120_000L, 50_500L)
+        assertTrue(playback.hasPosition)
         assertEquals(700L, playback.clock(120_000L).position(50_700L))
     }
 
@@ -39,4 +42,13 @@ class CapsulePlaybackTest {
         assertEquals(0L, playback.clock(20_000).position(11_000))
     }
 
+    @Test fun outdatedCallbacksDoNotUndoTheCurrentClockButARealSeekCan() {
+        val playback = CapsulePlayback()
+        playback.update(PlaybackState.STATE_PLAYING, 2_660L, 12_000L, 1f, 60_000L, 12_000L)
+        assertFalse(playback.update(PlaybackState.STATE_PLAYING, 2_330L, 11_900L, 1f, 60_000L, 12_100L))
+        assertFalse(playback.update(PlaybackState.STATE_BUFFERING, 0L, 11_950L, 0f, 60_000L, 12_100L))
+        assertEquals(2_760L, playback.clock(60_000L).position(12_100L))
+        assertTrue(playback.update(PlaybackState.STATE_PLAYING, 500L, 12_200L, 1f, 60_000L, 12_200L))
+        assertEquals(600L, playback.clock(60_000L).position(12_300L))
+    }
 }

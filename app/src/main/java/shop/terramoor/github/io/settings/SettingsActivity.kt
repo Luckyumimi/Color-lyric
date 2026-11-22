@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -703,34 +704,41 @@ private fun SettingsTopBar(
     Box(
         modifier = Modifier.fillMaxWidth()
             .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top))
-            .animateContentSize(tween(220), alignment = Alignment.TopCenter)
             .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier = Modifier.fillMaxWidth().animateContentSize(tween(220), alignment = Alignment.TopCenter),
+            contentAlignment = Alignment.Center,
         ) {
-            if (showRestartReminder) {
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (showRestartReminder) {
+                    Text(
+                        text = stringResource(R.string.restart_system_ui_recommended),
+                        modifier = Modifier.weight(1f).padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
+                        color = unavailableColor(),
+                        style = COUITheme.textStyles.body2,
+                    )
+                    Spacer(Modifier.size(48.dp))
+                }
+            }
+            if (!showRestartReminder) {
                 Text(
-                    text = stringResource(R.string.restart_system_ui_recommended),
-                    modifier = Modifier.weight(1f).padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
-                    color = unavailableColor(),
-                    style = COUITheme.textStyles.body2,
+                    text = stringResource(R.string.tab_tuning),
+                    modifier = Modifier.graphicsLayer { alpha = titleVisibility() }
+                        .then(if (showTitle) Modifier.semantics { heading() } else Modifier.clearAndSetSemantics {}),
+                    color = COUITheme.colorScheme.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
                 )
             }
-            restartAction()
         }
-        if (!showRestartReminder) {
-            Text(
-                text = stringResource(R.string.tab_tuning),
-                modifier = Modifier.graphicsLayer { alpha = titleVisibility() }
-                    .then(if (showTitle) Modifier.semantics { heading() } else Modifier.clearAndSetSemantics {}),
-                color = COUITheme.colorScheme.onSurface,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-            )
+        // animateContentSize clips its children; keep the COUI shadow outside it.
+        Box(Modifier.align(Alignment.TopEnd).heightIn(min = 52.dp), contentAlignment = Alignment.CenterEnd) {
+            restartAction()
         }
     }
 }

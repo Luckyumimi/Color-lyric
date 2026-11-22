@@ -14,7 +14,11 @@ internal enum class CapsuleTuning(
     CAMERA_FADE_RADIUS("camera_fade_radius", 1..14, 3),
     BLUR("artwork_blur", 0..24, 14),
     ARTWORK_DIM("artwork_dim", 0..80, 25, 5),
-    TINT_STRENGTH("tint_strength", 25..100, 100, 25, since = 8);
+    TINT_STRENGTH("tint_strength", 25..100, 100, 25, since = 8),
+    TEXTURE_BRIGHTNESS("texture_brightness", 0..100, 70, since = 11),
+    TEXTURE_CONTRAST("texture_contrast", 0..200, 100, since = 11),
+    TEXTURE_SATURATION("texture_saturation", 0..200, 200, since = 11),
+    TEXTURE_BLUR("texture_blur", 0..100, 100, since = 11);
 
     fun normalize(value: Int): Int {
         val bounded = value.coerceIn(range)
@@ -36,7 +40,17 @@ internal enum class NoLyricsMode { EMPTY, TRACK }
 internal enum class SecondRowContent { TRANSLATION, LYRIC }
 internal enum class LyricSwitchMode { AFTER_END, AT_NEXT_START }
 internal enum class MissingTranslationMode { SINGLE_LINE, DOUBLE_LYRICS }
-internal enum class LyricTintMode { MEDIAN_CUT, WALLPAPER, OKLCH }
+internal enum class LyricTintMode {
+    MEDIAN_CUT, WALLPAPER, OKLCH, TEXTURE;
+
+    companion object {
+        fun fromStored(value: String?): LyricTintMode? = when (value) {
+            "MEDIAN_CUT", "WALLPAPER", "OKLCH" -> OKLCH
+            "TEXTURE" -> TEXTURE
+            else -> null
+        }
+    }
+}
 
 internal data class CapsuleSettings(
     val enabled: Boolean = true,
@@ -48,7 +62,7 @@ internal data class CapsuleSettings(
     val fallbackSingleLineExpand: Boolean = true,
     val artwork: Boolean = true,
     val lyricTintEnabled: Boolean = true,
-    val lyricTintMode: LyricTintMode = LyricTintMode.WALLPAPER,
+    val lyricTintMode: LyricTintMode = LyricTintMode.OKLCH,
     val showCover: Boolean = true,
     val showWaveform: Boolean = true,
     val lyricAlignment: LyricAlignment = LyricAlignment.LEFT,
@@ -132,7 +146,7 @@ internal data class CapsuleSettings(
                 artwork = prefs.getBoolean(ARTWORK, defaults.artwork),
                 lyricTintEnabled = prefs.getBoolean(LYRIC_TINT_ENABLED,
                     defaults.lyricTintEnabled && storedTintMode != LEGACY_WHITE_TINT),
-                lyricTintMode = LyricTintMode.entries.firstOrNull { it.name == storedTintMode } ?: defaults.lyricTintMode,
+                lyricTintMode = LyricTintMode.fromStored(storedTintMode) ?: defaults.lyricTintMode,
                 showCover = prefs.getBoolean(SHOW_COVER, defaults.showCover),
                 showWaveform = prefs.getBoolean(SHOW_WAVEFORM, defaults.showWaveform),
                 lyricAlignment = prefs.enumValue(LYRIC_ALIGNMENT, defaults.lyricAlignment),

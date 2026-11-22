@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.LyricLine
 import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.LyricRows
@@ -15,6 +16,13 @@ import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.SecondRowContent
 
 class LyricPresentationTest {
+    @Test fun trackInfoShowsTheArtistWhenAvailable() {
+        val frame = LyricFrame.trackInfo("Song", "Artist")
+        assertTrue(frame.isTrackInfo)
+        assertEquals(LyricRows("Song", "Artist"), frame.rows)
+        assertEquals(LyricRows("Song"), LyricFrame.trackInfo("Song", null).rows)
+    }
+
     private val timeline = Timeline.fromLines(listOf(
         LyricLine(1000, "First", "Translation", endMs = 2000),
         LyricLine(3000, "Second", "  ", endMs = 4000),

@@ -28,7 +28,7 @@ class CapsuleBackupTest {
         assertEquals(100, fresh[CapsuleTuning.FIRST_ROW_OPACITY])
         assertEquals(80, fresh[CapsuleTuning.SECOND_ROW_OPACITY])
         assertTrue(fresh.lyricTintEnabled)
-        assertEquals(LyricTintMode.WALLPAPER, fresh.lyricTintMode)
+        assertEquals(LyricTintMode.OKLCH, fresh.lyricTintMode)
         assertEquals(100, fresh[CapsuleTuning.TINT_STRENGTH])
     }
 
@@ -61,7 +61,7 @@ class CapsuleBackupTest {
         }
     }
 
-    @Test fun v10RoundTripPreservesTintAndInactiveSettings() {
+    @Test fun v11RoundTripPreservesTintAndInactiveSettings() {
         val expected = CapsuleSettings(
             doubleLine = false,
             secondRowContent = SecondRowContent.LYRIC,
@@ -70,18 +70,41 @@ class CapsuleBackupTest {
             missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS,
             fallbackSingleLineExpand = false,
             lyricTintEnabled = false,
-            lyricTintMode = LyricTintMode.OKLCH,
+            lyricTintMode = LyricTintMode.TEXTURE,
         ).withTuning(CapsuleTuning.entries.associateWith {
             if (it == CapsuleTuning.TINT_STRENGTH) 75 else it.range.last
         })
         val encoded = CapsuleBackup.encode(expected)
         val root = JSONObject(encoded)
-        assertEquals(10, root.getInt("version"))
+        assertEquals(11, root.getInt("version"))
         val data = root.getJSONObject("settings")
         assertFalse(data.getBoolean(CapsuleSettings.LYRIC_TINT_ENABLED))
         assertFalse(data.has("translation"))
         assertTrue(CapsuleSettings.retiredTintKeys.none(data::has))
         assertEquals(expected, CapsuleBackup.decode(encoded.byteInputStream()))
+    }
+
+    @Test fun legacyTintModesImportAsOklch() {
+        for (mode in listOf("MEDIAN_CUT", "WALLPAPER")) {
+            val backup = JSONObject(CapsuleBackup.encode(CapsuleSettings()))
+            backup.getJSONObject("settings").put(CapsuleSettings.LYRIC_TINT_MODE, mode)
+            val imported = CapsuleBackup.decode(backup.toString().byteInputStream())
+            assertEquals(LyricTintMode.OKLCH, imported.lyricTintMode)
+            assertEquals("OKLCH", JSONObject(CapsuleBackup.encode(imported))
+                .getJSONObject("settings").getString(CapsuleSettings.LYRIC_TINT_MODE))
+        }
+    }
+
+    @Test fun v10BackupDefaultsNewTextureSettings() {
+        val original = CapsuleSettings(lyricTintMode = LyricTintMode.OKLCH)
+        val backup = JSONObject(CapsuleBackup.encode(original)).put("version", 10)
+        val data = backup.getJSONObject("settings")
+        val options = listOf(CapsuleTuning.TEXTURE_BRIGHTNESS, CapsuleTuning.TEXTURE_CONTRAST,
+            CapsuleTuning.TEXTURE_SATURATION, CapsuleTuning.TEXTURE_BLUR)
+        options.forEach { data.remove(it.key) }
+        val decoded = CapsuleBackup.decode(backup.toString().byteInputStream())
+        assertEquals(LyricTintMode.OKLCH, decoded.lyricTintMode)
+        options.forEach { assertEquals(it.default, decoded[it]) }
     }
 
     @Test fun v10StoresHelpVisibilityAndKeepsCameraFadeAsBoolean() {
@@ -109,7 +132,7 @@ class CapsuleBackupTest {
         data.put(CapsuleSettings.LYRIC_TINT_MODE, "WHITE")
         val disabled = CapsuleBackup.decode(backup.toString().byteInputStream())
         assertFalse(disabled.lyricTintEnabled)
-        assertEquals(LyricTintMode.WALLPAPER, disabled.lyricTintMode)
+        assertEquals(LyricTintMode.OKLCH, disabled.lyricTintMode)
         assertEquals(50, disabled[CapsuleTuning.TINT_STRENGTH])
     }
 
@@ -136,7 +159,7 @@ class CapsuleBackupTest {
         data.remove(CapsuleTuning.TINT_STRENGTH.key)
         val imported = CapsuleBackup.decode(backup.toString().byteInputStream())
         assertFalse(imported.lyricTintEnabled)
-        assertEquals(LyricTintMode.WALLPAPER, imported.lyricTintMode)
+        assertEquals(LyricTintMode.OKLCH, imported.lyricTintMode)
         assertEquals(SecondRowContent.LYRIC, imported.secondRowContent)
         assertEquals(LyricSwitchMode.AT_NEXT_START, imported.doubleLineSwitchMode)
         assertEquals(100, imported[CapsuleTuning.TINT_STRENGTH])

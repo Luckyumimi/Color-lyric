@@ -56,24 +56,31 @@ internal class CapsuleRuntime(
     private var destroyedToken: MediaSession.Token? = null
     private var session: Session? = null
     private var labels: CapsuleLabels? = null
+    private var renderedShown: Boolean? = null
+    private var layoutChanged = false
+    private var scheduledTick: LyricBoundaryTick? = null
     private var status: String? = null
     private val stageMessages = mutableMapOf<String, String>()
 
-    private val refresh = Runnable { protect("Capsule update", ::refreshTarget) }
-    private val tick = Runnable { protect("Lyric rendering", ::render) }
+    private val refresh = Runnable { protect("Capsule update") { refreshTarget(forceRender = true) } }
+    private val tick = Runnable {
+        scheduledTick = null
+        protect("Lyric rendering", ::render)
+    }
     private val connect = Runnable { protect("Preferences reconnect", ::loadPreferences) }
     private val retryMedia = Runnable { protect("Media handoff") { readMedia(); postRefresh() } }
-    private val globalLayout = ViewTreeObserver.OnGlobalLayoutListener { postRefresh() }
+    private val globalLayout = ViewTreeObserver.OnGlobalLayoutListener { if (settings.enabled) layoutChanged = true }
     private val preDraw = ViewTreeObserver.OnPreDrawListener {
-        if (main.hasCallbacks(refresh)) {
-            main.removeCallbacks(refresh)
-            protect("Capsule update", ::refreshTarget)
+        val refreshPending = main.hasCallbacks(refresh)
+        if (refreshPending || layoutChanged) {
+            if (refreshPending) main.removeCallbacks(refresh)
+            protect("Capsule update") { refreshTarget(forceRender = refreshPending) }
         }
         val binding = labels
         binding?.enforceNativeVisibility()
-        if (binding != null && settings.lyricTintEnabled &&
-            session?.nativeArtworkChanged(binding.target.artwork) == true) {
-            protect("Native artwork update", ::render)
+        if (binding != null && (renderedShown != binding.target.capsule.isShown ||
+                (settings.artwork || settings.lyricTintEnabled) && session?.artworkChanged(binding.target.artwork) == true)) {
+            protect("Capsule visibility or artwork", ::render)
         }
         true
     }
@@ -166,7 +173,7 @@ internal class CapsuleRuntime(
 
     fun containerLaidOut(container: Any) {
         val currentRoot = root ?: return
-        if (settings.enabled && plugin?.belongs(container, currentRoot) == true) postRefresh()
+        if (settings.enabled && plugin?.belongs(container, currentRoot) == true) layoutChanged = true
     }
 
     fun draw(instance: Any, canvas: Canvas) {
@@ -179,7 +186,7 @@ internal class CapsuleRuntime(
         if (lastTintDrawFrame != frame || lastTintDrawResult != result) {
             lastTintDrawFrame = frame
             lastTintDrawResult = result
-            if (frame != null) trace("tint/draw", "result=$result, $frame")
+            if (frame != null) trace("tint/draw", "result=$result, $frame, ${binding.paintDiagnostics()}")
         }
     }
 
@@ -209,8 +216,9 @@ internal class CapsuleRuntime(
         val currentRoot = root ?: return
         if (!settings.enabled || plugin?.belongs(container, currentRoot) != true) return
         // Add the sizing child before the OEM measures the new item and captures animation bounds.
-        main.removeCallbacks(refresh)
-        protect("Capsule content", ::refreshTarget)
+        val refreshPending = main.hasCallbacks(refresh)
+        if (refreshPending) main.removeCallbacks(refresh)
+        protect("Capsule content") { refreshTarget(forceRender = refreshPending) }
     }
 
     private fun loadPreferences() {
@@ -247,6 +255,7 @@ internal class CapsuleRuntime(
 
     private fun stopObservation(releaseMedia: Boolean = true) {
         main.removeCallbacks(refresh)
+        layoutChanged = false
         if (releaseMedia) clearMediaRetry()
         observer?.takeIf { it.isAlive }?.let {
             it.removeOnPreDrawListener(preDraw)
@@ -305,7 +314,8 @@ internal class CapsuleRuntime(
         if (settings.enabled && !main.hasCallbacks(refresh)) main.post(refresh)
     }
 
-    private fun refreshTarget() {
+    private fun refreshTarget(forceRender: Boolean) {
+        layoutChanged = false
         if (!settings.enabled) return
         val view = hostView?.takeIf { it.isAttachedToWindow }
         val currentRoot = if (view == null) {
@@ -352,7 +362,8 @@ internal class CapsuleRuntime(
             setStatus(if (candidate == null) "Waiting for native media notification" else "Native media capsule not visible")
             return
         }
-        if (session?.token != candidate.token) {
+        val newSession = session?.token != candidate.token
+        if (newSession) {
             val controller = MediaController(currentRoot.context, candidate.token)
             if (controller.packageName != candidate.owner) {
                 releaseSession()
@@ -370,7 +381,8 @@ internal class CapsuleRuntime(
             watch.metadataChanged(controller.metadata)
             watch.playbackChanged(controller.playbackState)
         }
-        if (labels?.target != target) {
+        val newBinding = labels?.target != target
+        if (newBinding) {
             clearLabels()
             labels = CapsuleLabels(target)
             Log.i(TAG, "Verified native media capsule label slots")
@@ -378,11 +390,14 @@ internal class CapsuleRuntime(
             diagnostics.note("Native capsule bound: capsule=${node(target.capsule)}, titleFrame=${node(target.title.frame)}, title=${node(target.title.stock)}")
             diagnostics.note("Native capsule slots: translationFrame=${node(target.translation.frame)}, translation=${node(target.translation.stock)}, artwork=${node(target.artwork)}, waveform=${node(target.waveform)}")
         }
-        render()
+        if (forceRender || newSession || newBinding || renderedShown != target.capsule.isShown) {
+            render()
+        } else {
+            labels?.maintainNativeSizing()
+        }
     }
 
     private fun render() {
-        main.removeCallbacks(tick)
         val binding = labels ?: return
         val currentRoot = root ?: return
         val candidate = media ?: return
@@ -393,19 +408,28 @@ internal class CapsuleRuntime(
             return
         }
         val watch = session ?: return
+        val shown = binding.target.capsule.isShown
+        renderedShown = shown
         val tintEnabled = settings.lyricTintEnabled
         val artwork = if (settings.artwork || tintEnabled) {
-            watch.artworkSource(candidate.artwork, binding.target.artwork.takeIf { tintEnabled })
+            watch.artworkSource(candidate.artwork, binding.target.artwork)
         } else null
         val background = if (settings.artwork) watch.background(artwork, settings[CapsuleTuning.BLUR]) else null
-        val ink = watch.tint.resolve(artwork, background, settings,
+        val ink = watch.tint.resolve(watch.tintArtwork(), background, settings,
             settings[CapsuleTuning.ISLAND_WIDTH] / 30f)
-        if (tintEnabled) trace("tint/source", watch.artworkObservation)
+        val correlation = watch.tintCorrelation()
+        if (tintEnabled) {
+            trace("tint/source", "$correlation, ${watch.artworkObservation}")
+            trace("tint/extraction", "$correlation, ${watch.tint.extractionDetail}")
+            trace("tint/contrast", "$correlation, ${watch.tint.contrastDetail}")
+            trace("tint/cache", "$correlation, ${watch.tint.cacheDetail}")
+        }
         trace("tint/palette", "enabled=$tintEnabled, algorithm=${settings.lyricTintMode}, " +
-            "strength=${settings[CapsuleTuning.TINT_STRENGTH]}, source=${if (tintEnabled) watch.artworkOrigin else "NOT_REQUESTED"}, " +
+            "$correlation, strength=${settings[CapsuleTuning.TINT_STRENGTH]}, source=${if (!tintEnabled) "NOT_REQUESTED" else if (watch.tintArtwork() != null) "MEDIA_ALBUM_ART" else "WAITING_FOR_ALBUM_ART"}, backgroundSource=${watch.artworkOrigin}, " +
             "background=${background != null}, extraction=${watch.tint.extraction}, result=${watch.tint.outcome}, ${ink.diagnosticColors()}")
         val timeline = watch.timeline
         if (timeline == null) {
+            setLyricTick(null)
             val trackInfo = if (settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
             renderFrame(binding, trackInfo, "NO_TIMELINE", background, ink)
             trace("render", "NO_TIMELINE, trackInfo=${trackInfo != null}, artwork=${background != null}, shown=${binding.target.capsule.isShown}, size=${binding.target.capsule.width}x${binding.target.capsule.height}")
@@ -414,9 +438,11 @@ internal class CapsuleRuntime(
             return
         }
         val clock = watch.playbackClock()
-        val position = clock.position(SystemClock.elapsedRealtime())
+        val now = SystemClock.elapsedRealtime()
+        val uptime = SystemClock.uptimeMillis()
+        val position = clock.position(now)
         val presentation = LyricPresentation(timeline, settings)
-        val index = presentation.indexAt(position)
+        val index = if (watch.hasPlaybackPosition) presentation.indexAt(position) else -1
         val line = timeline.lines.getOrNull(index)?.takeIf { it.text.isNotBlank() }
         val next = presentation.nextBoundary(index)
         val frame = presentation.frameAt(index, watch.duration)
@@ -433,14 +459,21 @@ internal class CapsuleRuntime(
             renderFrame(binding, introInfo, "INTRO_OR_GAP", background, ink)
             setStatus("Waiting for next lyric boundary")
         }
-        if (next != null && binding.target.capsule.isShown) {
-            clock.delayTo(position, next)?.let { delay ->
-                main.postDelayed(tick, delay)
-                trace("scheduler", "NEXT_LINE index=$index, targetMs=$next, delayMs=$delay")
-            } ?: trace("scheduler", "NOT_MOVING index=$index")
-        } else {
-            trace("scheduler", "NO_NEXT_OR_HIDDEN index=$index, shown=${binding.target.capsule.isShown}")
-        }
+        val planned = if (shown && next != null) LyricBoundaryTick.plan(clock, next, now, uptime) else null
+        setLyricTick(planned)
+        trace("scheduler", when {
+            planned != null -> "NEXT_LINE index=$index, targetMs=$next"
+            !shown || next == null -> "NO_NEXT_OR_HIDDEN index=$index, shown=$shown"
+            else -> "NOT_MOVING index=$index"
+        })
+    }
+
+    private fun setLyricTick(planned: LyricBoundaryTick?) {
+        val previous = scheduledTick
+        if (planned == previous || planned?.sameDeadline(previous) == true) return
+        if (previous != null) main.removeCallbacks(tick)
+        scheduledTick = planned
+        if (planned != null) main.postAtTime(tick, planned.uptimeMs)
     }
 
     private var lastTintDrawFrame: String? = null
@@ -456,7 +489,7 @@ internal class CapsuleRuntime(
             frame.isTrackInfo -> "TRACK_INFO"
             else -> "LYRICS"
         }
-        val detail = "phase=$phase, kind=$kind, secondRow=${frame?.rows?.second != null}, ${ink.diagnosticColors()}"
+        val detail = "${session?.tintCorrelation()}, phase=$phase, kind=$kind, secondRow=${frame?.rows?.second != null}, opacity=${settings[CapsuleTuning.FIRST_ROW_OPACITY]}/${settings[CapsuleTuning.SECOND_ROW_OPACITY]}, ${ink.diagnosticColors()}"
         tintDrawFrame = detail
         trace("tint/frame", detail)
     }
@@ -464,7 +497,8 @@ internal class CapsuleRuntime(
     private fun LyricInk.diagnosticColors() = "first=#${first.toUInt().toString(16)}, second=#${second.toUInt().toString(16)}"
 
     private fun clearLabels() {
-        main.removeCallbacks(tick)
+        setLyricTick(null)
+        renderedShown = null
         tintDrawFrame = null
         lastTintDrawFrame = null
         lastTintDrawResult = null
@@ -477,7 +511,7 @@ internal class CapsuleRuntime(
     }
 
     private fun releaseSession(keepLabels: Boolean = false) {
-        main.removeCallbacks(tick)
+        setLyricTick(null)
         val current = session
         session = null
         current?.cancelMetadataExpiry()
@@ -521,6 +555,9 @@ internal class CapsuleRuntime(
 
     private inner class Session(val token: MediaSession.Token, val controller: MediaController) : MediaController.Callback() {
         private val playback = CapsulePlayback()
+        private var trackSequence = 0L
+        fun tintCorrelation() = "pid=${android.os.Process.myPid()}, session=${System.identityHashCode(this)}, track=$trackSequence, calculation=${tint.calculationId}"
+        val hasPlaybackPosition: Boolean get() = playback.hasPosition
         var timeline: Timeline? = null
             private set
         var duration = 0L
@@ -534,6 +571,8 @@ internal class CapsuleRuntime(
         private var nativeArtwork: Bitmap? = null
         private var previousNativeArtwork: Bitmap? = null
         private var selectedArtwork: Bitmap? = null
+        private var selectedArtworkGeneration = 0
+        private var observedTintGeneration = 0
         private var bitmap: Bitmap? = null
         private var waitsForNativeArtwork = false
         var artworkOrigin = "NONE"
@@ -576,8 +615,9 @@ internal class CapsuleRuntime(
 
         override fun onMetadataChanged(metadata: MediaMetadata?) = protect("Media metadata") {
             if (session === this) {
-                metadataChanged(metadata)
-                playbackChanged(controller.playbackState)
+                // A payload or artwork update is not a playback-state update. Pull a fresh
+                // snapshot only on a track handoff, when playback may have arrived first.
+                if (metadataChanged(metadata)) playbackChanged(controller.playbackState)
                 render()
             }
         }
@@ -599,35 +639,37 @@ internal class CapsuleRuntime(
         }
 
         fun playbackChanged(state: PlaybackState?) {
-            val expectedPosition = playback.clock(duration).position(SystemClock.elapsedRealtime())
+            val now = SystemClock.elapsedRealtime()
+            val expectedPosition = playback.clock(duration).position(now)
+            if (!playback.update(state?.state, state?.position ?: -1L, state?.lastPositionUpdateTime ?: 0L,
+                    state?.playbackSpeed ?: 0f, duration, now)) return
             val seek = state != null && lastPlaybackState == state.state && state.position >= 0L &&
                 kotlin.math.abs(state.position - expectedPosition) > 1500L
             if (lastPlaybackState != state?.state || seek) {
                 lastPlaybackState = state?.state
                 diagnostics.note("Playback state=${state?.state}, positionMs=${state?.position}, speed=${state?.playbackSpeed}, seek=$seek, expectedMs=$expectedPosition, durationMs=$duration")
             }
-            playback.update(state?.state, state?.position ?: -1L, state?.lastPositionUpdateTime ?: 0L,
-                state?.playbackSpeed ?: 0f, duration, SystemClock.elapsedRealtime())
         }
 
         fun playbackClock(): PlaybackClock = playback.clock(duration)
 
-        fun metadataChanged(data: MediaMetadata?) {
+        fun metadataChanged(data: MediaMetadata?): Boolean {
             if (data == null) {
                 logLyrics("Media metadata missing")
                 markMetadataMissing(identityMissing = true)
-                return
+                return false
             }
             val nextTrack = Track(data.getString(MediaMetadata.METADATA_KEY_MEDIA_ID),
                 data.getString(MediaMetadata.METADATA_KEY_TITLE), data.getString(MediaMetadata.METADATA_KEY_ARTIST))
             if (nextTrack.id.isNullOrBlank() && nextTrack.title.isNullOrBlank()) {
                 logLyrics("Media metadata has no track identity")
                 markMetadataMissing(identityMissing = true)
-                return
+                return false
             }
             val nextPayload = data.getString(LyricPayload.KEY)?.takeIf { it.isNotBlank() }
             val changed = track != nextTrack
             if (changed) {
+                trackSequence++
                 lyricStatus = null
                 lastLoggedLine = null
                 diagnostics.note("Track metadata changed, previous track present=${track != null}")
@@ -674,6 +716,7 @@ internal class CapsuleRuntime(
             trackInfoAvailable = true
             duration = data.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0L }
                 ?: if (changed) 0L else duration
+            return changed
         }
 
         private fun logLyrics(message: String) {
@@ -701,6 +744,8 @@ internal class CapsuleRuntime(
             metadataArtwork = null
             nativeArtwork = null
             selectedArtwork = null
+            selectedArtworkGeneration = 0
+            observedTintGeneration = 0
             icon = null
             iconArtwork = null
             bitmap = null
@@ -710,10 +755,25 @@ internal class CapsuleRuntime(
 
         private fun coverBitmap(view: View?): Bitmap? = artworkBitmap((view as? ImageView)?.drawable)
 
-        fun nativeArtworkChanged(cover: View): Boolean = waitsForNativeArtwork && coverBitmap(cover) !== nativeArtwork
+        fun artworkChanged(cover: View): Boolean {
+            val currentNative = coverBitmap(cover)
+            val currentTint = tintArtwork()
+            return (waitsForNativeArtwork && currentNative !== nativeArtwork) ||
+                (currentTint?.generationId ?: 0) != observedTintGeneration ||
+                (selectedArtwork?.takeUnless { it.isRecycled }?.generationId ?: 0) != selectedArtworkGeneration
+        }
+
+        fun tintArtwork(): Bitmap? {
+            val data = metadata ?: return null
+            return sequenceOf(MediaMetadata.METADATA_KEY_ALBUM_ART, MediaMetadata.METADATA_KEY_ART)
+                .mapNotNull { data.getBitmap(it) }
+                .firstOrNull { !it.isRecycled && it !== previousArtwork }
+        }
 
         fun artworkSource(fallback: Icon?, cover: View?): Bitmap? {
             val data = metadata
+            val tintSource = tintArtwork()
+            observedTintGeneration = tintSource?.generationId ?: 0
             val current = data?.let {
                 fun currentBitmap(key: String) = it.getBitmap(key)?.takeUnless { image ->
                     image.isRecycled || image === previousArtwork
@@ -748,13 +808,17 @@ internal class CapsuleRuntime(
             if (cover != null) {
                 artworkObservation = "origin=$artworkOrigin, metadataBitmap=${current != null}, " +
                     "notificationType=${fallback?.type}, notificationBitmap=${iconBitmap != null}, " +
-                    "nativeView=${cover.javaClass.simpleName}, nativeBitmap=${nativeBitmap != null}, " +
+                    "nativeView=${cover.javaClass.simpleName}, drawable=${(cover as? ImageView)?.drawable?.javaClass?.simpleName}, nativeBitmap=${nativeBitmap != null}, " +
                     "priorNotificationIgnored=${fallback != null && currentIcon == null}, " +
                     "priorNativeIgnored=${nativeArtwork != null && nativeBitmap == null}, " +
-                    "waitingForNative=$waitsForNativeArtwork, selected=${source?.width}x${source?.height}, config=${source?.config}"
+                    "tintAlbumArtReady=${tintSource != null}, waitingForNative=$waitsForNativeArtwork, selected=${source?.width}x${source?.height}, config=${source?.config}, " +
+                    "identity=${source?.let(System::identityHashCode)}, generation=${source?.takeUnless { it.isRecycled }?.generationId}"
             }
-            if (selectedArtwork === source && bitmap?.isRecycled != true) return bitmap
+            trace("tint/metadata", "${tintCorrelation()}, albumArt=${data?.containsKey(MediaMetadata.METADATA_KEY_ALBUM_ART)}, art=${data?.containsKey(MediaMetadata.METADATA_KEY_ART)}, displayIcon=${data?.containsKey(MediaMetadata.METADATA_KEY_DISPLAY_ICON)}, selectedCacheHit=${selectedArtwork === source && bitmap?.isRecycled != true}")
+            val sourceGeneration = source?.generationId ?: 0
+            if (selectedArtwork === source && selectedArtworkGeneration == sourceGeneration && bitmap?.isRecycled != true) return bitmap
             selectedArtwork = source
+            selectedArtworkGeneration = sourceGeneration
             blurred = null
             blurStrength = -1
             bitmap = source?.let {

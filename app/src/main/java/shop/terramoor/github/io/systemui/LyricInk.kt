@@ -1,5 +1,6 @@
 package shop.terramoor.github.io.systemui
 
+import android.graphics.Bitmap
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import kotlin.math.cbrt
@@ -7,7 +8,7 @@ import kotlin.math.hypot
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-internal data class LyricInk(val first: Int, val second: Int) {
+internal data class LyricInk(val first: Int, val second: Int, val texture: Bitmap? = null) {
     companion object {
         val WHITE = LyricInk(-1, -1)
     }
@@ -76,34 +77,19 @@ private val linearSrgb = DoubleArray(256) { index ->
     if (x <= 0.04045) x / 12.92 else ((x + 0.055) / 1.055).pow(2.4)
 }
 private fun linear(x: Int) = linearSrgb[x]
-private fun luminance(color: Int) =
+internal fun luminance(color: Int) =
     0.2126 * linear(channel(color, 16)) + 0.7152 * linear(channel(color, 8)) + 0.0722 * linear(channel(color, 0))
 
-internal fun lyricInk(seed: LabColor?, background: IntArray, settings: CapsuleSettings): LyricInk {
-    if (seed == null || seed.chroma < 0.018) return LyricInk.WHITE
+internal fun lyricInk(seed: LabColor?, background: IntArray, settings: CapsuleSettings,
+                      observe: ((String) -> Unit)? = null): LyricInk {
+    if (seed == null) return LyricInk.WHITE
     val amount = settings[CapsuleTuning.TINT_STRENGTH] / 100.0
     val tint = LabColor(1.0 - (1.0 - TINT_LIGHTNESS) * amount, seed.a * amount, seed.b * amount)
-    val backgroundLuminances = DoubleArray(background.size) { luminance(background[it]) }
-
-    fun lane(opacity: CapsuleTuning): Int {
-        val alpha = ((settings[opacity] * 255 + 50) / 100) / 255.0
-        // When the requested contrast is unreachable, white is the brightest ink available.
-        for (step in 0 until 16) {
-            val remaining = 1.0 - step / 16.0
-            val candidate = LabColor(1.0 - (1.0 - tint.lightness) * remaining,
-                tint.a * remaining, tint.b * remaining).toRgb()
-            if (background.indices.all { index ->
-                    val inkLuminance = luminance(blendInk(background[index], candidate, alpha))
-                    val baseLuminance = backgroundLuminances[index]
-                    (maxOf(inkLuminance, baseLuminance) + 0.05) /
-                        (minOf(inkLuminance, baseLuminance) + 0.05) >= MINIMUM_CONTRAST
-                }) return candidate
-        }
-        return -1
-    }
-
-    return LyricInk(lane(CapsuleTuning.FIRST_ROW_OPACITY), lane(CapsuleTuning.SECOND_ROW_OPACITY))
+    val color = tint.toRgb()
+    val backgroundLuminances = background.map(::luminance)
+    observe?.invoke("backgroundLuminance=${backgroundLuminances.minOrNull()}..${backgroundLuminances.maxOrNull()}, " +
+        "initial=#${color.toUInt().toString(16)}, contrastPolicy=preserve_tint")
+    return LyricInk(color, color)
 }
 
 private const val TINT_LIGHTNESS = 0.95
-private const val MINIMUM_CONTRAST = 4.5

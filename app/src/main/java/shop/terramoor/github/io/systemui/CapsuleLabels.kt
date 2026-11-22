@@ -69,6 +69,11 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             strip.update(line, settings, ink)
             capsule.invalidate()
         }
+        maintainNativeSizing()
+    }
+
+    fun maintainNativeSizing() {
+        val settings = displaySettings ?: return
         // Keep the verified slot measured across gaps and card transitions. A single invisible
         // child lets the native container measure its own width, including reserved icon space.
         updateCapsuleWidth(capsuleWidthPixels(settings[CapsuleTuning.ISLAND_WIDTH], density))
@@ -78,6 +83,8 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private fun cameraBounds(): Rect? =
         capsule.display?.cutout?.boundingRectTop?.takeUnless { it.isEmpty }
             ?: capsule.rootWindowInsets?.displayCutout?.boundingRectTop?.takeUnless { it.isEmpty }
+
+    fun paintDiagnostics() = strip.paintDiagnostics()
 
     fun draw(canvas: Canvas, drawingWidth: Int): String {
         if (!capsule.isShown) return "CAPSULE_HIDDEN"
@@ -117,7 +124,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             val position = if (line.isTrackInfo) now - trackInfoShownAt else timing?.position(now) ?: line.startMs
             val redrawDelay = strip.draw(
                 canvas, left, area.top, right, area.bottom,
-                lens, position,
+                lens, position, artworkArea = area,
             )
             if (line.isTrackInfo) {
                 capsule.removeCallbacks(redrawTrackInfo)

@@ -138,4 +138,9 @@
     <string name="diagnostics_export_hint">请在寻求帮助前保存诊断日志</string>
     <string name="diagnostics_export_ok">诊断日志已导出</string>
     <string name="diagnostics_export_failed">无法保存诊断日志，请重试</string>
+    <string name="lyric_tint_texture">质感</string>
+    <string name="tune_texture_brightness">质感亮度</string>
+    <string name="tune_texture_contrast">质感对比度</string>
+    <string name="tune_texture_saturation">质感饱和度</string>
+    <string name="tune_texture_blur">质感模糊</string>
 </resources>

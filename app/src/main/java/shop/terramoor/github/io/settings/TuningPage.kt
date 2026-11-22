@@ -253,9 +253,8 @@ internal fun TuningPage(
                 )
                 if (settings.lyricTintEnabled) {
                     val modes = listOf(
-                        LyricTintMode.MEDIAN_CUT to R.string.lyric_tint_median_cut,
-                        LyricTintMode.WALLPAPER to R.string.lyric_tint_wallpaper,
                         LyricTintMode.OKLCH to R.string.lyric_tint_oklch,
+                        LyricTintMode.TEXTURE to R.string.lyric_tint_texture,
                     )
                     HorizontalDivider(divider)
                     TuningDropdown(
@@ -267,6 +266,10 @@ internal fun TuningPage(
                     )
                     HorizontalDivider(divider)
                     slider(CapsuleTuning.TINT_STRENGTH, R.string.tune_tint_strength, R.string.value_percent, ready)
+                    if (settings.lyricTintMode == LyricTintMode.TEXTURE) {
+                        HorizontalDivider(divider)
+                        slider(CapsuleTuning.TEXTURE_BRIGHTNESS, R.string.tune_texture_brightness, R.string.value_percent, ready)
+                    }
                 }
             }
             SettingsGroup(stringResource(R.string.section_lyric_behavior)) {

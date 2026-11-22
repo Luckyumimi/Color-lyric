@@ -138,4 +138,9 @@
     <string name="diagnostics_export_hint">請在尋求協助前儲存診斷記錄。</string>
     <string name="diagnostics_export_ok">已匯出診斷記錄</string>
     <string name="diagnostics_export_failed">無法儲存診斷記錄，請重試。</string>
+    <string name="lyric_tint_texture">質感</string>
+    <string name="tune_texture_brightness">質感亮度</string>
+    <string name="tune_texture_contrast">質感對比度</string>
+    <string name="tune_texture_saturation">質感飽和度</string>
+    <string name="tune_texture_blur">質感模糊</string>
 </resources>

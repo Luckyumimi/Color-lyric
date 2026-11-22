@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.os.SystemClock
@@ -22,6 +23,7 @@ import shop.terramoor.github.io.systemui.MediaCapsulePreviewGeometry
 import shop.terramoor.github.io.systemui.capsuleLyricsLeft
 import shop.terramoor.github.io.systemui.capsuleLyricsRight
 import shop.terramoor.github.io.systemui.blurArtwork
+import shop.terramoor.github.io.systemui.artworkCrop
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -33,6 +35,7 @@ internal class CapsulePreviewView(context: Context) : View(context) {
     private var ink = LyricInk.WHITE
     private val baseColor = Color.rgb(15, 16, 19)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val backgroundCrop = Rect()
     private val pill = RectF()
     private val coverRect = RectF()
     private val clip = Path()
@@ -84,7 +87,8 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         }
         settings = newSettings
         val cover = previewCover()
-        ink = tint.resolve(cover, previewBackground(cover), settings, baseColor = baseColor)
+        ink = tint.resolve(cover, previewBackground(cover), settings,
+            aspect = geometry.width / geometry.height, baseColor = baseColor)
         activeFrame = Int.MIN_VALUE
         cancelHoldRedraw()
         invalidate()
@@ -126,7 +130,8 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         val cover = previewCover()
         previewBackground(cover)?.let { background ->
             paint.alpha = CapsuleSettings.ARTWORK_BACKGROUND_ALPHA
-            canvas.drawBitmap(background, null, pill, paint)
+            artworkCrop(background, pill.width() / pill.height(), backgroundCrop)
+            canvas.drawBitmap(background, backgroundCrop, pill, paint)
             paint.color = Color.BLACK
             paint.alpha = alpha(settings[CapsuleTuning.ARTWORK_DIM])
             canvas.drawRect(pill, paint)
@@ -142,7 +147,8 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         canvas.restoreToCount(coverSave)
         val redrawDelay = strip.draw(canvas, capsuleLyricsLeft(coverRect.right, dp, settings), pill.top,
             capsuleLyricsRight(geometry.width, geometry.waveformLeft, dp, settings), pill.bottom,
-            CapsuleCamera(geometry.cameraCenterX, geometry.cameraRadius), if (lyrics == null) elapsed else position)
+            CapsuleCamera(geometry.cameraCenterX, geometry.cameraRadius), if (lyrics == null) elapsed else position,
+            artworkArea = pill)
         paint.color = Color.BLACK
         canvas.drawCircle(geometry.cameraCenterX, geometry.cameraCenterY, geometry.cameraRadius, paint)
         paint.color = Color.WHITE
