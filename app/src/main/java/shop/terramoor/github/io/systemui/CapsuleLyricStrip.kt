@@ -74,8 +74,9 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val skippedWidth = lensRight - lensLeft
         val compactRight = right - skippedWidth
         if (compactRight <= left) return null
-        val viewport = CapsuleTextViewport(left, compactRight, lyricAlignment)
         val textureArea = artworkArea ?: RectF(left, top, right, bottom)
+        val capsuleCenter = compactCapsuleCenter(textureArea.centerX(), lensLeft, skippedWidth)
+        val viewport = CapsuleTextViewport(left, compactRight, lyricAlignment, capsuleCenter)
         val lanes = listOf(firstRow, secondRow, priorFirstRow, priorSecondRow)
         for (lane in lanes) lane.textureArea.set(textureArea)
         val feather = viewport.outerFeather(density)

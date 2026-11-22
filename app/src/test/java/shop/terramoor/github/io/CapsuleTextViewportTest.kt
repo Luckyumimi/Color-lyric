@@ -9,6 +9,7 @@ import shop.terramoor.github.io.systemui.CapsuleTextViewport
 import shop.terramoor.github.io.systemui.MediaCapsulePreviewGeometry
 import shop.terramoor.github.io.systemui.capsuleLyricsLeft
 import shop.terramoor.github.io.systemui.capsuleLyricsRight
+import shop.terramoor.github.io.systemui.compactCapsuleCenter
 
 class CapsuleTextViewportTest {
     @Test
@@ -28,6 +29,35 @@ class CapsuleTextViewportTest {
         assertEquals(0f, viewport.travel(200f), 0.001f)
         assertEquals(16f, viewport.textOffset(200f, 1f), 0.001f)
         assertEquals(0f, viewport.copy(alignment = LyricAlignment.LEFT).textOffset(200f, 1f), 0.001f)
+    }
+
+    @Test
+    fun centeredLyricsUseCapsuleCenterForAllElementCombinations() {
+        val settings = CapsuleSettings()
+        val geometry = MediaCapsulePreviewGeometry(1f, settings[CapsuleTuning.ISLAND_WIDTH])
+        val gapLeft = geometry.cameraCenterX - geometry.cameraRadius
+        val gapWidth = 2f * geometry.cameraRadius
+        val center = compactCapsuleCenter(geometry.width / 2f, gapLeft, gapWidth)
+        for (showCover in listOf(false, true)) for (showWaveform in listOf(false, true)) {
+            val config = settings.copy(showCover = showCover, showWaveform = showWaveform)
+            val left = capsuleLyricsLeft(geometry.artworkLeft + geometry.artworkSize, 1f, config)
+            val right = capsuleLyricsRight(geometry.width, geometry.waveformLeft, 1f, config) - gapWidth
+            val viewport = CapsuleTextViewport(left, right, LyricAlignment.CENTER, center)
+            assertEquals(center, left + viewport.textOffset(20f, 0f) + 10f, 0.001f)
+            assertEquals(0f, viewport.copy(alignment = LyricAlignment.LEFT).textOffset(20f, 0f), 0.001f)
+            assertEquals(0f, viewport.textOffset(200f, 0f), 0.001f)
+            assertEquals(-(200f - (right - left)), viewport.textOffset(200f, 1f), 0.001f)
+        }
+    }
+
+    @Test
+    fun capsuleCenterMapsAcrossCameraGapAndFitsAvailableStrip() {
+        assertEquals(40f, compactCapsuleCenter(40f, 50f, 20f), 0.001f)
+        assertEquals(50f, compactCapsuleCenter(60f, 50f, 20f), 0.001f)
+        assertEquals(60f, compactCapsuleCenter(80f, 50f, 20f), 0.001f)
+        val viewport = CapsuleTextViewport(30f, 100f, LyricAlignment.CENTER, 45f)
+        assertEquals(0f, viewport.textOffset(40f, 0f), 0.001f)
+        assertEquals(30f, viewport.copy(center = 95f).textOffset(40f, 0f), 0.001f)
     }
 
     @Test
