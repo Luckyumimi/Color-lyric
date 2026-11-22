@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Speichere das Diagnoseprotokoll, bevor du um Hilfe bittest.</string>
     <string name="diagnostics_export_ok">Diagnoseprotokoll exportiert</string>
     <string name="diagnostics_export_failed">Das Diagnoseprotokoll konnte nicht gespeichert werden. Versuche es erneut.</string>
+    <string name="troubleshoot">Fehlerbehebung</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow ist installiert. Deaktiviere das AstraFlow-Modul in LSPosed und versuche es erneut.</string>
+    <string name="troubleshoot_send_log">AstraFlow wurde nicht gefunden. Exportiere das Diagnoseprotokoll und schicke es an die QQ-Gruppe %1$s, um Hilfe zu erhalten.</string>
 </resources>

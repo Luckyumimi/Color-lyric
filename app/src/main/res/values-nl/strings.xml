@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Sla het diagnoselog op voordat je om hulp vraagt.</string>
     <string name="diagnostics_export_ok">Diagnoselog geëxporteerd</string>
     <string name="diagnostics_export_failed">Kon het diagnoselog niet opslaan. Probeer het opnieuw.</string>
+    <string name="troubleshoot">Problemen oplossen</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow is geïnstalleerd. Schakel de AstraFlow-module uit in LSPosed en probeer het opnieuw.</string>
+    <string name="troubleshoot_send_log">AstraFlow is niet gevonden. Exporteer het diagnostische logboek en stuur het naar QQ-groep %1$s voor hulp.</string>
 </resources>

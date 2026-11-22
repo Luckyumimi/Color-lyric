@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">मदद मांगने से पहले डायग्नोस्टिक लॉग सेव करें।</string>
     <string name="diagnostics_export_ok">डायग्नोस्टिक लॉग एक्सपोर्ट हो गया</string>
     <string name="diagnostics_export_failed">डायग्नोस्टिक लॉग सेव नहीं हो सका। फिर कोशिश करें।</string>
+    <string name="troubleshoot">समस्या का निवारण</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow इंस्टॉल है। LSPosed में AstraFlow मॉड्यूल बंद करके फिर से कोशिश करें।</string>
+    <string name="troubleshoot_send_log">AstraFlow नहीं मिला। मदद के लिए निदान लॉग एक्सपोर्ट करके QQ समूह %1$s में भेजें।</string>
 </resources>

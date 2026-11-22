@@ -5,6 +5,7 @@
     <queries>
         <package android:name="com.android.systemui" />
         <package android:name="com.oplus.systemui.plugins" />
+        <package android:name="com.astraflow.tool" />
         <package android:name="io.github.andrealtb.lockscreenlyrics" />
         <package android:name="io.github.andrealtb.coloroslyrics.provider.universal" />
     </queries>

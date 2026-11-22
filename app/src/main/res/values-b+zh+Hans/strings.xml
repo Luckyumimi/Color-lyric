@@ -144,4 +144,7 @@
     <string name="tune_texture_contrast">质感对比度</string>
     <string name="tune_texture_saturation">质感饱和度</string>
     <string name="tune_texture_blur">质感模糊</string>
+    <string name="troubleshoot">自助排查故障</string>
+    <string name="troubleshoot_astraflow_installed">检测到已安装星流。请在 LSPosed 中停用星流模块，再试一次。</string>
+    <string name="troubleshoot_send_log">未检测到星流。请导出诊断日志，并将文件发送到 QQ 群 %1$s 寻求帮助。</string>
 </resources>

@@ -70,6 +70,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -342,6 +343,7 @@ class SettingsActivity : ComponentActivity() {
 }
 
 private const val SUPPORT_GROUP = "1102727864"
+private const val ASTRAFLOW_PACKAGE = "com.astraflow.tool"
 
 @Composable
 private fun SettingsPage(
@@ -669,6 +671,8 @@ private fun AboutPage(
             HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
             SupportGroupPreference(copySupportGroup)
             HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
+            TroubleshootingPreference(canExportDiagnostics, onExportDiagnostics)
+            HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
             BasicComponent(
                 title = stringResource(R.string.diagnostics_export),
                 summary = stringResource(R.string.diagnostics_export_hint),
@@ -692,6 +696,46 @@ private fun AboutPage(
             )
         }
     }
+}
+
+@Composable
+private fun TroubleshootingPreference(canExportDiagnostics: Boolean, onExportDiagnostics: () -> Unit) {
+    val packageManager = LocalContext.current.packageManager
+    var astraFlowInstalled by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val title = stringResource(R.string.troubleshoot)
+    BasicComponent(title = title, onClick = {
+        astraFlowInstalled = try {
+            packageManager.getPackageInfo(ASTRAFLOW_PACKAGE, PackageManager.PackageInfoFlags.of(0))
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
+    })
+
+    val installed = astraFlowInstalled ?: return
+    val dark = isSystemInDarkTheme()
+    val dismiss = { astraFlowInstalled = null }
+    val dialogColors = CouiDialogDefaults.themeColors(dark)
+    CouiDialog(
+        onDismissRequest = dismiss,
+        dark = dark,
+        placement = CouiDialogPlacement.Center,
+        title = title,
+        message = if (installed) stringResource(R.string.troubleshoot_astraflow_installed)
+            else stringResource(R.string.troubleshoot_send_log, SUPPORT_GROUP),
+        colors = if (installed) dialogColors.copy(message = unavailableColor()) else dialogColors,
+        dismissAction = if (installed) null else CouiDialogAction(stringResource(android.R.string.cancel), onClick = dismiss),
+        confirmAction = CouiDialogAction(
+            text = stringResource(if (installed) android.R.string.ok else R.string.diagnostics_export),
+            enabled = installed || canExportDiagnostics,
+            style = CouiDialogActionStyle.Primary,
+            colors = CouiDialogDefaults.primaryActionColors(CouiTheme.colorSchemeFor(dark).accent),
+            onClick = {
+                dismiss()
+                if (!installed) onExportDiagnostics()
+            },
+        ),
+    )
 }
 
 @Composable

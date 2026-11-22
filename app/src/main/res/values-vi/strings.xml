@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Hãy lưu nhật ký chẩn đoán trước khi yêu cầu trợ giúp.</string>
     <string name="diagnostics_export_ok">Đã xuất nhật ký chẩn đoán</string>
     <string name="diagnostics_export_failed">Không thể lưu nhật ký chẩn đoán. Hãy thử lại.</string>
+    <string name="troubleshoot">Khắc phục sự cố</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow đã được cài đặt. Hãy tắt mô-đun AstraFlow trong LSPosed rồi thử lại.</string>
+    <string name="troubleshoot_send_log">Không tìm thấy AstraFlow. Hãy xuất nhật ký chẩn đoán và gửi vào nhóm QQ %1$s để được hỗ trợ.</string>
 </resources>

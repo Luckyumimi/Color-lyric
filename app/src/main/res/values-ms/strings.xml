@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Simpan log diagnostik sebelum meminta bantuan.</string>
     <string name="diagnostics_export_ok">Log diagnostik dieksport</string>
     <string name="diagnostics_export_failed">Log diagnostik tidak dapat disimpan. Cuba lagi.</string>
+    <string name="troubleshoot">Penyelesaian masalah</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow dipasang. Nyahaktifkan modul AstraFlow dalam LSPosed, kemudian cuba lagi.</string>
+    <string name="troubleshoot_send_log">AstraFlow tidak ditemui. Eksport log diagnostik dan hantarkannya ke kumpulan QQ %1$s untuk mendapatkan bantuan.</string>
 </resources>

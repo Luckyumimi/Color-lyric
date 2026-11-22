@@ -149,4 +149,7 @@
     <string name="tune_texture_contrast">Texture contrast</string>
     <string name="tune_texture_saturation">Texture saturation</string>
     <string name="tune_texture_blur">Texture blur</string>
+    <string name="troubleshoot">Troubleshoot</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow is installed. Disable the AstraFlow module in LSPosed, then try again.</string>
+    <string name="troubleshoot_send_log">AstraFlow was not found. Export a diagnostic log and send it to QQ group %1$s for help.</string>
 </resources>

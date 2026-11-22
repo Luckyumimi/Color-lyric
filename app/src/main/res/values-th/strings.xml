@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">บันทึกข้อมูลการวินิจฉัยก่อนขอความช่วยเหลือ</string>
     <string name="diagnostics_export_ok">ส่งออกบันทึกการวินิจฉัยแล้ว</string>
     <string name="diagnostics_export_failed">บันทึกข้อมูลการวินิจฉัยไม่ได้ โปรดลองอีกครั้ง</string>
+    <string name="troubleshoot">แก้ไขปัญหาด้วยตนเอง</string>
+    <string name="troubleshoot_astraflow_installed">พบว่าติดตั้ง AstraFlow อยู่ โปรดปิดใช้งานโมดูล AstraFlow ใน LSPosed แล้วลองอีกครั้ง</string>
+    <string name="troubleshoot_send_log">ไม่พบ AstraFlow โปรดส่งออกบันทึกการวินิจฉัยแล้วส่งไปยังกลุ่ม QQ %1$s เพื่อขอความช่วยเหลือ</string>
 </resources>

@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">도움을 요청하기 전에 진단 로그를 저장하세요.</string>
     <string name="diagnostics_export_ok">진단 로그를 내보냈습니다</string>
     <string name="diagnostics_export_failed">진단 로그를 저장할 수 없습니다. 다시 시도하세요.</string>
+    <string name="troubleshoot">문제 해결</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow가 설치되어 있습니다. LSPosed에서 AstraFlow 모듈을 끈 뒤 다시 시도하세요.</string>
+    <string name="troubleshoot_send_log">AstraFlow를 찾을 수 없습니다. 진단 로그를 내보낸 뒤 QQ 그룹 %1$s에 보내 도움을 요청하세요.</string>
 </resources>

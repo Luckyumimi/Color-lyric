@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Zapisz dziennik diagnostyczny, zanim poprosisz o pomoc.</string>
     <string name="diagnostics_export_ok">Wyeksportowano dziennik diagnostyczny</string>
     <string name="diagnostics_export_failed">Nie udało się zapisać dziennika diagnostycznego. Spróbuj ponownie.</string>
+    <string name="troubleshoot">Rozwiązywanie problemów</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow jest zainstalowany. Wyłącz moduł AstraFlow w LSPosed i spróbuj ponownie.</string>
+    <string name="troubleshoot_send_log">Nie znaleziono AstraFlow. Wyeksportuj dziennik diagnostyczny i wyślij go do grupy QQ %1$s, aby uzyskać pomoc.</string>
 </resources>

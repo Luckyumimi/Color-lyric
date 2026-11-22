@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Enregistrez le journal avant de demander de l’aide.</string>
     <string name="diagnostics_export_ok">Journal de diagnostic exporté</string>
     <string name="diagnostics_export_failed">Impossible d’enregistrer le journal de diagnostic. Réessayez.</string>
+    <string name="troubleshoot">Résoudre un problème</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow est installé. Désactive son module dans LSPosed, puis réessaie.</string>
+    <string name="troubleshoot_send_log">AstraFlow est introuvable. Exporte le journal de diagnostic et envoie-le au groupe QQ %1$s pour demander de l\'aide.</string>
 </resources>

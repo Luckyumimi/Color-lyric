@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Перед обращением за помощью сохраните журнал диагностики.</string>
     <string name="diagnostics_export_ok">Журнал диагностики экспортирован</string>
     <string name="diagnostics_export_failed">Не удалось сохранить журнал диагностики. Повторите попытку.</string>
+    <string name="troubleshoot">Устранение неполадок</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow установлен. Отключите модуль AstraFlow в LSPosed и попробуйте снова.</string>
+    <string name="troubleshoot_send_log">AstraFlow не найден. Экспортируйте журнал диагностики и отправьте его в группу QQ %1$s, чтобы получить помощь.</string>
 </resources>

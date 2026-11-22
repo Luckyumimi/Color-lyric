@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Yardım istemeden önce tanılama günlüğünü kaydedin.</string>
     <string name="diagnostics_export_ok">Tanılama günlüğü dışa aktarıldı</string>
     <string name="diagnostics_export_failed">Tanılama günlüğü kaydedilemedi. Tekrar deneyin.</string>
+    <string name="troubleshoot">Sorun giderme</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow yüklü. LSPosed içinde AstraFlow modülünü devre dışı bırakıp tekrar deneyin.</string>
+    <string name="troubleshoot_send_log">AstraFlow bulunamadı. Tanılama günlüğünü dışa aktarın ve yardım almak için %1$s numaralı QQ grubuna gönderin.</string>
 </resources>

@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">サポートを依頼する前に診断ログを保存してください。</string>
     <string name="diagnostics_export_ok">診断ログをエクスポートしました</string>
     <string name="diagnostics_export_failed">診断ログを保存できませんでした。もう一度お試しください。</string>
+    <string name="troubleshoot">トラブルシューティング</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow がインストールされています。LSPosed で AstraFlow モジュールを無効にしてから、もう一度お試しください。</string>
+    <string name="troubleshoot_send_log">AstraFlow は見つかりませんでした。診断ログをエクスポートし、QQ グループ %1$s に送信してサポートを受けてください。</string>
 </resources>

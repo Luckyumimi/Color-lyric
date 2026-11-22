@@ -139,4 +139,7 @@
     <string name="diagnostics_export_hint">Guarda el registro antes de pedir ayuda.</string>
     <string name="diagnostics_export_ok">Registro de diagnóstico exportado</string>
     <string name="diagnostics_export_failed">No se pudo guardar el registro de diagnóstico. Inténtalo de nuevo.</string>
+    <string name="troubleshoot">Solucionar problemas</string>
+    <string name="troubleshoot_astraflow_installed">AstraFlow está instalado. Desactiva su módulo en LSPosed y vuelve a intentarlo.</string>
+    <string name="troubleshoot_send_log">No se encontró AstraFlow. Exporta el registro de diagnóstico y envíalo al grupo de QQ %1$s para pedir ayuda.</string>
 </resources>
