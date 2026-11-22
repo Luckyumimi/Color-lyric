@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">Deckkraft der zweiten Zeile</string>
     <string name="second_row_content">Zweite Zeile</string>
     <string name="second_row_translation">Übersetzung</string>
+    <string name="swap_translation">Original und Übersetzung tauschen</string>
     <string name="second_row_lyric">Liedtext</string>
     <string name="missing_translation_mode">Ohne Übersetzung</string>
     <string name="missing_translation_single">Eine Zeile anzeigen</string>

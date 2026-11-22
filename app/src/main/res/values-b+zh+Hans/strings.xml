@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">第二排不透明度</string>
     <string name="second_row_content">第二排显示内容</string>
     <string name="second_row_translation">翻译</string>
+    <string name="swap_translation">交换原文与译文</string>
     <string name="second_row_lyric">歌词</string>
     <string name="missing_translation_mode">无译文时</string>
     <string name="missing_translation_single">回退单排歌词</string>

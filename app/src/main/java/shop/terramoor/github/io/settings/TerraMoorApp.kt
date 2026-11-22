@@ -128,6 +128,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         val next = when (key) {
             CapsuleSettings.ENABLED -> current.copy(enabled = checked)
             CapsuleSettings.DOUBLE_LINE -> current.copy(doubleLine = checked)
+            CapsuleSettings.SWAP_TRANSLATION -> current.copy(swapTranslation = checked)
             CapsuleSettings.ARTWORK -> current.copy(artwork = checked)
             CapsuleSettings.LYRIC_TINT_ENABLED -> current.copy(lyricTintEnabled = checked)
             CapsuleSettings.SHOW_COVER -> current.copy(showCover = checked)

@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">Непрозрачность второй строки</string>
     <string name="second_row_content">Вторая строка</string>
     <string name="second_row_translation">Перевод</string>
+    <string name="swap_translation">Поменять местами оригинал и перевод</string>
     <string name="second_row_lyric">Текст песни</string>
     <string name="missing_translation_mode">Без перевода</string>
     <string name="missing_translation_single">Показать одну строку</string>

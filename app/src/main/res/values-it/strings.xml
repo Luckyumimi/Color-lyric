@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">Opacità della seconda riga</string>
     <string name="second_row_content">Seconda riga</string>
     <string name="second_row_translation">Traduzione</string>
+    <string name="swap_translation">Scambia originale e traduzione</string>
     <string name="second_row_lyric">Testo</string>
     <string name="missing_translation_mode">Senza traduzione</string>
     <string name="missing_translation_single">Mostra una riga</string>

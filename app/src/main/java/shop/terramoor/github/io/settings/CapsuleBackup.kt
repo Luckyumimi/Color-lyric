@@ -6,7 +6,7 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 11
+    private const val VERSION = 12
     private const val MAX_BYTES = 16 * 1024
     const val TRANSLATION_HELP_HIDDEN = "translation_help_hidden"
 
@@ -17,6 +17,7 @@ internal object CapsuleBackup {
             .put(CapsuleSettings.ENABLED, settings.enabled)
             .put(CapsuleSettings.DOUBLE_LINE, settings.doubleLine)
             .put(CapsuleSettings.SECOND_ROW_CONTENT, settings.secondRowContent.name)
+            .put(CapsuleSettings.SWAP_TRANSLATION, settings.swapTranslation)
             .put(CapsuleSettings.SINGLE_LINE_SWITCH_MODE, settings.singleLineSwitchMode.name)
             .put(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE, settings.doubleLineSwitchMode.name)
             .put(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)
@@ -62,6 +63,7 @@ internal object CapsuleBackup {
         } else CapsuleSettings(
             doubleLine = flag(CapsuleSettings.DOUBLE_LINE),
             secondRowContent = SecondRowContent.valueOf(data.getString(CapsuleSettings.SECOND_ROW_CONTENT)),
+            swapTranslation = if (version >= 12) flag(CapsuleSettings.SWAP_TRANSLATION) else false,
             singleLineSwitchMode = LyricSwitchMode.valueOf(data.getString(CapsuleSettings.SINGLE_LINE_SWITCH_MODE)),
             doubleLineSwitchMode = LyricSwitchMode.valueOf(data.getString(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)),
             missingTranslationMode = MissingTranslationMode.valueOf(data.getString(CapsuleSettings.MISSING_TRANSLATION_MODE)),
@@ -95,6 +97,7 @@ internal object CapsuleBackup {
 internal fun SharedPreferences.Editor.writeLyricSettings(settings: CapsuleSettings) {
     putBoolean(CapsuleSettings.DOUBLE_LINE, settings.doubleLine)
     putString(CapsuleSettings.SECOND_ROW_CONTENT, settings.secondRowContent.name)
+    putBoolean(CapsuleSettings.SWAP_TRANSLATION, settings.swapTranslation)
     putString(CapsuleSettings.SINGLE_LINE_SWITCH_MODE, settings.singleLineSwitchMode.name)
     putString(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE, settings.doubleLineSwitchMode.name)
     putString(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)

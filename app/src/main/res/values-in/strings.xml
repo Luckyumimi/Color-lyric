@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">Opasitas baris kedua</string>
     <string name="second_row_content">Isi baris kedua</string>
     <string name="second_row_translation">Terjemahan</string>
+    <string name="swap_translation">Tukar teks asli dan terjemahan</string>
     <string name="second_row_lyric">Lirik</string>
     <string name="missing_translation_mode">Tanpa terjemahan</string>
     <string name="missing_translation_single">Tampilkan satu baris</string>

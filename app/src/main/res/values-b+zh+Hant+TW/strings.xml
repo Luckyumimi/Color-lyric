@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">第二行不透明度</string>
     <string name="second_row_content">第二行顯示內容</string>
     <string name="second_row_translation">翻譯</string>
+    <string name="swap_translation">交換原文與譯文</string>
     <string name="second_row_lyric">歌詞</string>
     <string name="missing_translation_mode">沒有譯文時</string>
     <string name="missing_translation_single">改用單行歌詞</string>

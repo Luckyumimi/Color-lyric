@@ -56,6 +56,7 @@ internal data class CapsuleSettings(
     val enabled: Boolean = true,
     val doubleLine: Boolean = true,
     val secondRowContent: SecondRowContent = SecondRowContent.TRANSLATION,
+    val swapTranslation: Boolean = false,
     val singleLineSwitchMode: LyricSwitchMode = LyricSwitchMode.AFTER_END,
     val doubleLineSwitchMode: LyricSwitchMode = LyricSwitchMode.AT_NEXT_START,
     val missingTranslationMode: MissingTranslationMode = MissingTranslationMode.SINGLE_LINE,
@@ -95,6 +96,7 @@ internal data class CapsuleSettings(
         const val LEGACY_TRANSLATION = "translation"
         const val DOUBLE_LINE = "double_line"
         const val SECOND_ROW_CONTENT = "second_row_content"
+        const val SWAP_TRANSLATION = "swap_translation"
         const val SINGLE_LINE_SWITCH_MODE = "single_line_switch_mode"
         const val DOUBLE_LINE_SWITCH_MODE = "double_line_switch_mode"
         const val MISSING_TRANSLATION_MODE = "missing_translation_mode"
@@ -139,6 +141,7 @@ internal data class CapsuleSettings(
                 enabled = prefs.getBoolean(ENABLED, defaults.enabled),
                 doubleLine = prefs.getBoolean(DOUBLE_LINE, legacy.doubleLine),
                 secondRowContent = prefs.enumValue(SECOND_ROW_CONTENT, legacy.secondRowContent),
+                swapTranslation = prefs.getBoolean(SWAP_TRANSLATION, defaults.swapTranslation),
                 singleLineSwitchMode = prefs.enumValue(SINGLE_LINE_SWITCH_MODE, legacy.singleLineSwitchMode),
                 doubleLineSwitchMode = prefs.enumValue(DOUBLE_LINE_SWITCH_MODE, legacy.doubleLineSwitchMode),
                 missingTranslationMode = prefs.enumValue(MISSING_TRANSLATION_MODE, legacy.missingTranslationMode),

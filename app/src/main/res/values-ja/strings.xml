@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">2行目の不透明度</string>
     <string name="second_row_content">2行目に表示</string>
     <string name="second_row_translation">翻訳</string>
+    <string name="swap_translation">原文と翻訳を入れ替える</string>
     <string name="second_row_lyric">歌詞</string>
     <string name="missing_translation_mode">翻訳がないとき</string>
     <string name="missing_translation_single">1行で表示</string>

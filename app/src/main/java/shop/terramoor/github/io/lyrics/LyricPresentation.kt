@@ -30,7 +30,9 @@ internal class LyricPresentation(private val timeline: Timeline, private val set
         val line = timeline.lines.getOrNull(index)?.takeIf { it.text.isNotBlank() } ?: return null
         if (!settings.doubleLine) return LyricRows(line.text)
         if (settings.secondRowContent == SecondRowContent.TRANSLATION) {
-            translation(index)?.let { return LyricRows(line.text, it) }
+            translation(index)?.let {
+                return if (settings.swapTranslation) LyricRows(it, line.text) else LyricRows(line.text, it)
+            }
             if (fallsBackToSingleLine(index)) return LyricRows(line.text, missingTranslationSingleLine = true)
         }
         val next = (index + 1 until timeline.lines.size).firstOrNull { timeline.lines[it].text.isNotBlank() }

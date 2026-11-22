@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">İkinci satır opaklığı</string>
     <string name="second_row_content">İkinci satır</string>
     <string name="second_row_translation">Çeviri</string>
+    <string name="swap_translation">Orijinal ile çeviriyi değiştir</string>
     <string name="second_row_lyric">Şarkı sözü</string>
     <string name="missing_translation_mode">Çeviri yoksa</string>
     <string name="missing_translation_single">Tek satır göster</string>

@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">ความทึบของบรรทัดที่สอง</string>
     <string name="second_row_content">แสดงในบรรทัดที่สอง</string>
     <string name="second_row_translation">คำแปล</string>
+    <string name="swap_translation">สลับต้นฉบับกับคำแปล</string>
     <string name="second_row_lyric">เนื้อเพลง</string>
     <string name="missing_translation_mode">เมื่อไม่มีคำแปล</string>
     <string name="missing_translation_single">แสดงหนึ่งบรรทัด</string>

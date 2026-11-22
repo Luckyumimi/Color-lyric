@@ -19,6 +19,7 @@ class CapsuleBackupTest {
         val fresh = CapsuleSettings()
         assertTrue(fresh.doubleLine)
         assertEquals(SecondRowContent.TRANSLATION, fresh.secondRowContent)
+        assertFalse(fresh.swapTranslation)
         assertEquals(LyricSwitchMode.AFTER_END, fresh.singleLineSwitchMode)
         assertEquals(LyricSwitchMode.AT_NEXT_START, fresh.doubleLineSwitchMode)
         assertEquals(MissingTranslationMode.SINGLE_LINE, fresh.missingTranslationMode)
@@ -61,10 +62,19 @@ class CapsuleBackupTest {
         }
     }
 
-    @Test fun v11RoundTripPreservesTintAndInactiveSettings() {
+    @Test fun v11BackupDefaultsToOriginalOrder() {
+        val root = JSONObject(CapsuleBackup.encode(CapsuleSettings(swapTranslation = true)))
+        root.put("version", 11)
+        root.getJSONObject("settings").remove(CapsuleSettings.SWAP_TRANSLATION)
+        val restored = CapsuleBackup.decode(root.toString().byteInputStream())
+        assertFalse(restored.swapTranslation)
+    }
+
+    @Test fun v12RoundTripPreservesTintAndInactiveSettings() {
         val expected = CapsuleSettings(
             doubleLine = false,
             secondRowContent = SecondRowContent.LYRIC,
+            swapTranslation = true,
             singleLineSwitchMode = LyricSwitchMode.AT_NEXT_START,
             doubleLineSwitchMode = LyricSwitchMode.AFTER_END,
             missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS,
@@ -76,7 +86,7 @@ class CapsuleBackupTest {
         })
         val encoded = CapsuleBackup.encode(expected)
         val root = JSONObject(encoded)
-        assertEquals(11, root.getInt("version"))
+        assertEquals(12, root.getInt("version"))
         val data = root.getJSONObject("settings")
         assertFalse(data.getBoolean(CapsuleSettings.LYRIC_TINT_ENABLED))
         assertFalse(data.has("translation"))

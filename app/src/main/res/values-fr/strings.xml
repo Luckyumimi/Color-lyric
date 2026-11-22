@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">Opacité de la seconde ligne</string>
     <string name="second_row_content">Seconde ligne</string>
     <string name="second_row_translation">Traduction</string>
+    <string name="swap_translation">Inverser le texte original et la traduction</string>
     <string name="second_row_lyric">Paroles</string>
     <string name="missing_translation_mode">Sans traduction</string>
     <string name="missing_translation_single">Afficher une seule ligne</string>

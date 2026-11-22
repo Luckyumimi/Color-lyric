@@ -31,6 +31,20 @@ class LyricPresentationTest {
         LyricLine(9000, "Last", endMs = 9500),
     ))
 
+    @Test fun swappingTranslationUsesRowPositionsAndPreservesFallbacks() {
+        val settings = CapsuleSettings(swapTranslation = true)
+        val presentation = LyricPresentation(timeline, settings)
+        assertEquals(LyricRows("Translation", "First"), presentation.frameAt(0, 10000)?.rows)
+        assertEquals(LyricRows("Translation", "First"), presentation.frameAt(1, 10000)?.priorRows)
+        assertEquals(LyricRows("Second", missingTranslationSingleLine = true), presentation.frameAt(1, 10000)?.rows)
+        val fallback = LyricPresentation(timeline, settings.copy(missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS))
+        assertEquals(LyricRows("Second", "Third", nextLyricStartMs = 5000), fallback.frameAt(1, 10000)?.rows)
+        val single = LyricPresentation(timeline, settings.copy(doubleLine = false))
+        assertEquals(LyricRows("First"), single.frameAt(0, 10000)?.rows)
+        val lyrics = LyricPresentation(timeline, settings.copy(secondRowContent = SecondRowContent.LYRIC))
+        assertEquals(LyricRows("First", "Second", nextLyricStartMs = 3000), lyrics.frameAt(0, 10000)?.rows)
+    }
+
     @Test fun nextLyricSkipsBlankRowsButTheTimelineKeepsTheGap() {
         val presentation = LyricPresentation(timeline, CapsuleSettings(secondRowContent = SecondRowContent.LYRIC))
         assertEquals(1000L, presentation.nextBoundary(-1))

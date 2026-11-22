@@ -156,6 +156,15 @@ internal fun TuningPage(
                     enabled = ready && settings.doubleLine,
                     onSelectedIndexChange = { app.setSecondRowContent(SecondRowContent.entries[it]) },
                 )
+                if (settings.doubleLine && settings.secondRowContent == SecondRowContent.TRANSLATION) {
+                    HorizontalDivider(divider)
+                    TactileSwitchPreference(
+                        checked = settings.swapTranslation,
+                        onCheckedChange = { app.set(CapsuleSettings.SWAP_TRANSLATION, it) },
+                        title = stringResource(R.string.swap_translation),
+                        enabled = ready,
+                    )
+                }
                 HorizontalDivider(divider)
                 ExpandableTuning(R.string.tune_text_details) {
                     HorizontalDivider(divider)

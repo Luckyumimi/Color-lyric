@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">दूसरी पंक्ति की अपारदर्शिता</string>
     <string name="second_row_content">दूसरी पंक्ति में दिखाएं</string>
     <string name="second_row_translation">अनुवाद</string>
+    <string name="swap_translation">मूल और अनुवाद की जगह बदलें</string>
     <string name="second_row_lyric">गीत के बोल</string>
     <string name="missing_translation_mode">अनुवाद न होने पर</string>
     <string name="missing_translation_single">एक पंक्ति दिखाएं</string>

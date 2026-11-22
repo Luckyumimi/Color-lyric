@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">Độ đục dòng thứ hai</string>
     <string name="second_row_content">Dòng thứ hai</string>
     <string name="second_row_translation">Bản dịch</string>
+    <string name="swap_translation">Đổi vị trí lời gốc và bản dịch</string>
     <string name="second_row_lyric">Lời bài hát</string>
     <string name="missing_translation_mode">Khi không có bản dịch</string>
     <string name="missing_translation_single">Hiển thị một dòng</string>

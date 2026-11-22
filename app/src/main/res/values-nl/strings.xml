@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">Dekking tweede regel</string>
     <string name="second_row_content">Tweede regel</string>
     <string name="second_row_translation">Vertaling</string>
+    <string name="swap_translation">Origineel en vertaling omwisselen</string>
     <string name="second_row_lyric">Songtekst</string>
     <string name="missing_translation_mode">Zonder vertaling</string>
     <string name="missing_translation_single">Eén regel tonen</string>

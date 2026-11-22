@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">둘째 줄 불투명도</string>
     <string name="second_row_content">둘째 줄 표시 내용</string>
     <string name="second_row_translation">번역</string>
+    <string name="swap_translation">원문과 번역 바꾸기</string>
     <string name="second_row_lyric">가사</string>
     <string name="missing_translation_mode">번역이 없을 때</string>
     <string name="missing_translation_single">한 줄로 표시</string>

@@ -34,6 +34,7 @@
     <string name="tune_second_row_opacity">Krycie drugiego wiersza</string>
     <string name="second_row_content">Drugi wiersz</string>
     <string name="second_row_translation">Tłumaczenie</string>
+    <string name="swap_translation">Zamień oryginał z tłumaczeniem</string>
     <string name="second_row_lyric">Tekst piosenki</string>
     <string name="missing_translation_mode">Brak tłumaczenia</string>
     <string name="missing_translation_single">Pokaż jeden wiersz</string>
