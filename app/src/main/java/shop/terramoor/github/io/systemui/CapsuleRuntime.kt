@@ -3,6 +3,7 @@ package shop.terramoor.github.io.systemui
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Icon
 import android.media.MediaMetadata
 import android.media.session.MediaController
@@ -55,6 +56,7 @@ internal class CapsuleRuntime(
     private var mediaMissingSince: Long? = null
     private var destroyedToken: MediaSession.Token? = null
     private var session: Session? = null
+    private val tintArtworkSelection = TintArtworkSelection<Pair<MediaSession.Token, Track>, Bitmap>()
     private var labels: CapsuleLabels? = null
     private var renderedShown: Boolean? = null
     private var layoutChanged = false
@@ -411,11 +413,9 @@ internal class CapsuleRuntime(
         val shown = binding.target.capsule.isShown
         renderedShown = shown
         val tintEnabled = settings.lyricTintEnabled
-        val artwork = if (settings.artwork || tintEnabled) {
-            watch.artworkSource(candidate.artwork, binding.target.artwork)
-        } else null
+        val artwork = watch.artworkSource(candidate.artwork, binding.target.artwork)
         val background = if (settings.artwork) watch.background(artwork, settings[CapsuleTuning.BLUR]) else null
-        val ink = watch.tint.resolve(watch.tintArtwork(), background, settings,
+        val ink = watch.tint.resolve(watch.tintArtwork.bitmap, background, settings,
             settings[CapsuleTuning.ISLAND_WIDTH] / 30f)
         val correlation = watch.tintCorrelation()
         if (tintEnabled) {
@@ -425,7 +425,7 @@ internal class CapsuleRuntime(
             trace("tint/cache", "$correlation, ${watch.tint.cacheDetail}")
         }
         trace("tint/palette", "enabled=$tintEnabled, algorithm=${settings.lyricTintMode}, " +
-            "$correlation, strength=${settings[CapsuleTuning.TINT_STRENGTH]}, source=${if (!tintEnabled) "NOT_REQUESTED" else if (watch.tintArtwork() != null) "MEDIA_ALBUM_ART" else "WAITING_FOR_ALBUM_ART"}, backgroundSource=${watch.artworkOrigin}, " +
+            "$correlation, strength=${settings[CapsuleTuning.TINT_STRENGTH]}, source=${watch.tintArtwork.origin}, backgroundSource=${watch.artworkOrigin}, " +
             "background=${background != null}, extraction=${watch.tint.extraction}, result=${watch.tint.outcome}, ${ink.diagnosticColors()}")
         val timeline = watch.timeline
         if (timeline == null) {
@@ -569,15 +569,20 @@ internal class CapsuleRuntime(
         private var lastTrackPayload: String? = null
         private var metadataArtwork: Bitmap? = null
         private var nativeArtwork: Bitmap? = null
+        private var nativeArtworkGeneration = 0
+        private var nativeArtworkIsDirectBitmap = false
         private var previousNativeArtwork: Bitmap? = null
         private var selectedArtwork: Bitmap? = null
         private var selectedArtworkGeneration = 0
-        private var observedTintGeneration = 0
+        private var observedMediaTint: Bitmap? = null
+        private var observedMediaTintGeneration = 0
         private var bitmap: Bitmap? = null
         private var waitsForNativeArtwork = false
         var artworkOrigin = "NONE"
             private set
         var artworkObservation = "not observed"
+            private set
+        var tintArtwork = TintArtwork<Bitmap>(null, TintArtworkOrigin.NOT_REQUESTED)
             private set
         val tint = ArtworkLyricTint()
         private var icon: Icon? = null
@@ -666,9 +671,11 @@ internal class CapsuleRuntime(
                 markMetadataMissing(identityMissing = true)
                 return false
             }
+            missingTrack = false
             val nextPayload = data.getString(LyricPayload.KEY)?.takeIf { it.isNotBlank() }
             val changed = track != nextTrack
             if (changed) {
+                tintArtworkSelection.onTrack(token to nextTrack)
                 trackSequence++
                 lyricStatus = null
                 lastLoggedLine = null
@@ -743,9 +750,12 @@ internal class CapsuleRuntime(
         private fun clearArtworkCache() {
             metadataArtwork = null
             nativeArtwork = null
+            nativeArtworkGeneration = 0
+            nativeArtworkIsDirectBitmap = false
             selectedArtwork = null
             selectedArtworkGeneration = 0
-            observedTintGeneration = 0
+            observedMediaTint = null
+            observedMediaTintGeneration = 0
             icon = null
             iconArtwork = null
             bitmap = null
@@ -753,27 +763,39 @@ internal class CapsuleRuntime(
             blurStrength = -1
         }
 
-        private fun coverBitmap(view: View?): Bitmap? = artworkBitmap((view as? ImageView)?.drawable)
-
         fun artworkChanged(cover: View): Boolean {
-            val currentNative = coverBitmap(cover)
-            val currentTint = tintArtwork()
-            return (waitsForNativeArtwork && currentNative !== nativeArtwork) ||
-                (currentTint?.generationId ?: 0) != observedTintGeneration ||
+            val drawable = (cover as? ImageView)?.drawable
+            val currentNative = artworkBitmap(drawable)
+            val currentTint = if (settings.lyricTintEnabled) mediaTintArtwork() else null
+            val watchNative = waitsForNativeArtwork || settings.lyricTintEnabled
+            return (watchNative && (currentNative !== nativeArtwork ||
+                (currentNative?.generationId ?: 0) != nativeArtworkGeneration ||
+                (drawable is BitmapDrawable) != nativeArtworkIsDirectBitmap)) ||
+                currentTint !== observedMediaTint || (currentTint?.generationId ?: 0) != observedMediaTintGeneration ||
                 (selectedArtwork?.takeUnless { it.isRecycled }?.generationId ?: 0) != selectedArtworkGeneration
         }
 
-        fun tintArtwork(): Bitmap? {
+        private fun mediaTintArtwork(): Bitmap? {
             val data = metadata ?: return null
             return sequenceOf(MediaMetadata.METADATA_KEY_ALBUM_ART, MediaMetadata.METADATA_KEY_ART)
                 .mapNotNull { data.getBitmap(it) }
                 .firstOrNull { !it.isRecycled && it !== previousArtwork }
         }
 
-        fun artworkSource(fallback: Icon?, cover: View?): Bitmap? {
+        fun artworkSource(fallback: Icon?, cover: View): Bitmap? {
+            val drawable = (cover as? ImageView)?.drawable
+            nativeArtwork = artworkBitmap(drawable)
+            nativeArtworkGeneration = nativeArtwork?.generationId ?: 0
+            nativeArtworkIsDirectBitmap = drawable is BitmapDrawable
+            observedMediaTint = if (settings.lyricTintEnabled) mediaTintArtwork() else null
+            observedMediaTintGeneration = observedMediaTint?.generationId ?: 0
+            tintArtwork = tintArtworkSelection.select(
+                settings.lyricTintEnabled, observedMediaTint, nativeArtwork.takeIf { nativeArtworkIsDirectBitmap },
+                nativeArtworkGeneration, trackIdentified = track != null && !missingTrack,
+            )
+            if (!settings.lyricTintEnabled && !settings.artwork) return null
+
             val data = metadata
-            val tintSource = tintArtwork()
-            observedTintGeneration = tintSource?.generationId ?: 0
             val current = data?.let {
                 fun currentBitmap(key: String) = it.getBitmap(key)?.takeUnless { image ->
                     image.isRecycled || image === previousArtwork
@@ -793,7 +815,6 @@ internal class CapsuleRuntime(
                 if (context != null) iconArtwork = artworkBitmap(currentIcon.loadDrawable(context))
             }
             metadataArtwork = current
-            nativeArtwork = coverBitmap(cover)
             val iconBitmap = iconArtwork?.takeUnless { it.isRecycled }
             waitsForNativeArtwork = cover is ImageView && current == null && iconBitmap == null
             // The verified slot may still carry the preceding track's cover while the OEM updates it.
@@ -805,15 +826,14 @@ internal class CapsuleRuntime(
                 nativeBitmap != null -> "NATIVE_COVER"
                 else -> "NONE"
             }
-            if (cover != null) {
-                artworkObservation = "origin=$artworkOrigin, metadataBitmap=${current != null}, " +
-                    "notificationType=${fallback?.type}, notificationBitmap=${iconBitmap != null}, " +
-                    "nativeView=${cover.javaClass.simpleName}, drawable=${(cover as? ImageView)?.drawable?.javaClass?.simpleName}, nativeBitmap=${nativeBitmap != null}, " +
-                    "priorNotificationIgnored=${fallback != null && currentIcon == null}, " +
-                    "priorNativeIgnored=${nativeArtwork != null && nativeBitmap == null}, " +
-                    "tintAlbumArtReady=${tintSource != null}, waitingForNative=$waitsForNativeArtwork, selected=${source?.width}x${source?.height}, config=${source?.config}, " +
-                    "identity=${source?.let(System::identityHashCode)}, generation=${source?.takeUnless { it.isRecycled }?.generationId}"
-            }
+            artworkObservation = "origin=$artworkOrigin, metadataBitmap=${current != null}, " +
+                "notificationType=${fallback?.type}, notificationBitmap=${iconBitmap != null}, " +
+                "nativeView=${cover.javaClass.simpleName}, drawable=${drawable?.javaClass?.simpleName}, nativeBitmap=${nativeBitmap != null}, " +
+                "priorNotificationIgnored=${fallback != null && currentIcon == null}, " +
+                "priorNativeIgnored=${nativeArtwork != null && nativeBitmap == null}, " +
+                "tintAlbumArtReady=${observedMediaTint != null}, tintSource=${tintArtwork.origin}, " +
+                "waitingForNative=$waitsForNativeArtwork, selected=${source?.width}x${source?.height}, config=${source?.config}, " +
+                "identity=${source?.let(System::identityHashCode)}, generation=${source?.takeUnless { it.isRecycled }?.generationId}"
             trace("tint/metadata", "${tintCorrelation()}, albumArt=${data?.containsKey(MediaMetadata.METADATA_KEY_ALBUM_ART)}, art=${data?.containsKey(MediaMetadata.METADATA_KEY_ART)}, displayIcon=${data?.containsKey(MediaMetadata.METADATA_KEY_DISPLAY_ICON)}, selectedCacheHit=${selectedArtwork === source && bitmap?.isRecycled != true}")
             val sourceGeneration = source?.generationId ?: 0
             if (selectedArtwork === source && selectedArtworkGeneration == sourceGeneration && bitmap?.isRecycled != true) return bitmap
