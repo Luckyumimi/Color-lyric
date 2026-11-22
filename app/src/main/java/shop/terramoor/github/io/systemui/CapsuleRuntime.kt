@@ -42,6 +42,7 @@ internal class CapsuleRuntime(
     private var preferences: SharedPreferences? = null
     private var preferenceAttempts = 0
     private var settings = CapsuleSettings(enabled = false)
+    private var tintDrawFrame: String? = null
     private var hostView: ViewGroup? = null
     private var observer: ViewTreeObserver? = null
     private var root: ViewGroup? = null
@@ -87,6 +88,10 @@ internal class CapsuleRuntime(
         val previous = settings
         settings = preferences?.let(CapsuleSettings::read) ?: CapsuleSettings(enabled = false)
         diagnostics.note("Settings read, changed=${settings != previous}, $settings")
+        trace("tint/settings", "module=${settings.enabled}, enabled=${settings.lyricTintEnabled}, " +
+            "algorithm=${settings.lyricTintMode}, strength=${settings[CapsuleTuning.TINT_STRENGTH]}, " +
+            "background=${settings.artwork}, firstOpacity=${settings[CapsuleTuning.FIRST_ROW_OPACITY]}, " +
+            "secondOpacity=${settings[CapsuleTuning.SECOND_ROW_OPACITY]}")
         if (settings == previous) return
         if (!settings.enabled) {
             stopObservation()
@@ -168,7 +173,14 @@ internal class CapsuleRuntime(
         val binding = labels ?: return
         val contract = plugin ?: return
         if (binding.target.capsule !== instance || !contract.hasOwner(binding.target.capsule, media?.key ?: return)) return
-        trace("draw", binding.draw(canvas, contract.drawingWidth(binding.target.capsule)))
+        val result = binding.draw(canvas, contract.drawingWidth(binding.target.capsule))
+        trace("draw", result)
+        val frame = tintDrawFrame
+        if (lastTintDrawFrame != frame || lastTintDrawResult != result) {
+            lastTintDrawFrame = frame
+            lastTintDrawResult = result
+            if (frame != null) trace("tint/draw", "result=$result, $frame")
+        }
     }
 
     fun stabilizeMediaContentFrame(callback: Any): (() -> Unit)? {
@@ -388,17 +400,14 @@ internal class CapsuleRuntime(
         val background = if (settings.artwork) watch.background(artwork, settings[CapsuleTuning.BLUR]) else null
         val ink = watch.tint.resolve(artwork, background, settings,
             settings[CapsuleTuning.ISLAND_WIDTH] / 30f)
-        if (tintEnabled) {
-            trace("lyric tint", "mode=${settings.lyricTintMode}, source=${watch.artworkOrigin}, " +
-                "iconType=${candidate.artwork?.type}, background=${background != null}, " +
-                "result=${watch.tint.outcome}, first=${ink.first.toUInt().toString(16)}, second=${ink.second.toUInt().toString(16)}")
-        } else {
-            trace("lyric tint", watch.tint.outcome)
-        }
+        if (tintEnabled) trace("tint/source", watch.artworkObservation)
+        trace("tint/palette", "enabled=$tintEnabled, algorithm=${settings.lyricTintMode}, " +
+            "strength=${settings[CapsuleTuning.TINT_STRENGTH]}, source=${if (tintEnabled) watch.artworkOrigin else "NOT_REQUESTED"}, " +
+            "background=${background != null}, extraction=${watch.tint.extraction}, result=${watch.tint.outcome}, ${ink.diagnosticColors()}")
         val timeline = watch.timeline
         if (timeline == null) {
             val trackInfo = if (settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
-            binding.render(trackInfo, settings, background, ink = ink)
+            renderFrame(binding, trackInfo, "NO_TIMELINE", background, ink)
             trace("render", "NO_TIMELINE, trackInfo=${trackInfo != null}, artwork=${background != null}, shown=${binding.target.capsule.isShown}, size=${binding.target.capsule.width}x${binding.target.capsule.height}")
             setStatus(if (trackInfo != null) "Showing track info without usable lyric timing"
                 else "Waiting for timed lyrics from the active session")
@@ -417,11 +426,11 @@ internal class CapsuleRuntime(
             diagnostics.note("[lyric schedule] index=$index/${timeline.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, scrollEnd=${frame?.endMs}, displayStart=${frame?.displayStartMs}, next=$next, mode=$mode, secondRow=${frame?.rows?.second != null}, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
         }
         if (frame != null) {
-            binding.render(frame, settings, background, clock, ink)
+            renderFrame(binding, frame, "SYNCED", background, ink, clock)
             setStatus("Rendering lyrics in native media capsule")
         } else {
             val introInfo = if (index < 0 && settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
-            binding.render(introInfo, settings, background, ink = ink)
+            renderFrame(binding, introInfo, "INTRO_OR_GAP", background, ink)
             setStatus("Waiting for next lyric boundary")
         }
         if (next != null && binding.target.capsule.isShown) {
@@ -434,8 +443,31 @@ internal class CapsuleRuntime(
         }
     }
 
+    private var lastTintDrawFrame: String? = null
+    private var lastTintDrawResult: String? = null
+
+    private fun renderFrame(
+        binding: CapsuleLabels, frame: LyricFrame?, phase: String, background: Bitmap?, ink: LyricInk,
+        clock: PlaybackClock? = null,
+    ) {
+        binding.render(frame, settings, background, clock, ink)
+        val kind = when {
+            frame == null -> "NO_TEXT"
+            frame.isTrackInfo -> "TRACK_INFO"
+            else -> "LYRICS"
+        }
+        val detail = "phase=$phase, kind=$kind, secondRow=${frame?.rows?.second != null}, ${ink.diagnosticColors()}"
+        tintDrawFrame = detail
+        trace("tint/frame", detail)
+    }
+
+    private fun LyricInk.diagnosticColors() = "first=#${first.toUInt().toString(16)}, second=#${second.toUInt().toString(16)}"
+
     private fun clearLabels() {
         main.removeCallbacks(tick)
+        tintDrawFrame = null
+        lastTintDrawFrame = null
+        lastTintDrawResult = null
         val binding = labels
         labels = null
         if (binding != null) {
@@ -505,6 +537,8 @@ internal class CapsuleRuntime(
         private var bitmap: Bitmap? = null
         private var waitsForNativeArtwork = false
         var artworkOrigin = "NONE"
+            private set
+        var artworkObservation = "not observed"
             private set
         val tint = ArtworkLyricTint()
         private var icon: Icon? = null
@@ -710,6 +744,14 @@ internal class CapsuleRuntime(
                 iconBitmap != null -> "NOTIFICATION_BITMAP"
                 nativeBitmap != null -> "NATIVE_COVER"
                 else -> "NONE"
+            }
+            if (cover != null) {
+                artworkObservation = "origin=$artworkOrigin, metadataBitmap=${current != null}, " +
+                    "notificationType=${fallback?.type}, notificationBitmap=${iconBitmap != null}, " +
+                    "nativeView=${cover.javaClass.simpleName}, nativeBitmap=${nativeBitmap != null}, " +
+                    "priorNotificationIgnored=${fallback != null && currentIcon == null}, " +
+                    "priorNativeIgnored=${nativeArtwork != null && nativeBitmap == null}, " +
+                    "waitingForNative=$waitsForNativeArtwork, selected=${source?.width}x${source?.height}, config=${source?.config}"
             }
             if (selectedArtwork === source && bitmap?.isRecycled != true) return bitmap
             selectedArtwork = source

@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import io.github.libxposed.service.TrustedXposedProvider
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
@@ -38,6 +39,12 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mutableState = MutableStateFlow(State())
     internal val state = mutableState.asStateFlow()
+    internal val restartReminder by lazy {
+        SettingsRestartReminder(
+            getSharedPreferences("systemui_restart_reminder", MODE_PRIVATE),
+            Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, -1),
+        )
+    }
     private var service: XposedService? = null
     private var preferences: SharedPreferences? = null
     private var refreshGeneration = 0
@@ -106,7 +113,10 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
     }
 
     internal fun attachPreferences(prefs: SharedPreferences, inScope: Boolean, initial: CapsuleSettings?) {
-        if (initial != null) confirmed = initial
+        if (initial != null) {
+            confirmed = initial
+            if (inScope) restartReminder.reconcile(initial)
+        }
         if (!inScope) discardWrites()
         preferences = prefs
         updateState(if (!inScope) State(Connection.NO_SCOPE, confirmed) else
@@ -132,13 +142,20 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
     internal fun previewTuning(option: CapsuleTuning, value: Int) {
         if (state.value.connection != Connection.READY) return
         val next = option.normalize(value)
+        if (state.value.settings[option] == next) return
+        restartReminder.startTuning()
         pendingTuning[option] = next
         idle.value = false
         showSettings(state.value.settings.withTuning(mapOf(option to next)))
         if (!main.hasCallbacks(flushPendingTuning)) main.postDelayed(flushPendingTuning, TUNING_INTERVAL_MS)
     }
 
-    internal fun flushTuning() {
+    internal fun finishTuning() {
+        restartReminder.finishTuning()
+        flushTuning()
+    }
+
+    private fun flushTuning() {
         main.removeCallbacks(flushPendingTuning)
         if (writerRunning) return
         enqueueTuning()
@@ -211,6 +228,12 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         return save(settings) { writeSettings(settings) }?.await() == true
     }
 
+    internal suspend fun revisionBeforeRestart(): Long {
+        finishTuning()
+        idle.first { it }
+        return restartReminder.revision
+    }
+
     internal fun resetTuning() {
         pendingTuning.clear()
         val defaults = CapsuleSettings()
@@ -270,6 +293,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             val stillConnected = preferences === prefs && state.value.connection == Connection.READY
             if (stillConnected && stored != null) {
                 confirmed = stored
+                restartReminder.settingsCommitted(before, stored)
                 diagnostics.note("Remote settings committed, $stored")
                 // A newer optimistic value may already be visible. Keep it until it gets written.
                 if (writes.isEmpty() && pendingTuning.isEmpty()) showSettings(stored)
@@ -296,6 +320,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         main.removeCallbacks(flushPendingTuning)
         preferences = null
         pendingTuning.clear()
+        restartReminder.finishTuning()
         writes.forEach { it.completion.complete(false) }
         writes.clear()
         idle.value = true

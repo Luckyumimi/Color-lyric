@@ -6,10 +6,13 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 9
+    private const val VERSION = 10
     private const val MAX_BYTES = 16 * 1024
+    const val TRANSLATION_HELP_HIDDEN = "translation_help_hidden"
 
-    fun encode(settings: CapsuleSettings): String {
+    data class Snapshot(val settings: CapsuleSettings, val translationHelpHidden: Boolean?)
+
+    fun encode(settings: CapsuleSettings, translationHelpHidden: Boolean = false): String {
         val data = JSONObject()
             .put(CapsuleSettings.ENABLED, settings.enabled)
             .put(CapsuleSettings.DOUBLE_LINE, settings.doubleLine)
@@ -28,10 +31,14 @@ internal object CapsuleBackup {
             .put(CapsuleSettings.MOTION, settings.motion.name)
             .put(CapsuleSettings.NO_LYRICS, settings.noLyricsMode.name)
         CapsuleTuning.entries.forEach { data.put(it.key, settings[it]) }
-        return JSONObject().put("format", FORMAT).put("version", VERSION).put("settings", data).toString(2)
+        val appPreferences = JSONObject().put(TRANSLATION_HELP_HIDDEN, translationHelpHidden)
+        return JSONObject().put("format", FORMAT).put("version", VERSION)
+            .put("settings", data).put("app_preferences", appPreferences).toString(2)
     }
 
-    fun decode(input: InputStream): CapsuleSettings {
+    fun decode(input: InputStream): CapsuleSettings = decodeSnapshot(input).settings
+
+    fun decodeSnapshot(input: InputStream): Snapshot {
         val bytes = input.readNBytes(MAX_BYTES + 1)
         require(bytes.size <= MAX_BYTES)
         val root = JSONObject(bytes.toString(Charsets.UTF_8))
@@ -63,7 +70,7 @@ internal object CapsuleBackup {
         val storedTintMode = if (version >= 7) data.getString(CapsuleSettings.LYRIC_TINT_MODE)
             else CapsuleSettings.LEGACY_WHITE_TINT
         val legacyTintDisabled = version < 9 && storedTintMode == CapsuleSettings.LEGACY_WHITE_TINT
-        return lyrics.copy(
+        val settings = lyrics.copy(
             enabled = flag(CapsuleSettings.ENABLED),
             artwork = flag(CapsuleSettings.ARTWORK),
             lyricTintEnabled = if (version >= 9) flag(CapsuleSettings.LYRIC_TINT_ENABLED) else !legacyTintDisabled,
@@ -77,6 +84,11 @@ internal object CapsuleBackup {
             noLyricsMode = NoLyricsMode.valueOf(data.getString(CapsuleSettings.NO_LYRICS)),
             tuning = tuning,
         )
+        val helpHidden = if (version < 10) null else {
+            root.getJSONObject("app_preferences").get(TRANSLATION_HELP_HIDDEN) as? Boolean
+                ?: error("Invalid app preference")
+        }
+        return Snapshot(settings, helpHidden)
     }
 }
 

@@ -61,7 +61,7 @@ class CapsuleBackupTest {
         }
     }
 
-    @Test fun v9RoundTripPreservesTintAndInactiveSettings() {
+    @Test fun v10RoundTripPreservesTintAndInactiveSettings() {
         val expected = CapsuleSettings(
             doubleLine = false,
             secondRowContent = SecondRowContent.LYRIC,
@@ -76,12 +76,23 @@ class CapsuleBackupTest {
         })
         val encoded = CapsuleBackup.encode(expected)
         val root = JSONObject(encoded)
-        assertEquals(9, root.getInt("version"))
+        assertEquals(10, root.getInt("version"))
         val data = root.getJSONObject("settings")
         assertFalse(data.getBoolean(CapsuleSettings.LYRIC_TINT_ENABLED))
         assertFalse(data.has("translation"))
         assertTrue(CapsuleSettings.retiredTintKeys.none(data::has))
         assertEquals(expected, CapsuleBackup.decode(encoded.byteInputStream()))
+    }
+
+    @Test fun v10StoresHelpVisibilityAndKeepsCameraFadeAsBoolean() {
+        val settings = CapsuleSettings(cameraFade = false, tuning = CapsuleTuning.entries.associateWith { it.default })
+        val encoded = CapsuleBackup.encode(settings, translationHelpHidden = true)
+        val snapshot = CapsuleBackup.decodeSnapshot(encoded.byteInputStream())
+        assertEquals(CapsuleBackup.Snapshot(settings, true), snapshot)
+        val v9 = JSONObject(encoded).put("version", 9)
+        v9.remove("app_preferences")
+        val old = CapsuleBackup.decodeSnapshot(v9.toString().byteInputStream())
+        assertEquals(CapsuleBackup.Snapshot(settings, null), old)
     }
 
     @Test fun v8TintModesMigrateToAnExplicitSwitchWithoutChangingStrength() {

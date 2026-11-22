@@ -11,8 +11,10 @@
     <application
         android:name=".settings.TerraMoorApp"
         android:allowBackup="false"
+        android:description="@string/module_description"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.TerraMoor">
@@ -26,7 +28,11 @@
             android:authorities="${applicationId}.TerraMoorDiagnostics"
             android:directBootAware="true"
             android:exported="true" />
-        <activity android:name=".settings.SettingsActivity" android:exported="true">
+        <!-- A language change can also report a screenLayout change. -->
+        <activity
+            android:name=".settings.SettingsActivity"
+            android:configChanges="locale|layoutDirection|screenLayout"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

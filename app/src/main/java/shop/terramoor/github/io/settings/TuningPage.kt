@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
@@ -36,6 +38,7 @@ import io.github.suqi8.coui.kmp.basic.HorizontalDivider
 import io.github.suqi8.coui.kmp.basic.Icon
 import io.github.suqi8.coui.kmp.basic.IconButton
 import io.github.suqi8.coui.kmp.basic.SliderDefaults
+import io.github.suqi8.coui.kmp.basic.Text
 import io.github.suqi8.coui.kmp.icon.COUIIcons
 import io.github.suqi8.coui.kmp.icon.basic.ArrowRight
 import io.github.suqi8.coui.kmp.preference.SliderPreference
@@ -54,18 +57,34 @@ internal fun TuningPage(
     state: TerraMoorApp.State,
     app: TerraMoorApp,
     previewVisible: Boolean,
+    translationHelpHidden: Boolean,
+    onHideTranslationHelp: () -> Unit,
 ) {
     val haptic = rememberCouiHaptic()
     val settings = state.settings
     val ready = state.connection == Connection.READY
+    DisposableEffect(app, previewVisible) {
+        onDispose { if (previewVisible) app.finishTuning() }
+    }
 
     var previewLanguage by rememberSaveable { mutableStateOf(PreviewLanguage.JAPANESE) }
+    var showTranslationHelp by rememberSaveable { mutableStateOf(false) }
+    if (previewVisible && showTranslationHelp && !translationHelpHidden) {
+        TranslationHelpDialog(
+            onDismiss = { showTranslationHelp = false },
+            onHide = {
+                showTranslationHelp = false
+                onHideTranslationHelp()
+            },
+        )
+    }
     val sidePadding = 12.dp
     val divider = Modifier.padding(horizontal = DividerDefaults.CardInset)
     val transitionHeight = 22.dp
+    val previewDescription = stringResource(R.string.preview_title)
     Column(modifier) {
         Box(Modifier.fillMaxWidth().padding(start = sidePadding, top = 8.dp, end = sidePadding, bottom = 4.dp)) {
-            SettingsGroup(stringResource(R.string.preview_title)) {
+            SettingsGroup(title = null) {
                 TuningDropdown(
                     title = stringResource(R.string.preview_sample),
                     items = PreviewLanguage.entries.map { stringResource(it.label) },
@@ -75,7 +94,8 @@ internal fun TuningPage(
                 HorizontalDivider(divider)
                 AndroidView(
                     factory = ::CapsulePreviewView,
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    modifier = Modifier.fillMaxWidth().height(54.dp)
+                        .semantics { contentDescription = previewDescription },
                     update = {
                         it.show(settings, previewLanguage)
                         it.setPreviewVisible(previewVisible)
@@ -112,7 +132,7 @@ internal fun TuningPage(
                             haptic(CouiHapticEffect.Strength)
                         }
                     },
-                    onFinish = app::flushTuning,
+                    onFinish = app::finishTuning,
                     canReset = enabled,
                     showReset = settings[option] != option.default,
                     onReset = {
@@ -157,6 +177,9 @@ internal fun TuningPage(
                         ),
                         selectedIndex = settings.missingTranslationMode.ordinal,
                         enabled = ready,
+                        titleAction = if (translationHelpHidden) null else {
+                            { TranslationHelpButton { showTranslationHelp = true } }
+                        },
                         onSelectedIndexChange = { app.setMissingTranslationMode(MissingTranslationMode.entries[it]) },
                     )
                     if (settings.missingTranslationMode == MissingTranslationMode.SINGLE_LINE) {
@@ -196,12 +219,11 @@ internal fun TuningPage(
                 )
             }
             SettingsGroup(stringResource(R.string.section_camera)) {
-                TuningDropdown(
+                TactileSwitchPreference(
                     title = stringResource(R.string.camera_fade),
-                    items = listOf(stringResource(R.string.camera_fade_off), stringResource(R.string.camera_fade_on)),
-                    selectedIndex = if (settings.cameraFade) 1 else 0,
+                    checked = settings.cameraFade,
                     enabled = ready,
-                    onSelectedIndexChange = { app.set(CapsuleSettings.CAMERA_FADE, it == 1) },
+                    onCheckedChange = { app.set(CapsuleSettings.CAMERA_FADE, it) },
                 )
                 HorizontalDivider(divider)
                 slider(CapsuleTuning.CAMERA_FADE_RADIUS, R.string.tune_camera_radius, R.string.value_dp, ready && settings.cameraFade)
@@ -264,7 +286,7 @@ internal fun TuningPage(
                     title = stringResource(R.string.double_line_switch_mode),
                     items = switchOptions.map { stringResource(it.second) },
                     selectedIndex = switchOptions.indexOfFirst { it.first == settings.doubleLineSwitchMode },
-                    enabled = ready && settings.doubleLine,
+                    enabled = ready && settings.canShowNextLyric,
                     onSelectedIndexChange = { app.setDoubleLineSwitchMode(switchOptions[it].first) },
                 )
                 HorizontalDivider(divider)

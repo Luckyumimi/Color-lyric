@@ -16,12 +16,14 @@ import java.security.MessageDigest
 import java.io.File
 
 internal object DiagnosticReport {
+    data class SettingsUi(val lockScreenConfirmed: Boolean, val restartReminder: Boolean, val translationHelpHidden: Boolean)
+
     private val fileDate = DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss'Z'").withZone(ZoneOffset.UTC)
 
     fun fileName() = "TerraMoor-diagnostics-${fileDate.format(Instant.now())}.txt"
 
     fun collect(context: Context, state: TerraMoorApp.State, providers: Map<LyricsProvider, Boolean>,
-                service: XposedService?): String {
+                service: XposedService?, ui: SettingsUi): String {
         val pm = context.packageManager
         val self = pm.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
         val events = DiagnosticStore.snapshot(context).sorted()
@@ -35,7 +37,7 @@ internal object DiagnosticReport {
                 .ifBlank { "no SystemUI target reported" }
         }.getOrElse { diagnosticFailure("Target query unavailable", it) }
         return buildString {
-            appendLine("TerraMoor diagnostics (schema 3; bounded to ${DiagnosticStore.MAX_LINES} events)")
+            appendLine("TerraMoor diagnostics (schema 4; bounded to ${DiagnosticStore.MAX_LINES} events)")
             appendLine("Exported UTC = ${Instant.now()}")
             appendLine("App = ${context.packageName} ${diagnosticLine(self.versionName.orEmpty())} (${self.longVersionCode})")
             appendLine("Installed base APK SHA-256 = ${apkHash(self.applicationInfo?.sourceDir)}")
@@ -61,7 +63,16 @@ internal object DiagnosticReport {
             }
             appendLine()
             appendLine("[Settings snapshot (${if (state.connection == TerraMoorApp.Connection.READY) "connected" else "app snapshot"})]")
-            appendLine(CapsuleBackup.encode(state.settings))
+            appendLine(CapsuleBackup.encode(state.settings, ui.translationHelpHidden))
+            appendLine("Local UI: lockScreenConfirmed=${ui.lockScreenConfirmed}, restartReminder=${ui.restartReminder}")
+            appendLine()
+            appendLine("[Lyric tint: last observed SystemUI stages in retained history]")
+            appendLine("Stages are independent observations; compare their timestamps before attributing them to the same playback.")
+            for (stage in listOf("settings", "source", "palette", "frame", "draw")) {
+                val marker = "[tint/$stage]"
+                appendLine(events.lastOrNull { " [SystemUI/" in it && " $marker " in it }
+                    ?: "$marker not observed (old build, no injection, no media, or aged out)")
+            }
             appendLine()
             appendLine("[Recent TerraMoor events, UTC]")
             val lastSystemUi = events.lastOrNull { " [SystemUI/" in it }

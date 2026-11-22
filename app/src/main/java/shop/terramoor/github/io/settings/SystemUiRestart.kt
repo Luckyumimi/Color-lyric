@@ -7,13 +7,19 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 internal object SystemUiRestart {
-    enum class Result { SENT, ROOT_REQUIRED, FAILED }
+    enum class Result { RESTARTED, ROOT_REQUIRED, FAILED }
 
     // Android restarts SystemUI after its process exits.
     private val command = """
         [ "${'$'}(id -u)" = 0 ] || exit 77
         pid=${'$'}(pidof -s com.android.systemui) || exit 78
         [ -n "${'$'}pid" ] && kill -TERM "${'$'}pid" || exit 78
+        for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            sleep 1
+            current=${'$'}(pidof -s com.android.systemui)
+            [ -n "${'$'}current" ] && [ "${'$'}current" != "${'$'}pid" ] && exit 0
+        done
+        exit 78
     """.trimIndent()
 
     suspend fun request(): Result = runInterruptible(Dispatchers.IO) {
@@ -30,9 +36,9 @@ internal object SystemUiRestart {
         }
         try {
             process.outputStream.close()
-            if (!process.waitFor(20, TimeUnit.SECONDS)) return@runInterruptible Result.ROOT_REQUIRED
+            if (!process.waitFor(30, TimeUnit.SECONDS)) return@runInterruptible Result.FAILED
             when (process.exitValue()) {
-                0 -> Result.SENT
+                0 -> Result.RESTARTED
                 78 -> Result.FAILED
                 else -> Result.ROOT_REQUIRED
             }

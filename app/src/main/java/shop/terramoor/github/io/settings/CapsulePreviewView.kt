@@ -1,6 +1,7 @@
 package shop.terramoor.github.io.settings
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -155,6 +156,14 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         when {
             lyrics != null || settings.showWaveform || redrawDelay == 0L -> postInvalidateOnAnimation()
             redrawDelay != null -> holdRedrawPending = postDelayed(redrawAfterHold, redrawDelay)
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (language == PreviewLanguage.NO_SYNC_LYRICS) {
+            activeFrame = Int.MIN_VALUE
+            invalidate()
         }
     }
 

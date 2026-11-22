@@ -13,13 +13,22 @@ android {
         applicationId = "io.github.luckyumimi.terramoor"
         minSdk = 34
         targetSdk = 37
-        versionCode = 7
-        versionName = "1.7.0"
+        versionCode = 8
+        versionName = "1.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures { compose = true }
+
+    androidResources {
+        // Keep in sync with res/xml/locales_config.xml, including script qualifiers.
+        localeFilters += listOf(
+            "en", "b+zh+Hans", "b+zh+Hant+HK", "b+zh+Hant+TW",
+            "es", "hi", "fr", "pt", "de", "ja", "ru", "ko",
+            "it", "nl", "tr", "vi", "th", "in", "ms", "pl",
+        )
+    }
 
     flavorDimensions += "distribution"
     productFlavors {

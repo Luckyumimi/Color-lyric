@@ -14,8 +14,9 @@ internal class LyricPresentation(private val timeline: Timeline, private val set
         settings.missingTranslationMode == MissingTranslationMode.SINGLE_LINE && translation(index) == null
 
     fun switchMode(index: Int): LyricSwitchMode =
-        if (!settings.doubleLine || fallsBackToSingleLine(index)) settings.singleLineSwitchMode
-        else settings.doubleLineSwitchMode
+        if (settings.canShowNextLyric && (settings.secondRowContent == SecondRowContent.LYRIC || translation(index) == null)) {
+            settings.doubleLineSwitchMode
+        } else settings.singleLineSwitchMode
 
     fun indexAt(positionMs: Long): Int = timeline.displayIndexAt(positionMs, ::switchMode)
 

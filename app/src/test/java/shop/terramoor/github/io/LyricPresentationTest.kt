@@ -65,9 +65,11 @@ class LyricPresentationTest {
     @Test fun outgoingLayoutChoosesItsOwnBoundaryAndScrollEnd() {
         val defaults = CapsuleSettings()
         val mixed = LyricPresentation(timeline, defaults)
-        assertEquals(0, mixed.indexAt(2000))
-        assertEquals(3000L, mixed.nextBoundary(0))
-        assertEquals(3000L, mixed.frameAt(0, 10000)?.endMs)
+        assertEquals(1, mixed.indexAt(2000))
+        assertEquals(2000L, mixed.nextBoundary(0))
+        assertEquals(2000L, mixed.frameAt(0, 10000)?.endMs)
+        assertEquals(LyricRows("First", "Translation"), mixed.frameAt(0, 10000)?.rows)
+        assertEquals(2000L, mixed.frameAt(1, 10000)?.displayStartMs)
         assertEquals(1, mixed.indexAt(3999))
         assertEquals(4000L, mixed.nextBoundary(1))
         assertEquals(4000L, mixed.frameAt(1, 10000)?.endMs)
@@ -75,14 +77,40 @@ class LyricPresentationTest {
         assertEquals(4000L, mixed.frameAt(2, 10000)?.displayStartMs)
         assertEquals(0, mixed.indexAt(1999))
 
-        val doubleEarly = LyricPresentation(timeline, defaults.copy(doubleLineSwitchMode = LyricSwitchMode.AFTER_END))
-        assertEquals(2000L, doubleEarly.nextBoundary(0))
-        val singleLate = LyricPresentation(timeline, defaults.copy(singleLineSwitchMode = LyricSwitchMode.AT_NEXT_START))
+        val singleLate = LyricPresentation(timeline, defaults.copy(
+            singleLineSwitchMode = LyricSwitchMode.AT_NEXT_START,
+            doubleLineSwitchMode = LyricSwitchMode.AFTER_END,
+        ))
         assertEquals(3000L, singleLate.nextBoundary(0))
+        assertEquals(3000L, singleLate.frameAt(0, 10000)?.endMs)
         assertEquals(5000L, singleLate.nextBoundary(1))
 
         val singleOnly = LyricPresentation(timeline, defaults.copy(doubleLine = false))
         assertEquals(2000L, singleOnly.nextBoundary(0))
         assertEquals(LyricRows("First"), singleOnly.frameAt(0, 10000)?.rows)
+    }
+
+    @Test fun missingTranslationWithNextLyricUsesDoubleTimingOnlyOnUntranslatedLines() {
+        val settings = CapsuleSettings(missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS)
+        val presentation = LyricPresentation(timeline, settings)
+        assertTrue(settings.canShowNextLyric)
+        assertEquals(2000L, presentation.nextBoundary(0))
+        assertEquals(1, presentation.indexAt(4000))
+        assertEquals(5000L, presentation.nextBoundary(1))
+        assertEquals(5000L, presentation.frameAt(1, 10000)?.endMs)
+        assertEquals(2, presentation.indexAt(5000))
+        assertEquals(5000L, presentation.frameAt(2, 10000)?.displayStartMs)
+    }
+
+    @Test fun explicitNextLyricUsesDoubleTimingEvenWhenTheLineHasATranslation() {
+        val settings = CapsuleSettings(secondRowContent = SecondRowContent.LYRIC)
+        val presentation = LyricPresentation(timeline, settings)
+        assertTrue(settings.canShowNextLyric)
+        assertFalse(settings.copy(doubleLine = false).canShowNextLyric)
+        assertFalse(CapsuleSettings().canShowNextLyric)
+        assertEquals(0, presentation.indexAt(2000))
+        assertEquals(3000L, presentation.nextBoundary(0))
+        assertEquals(3000L, presentation.frameAt(0, 10000)?.endMs)
+        assertEquals(3000L, presentation.frameAt(1, 10000)?.displayStartMs)
     }
 }

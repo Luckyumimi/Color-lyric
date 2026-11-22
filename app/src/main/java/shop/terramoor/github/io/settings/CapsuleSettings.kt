@@ -61,6 +61,10 @@ internal data class CapsuleSettings(
 
     operator fun get(option: CapsuleTuning): Int = tuning[option] ?: option.default
 
+    val canShowNextLyric: Boolean
+        get() = doubleLine &&
+            (secondRowContent == SecondRowContent.LYRIC || missingTranslationMode == MissingTranslationMode.DOUBLE_LYRICS)
+
     fun effectiveFirstRowSize(missingTranslationSingleLine: Boolean): Int =
         (get(CapsuleTuning.FIRST_ROW_SIZE) + if (missingTranslationSingleLine && fallbackSingleLineExpand) 2 else 0)
             .coerceAtMost(CapsuleTuning.FIRST_ROW_SIZE.range.last)

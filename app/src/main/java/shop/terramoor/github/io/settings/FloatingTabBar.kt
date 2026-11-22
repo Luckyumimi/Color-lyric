@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -26,9 +31,10 @@ internal enum class SettingsTab(@StringRes val title: Int) {
 }
 
 @Composable
-internal fun FloatingTabBar(selected: SettingsTab, onSelect: (SettingsTab) -> Unit) {
+internal fun FloatingTabBar(selected: SettingsTab, onSelect: (SettingsTab) -> Boolean) {
     val view = LocalView.current
     val tabs = SettingsTab.entries
+    var selectionReset by remember { mutableIntStateOf(0) }
     BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
         // COUI Kit reserves 68dp at each end for optional attachments. Keep the
         // capsule itself at LuckyTool's compact item width, even without attachments.
@@ -37,19 +43,22 @@ internal fun FloatingTabBar(selected: SettingsTab, onSelect: (SettingsTab) -> Un
         val attachmentSpace = 136.dp
         val menuWidth = (24.dp + itemWidth * tabs.size + 8.dp * (tabs.size - 1))
             .coerceAtMost((maxWidth - outerPadding).coerceAtLeast(0.dp))
-        NavigationBar(
-            modifier = Modifier.requiredWidth(menuWidth + attachmentSpace + outerPadding),
-            items = tabs.map { CouiNavigationItem(stringResource(it.title), tabIcon(it)) },
-            selectedIndex = selected.ordinal,
-            dark = isSystemInDarkTheme(),
-            onSelection = { index ->
-                val tab = tabs[index]
-                if (tab != selected) {
-                    view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
-                    onSelect(tab)
-                }
-            },
-        )
+        // COUI updates its own selection during a gesture, even if the pager rejects it.
+        key(selectionReset) {
+            NavigationBar(
+                modifier = Modifier.requiredWidth(menuWidth + attachmentSpace + outerPadding),
+                items = tabs.map { CouiNavigationItem(stringResource(it.title), tabIcon(it)) },
+                selectedIndex = selected.ordinal,
+                dark = isSystemInDarkTheme(),
+                onSelection = { index ->
+                    val tab = tabs[index]
+                    if (tab != selected) {
+                        view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                        if (!onSelect(tab)) selectionReset++
+                    }
+                },
+            )
+        }
     }
 }
 

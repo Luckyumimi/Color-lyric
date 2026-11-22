@@ -2,6 +2,7 @@ package shop.terramoor.github.io.settings
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -36,6 +37,7 @@ internal fun TuningDropdown(
     items: List<String>,
     selectedIndex: Int,
     enabled: Boolean = true,
+    titleAction: (@Composable () -> Unit)? = null,
     onSelectedIndexChange: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -43,22 +45,16 @@ internal fun TuningDropdown(
     val haptic = rememberCouiHaptic()
     val colors = COUITheme.colorScheme
     val menuStyle = CouiMenuDefaults.style(dark = isSystemInDarkTheme())
-    BasicComponent(
-        modifier = Modifier.couiMenuAnchor(anchor),
-        title = title,
-        enabled = enabled,
-        role = Role.DropdownList,
-        holdDownState = expanded && enabled,
-        onClick = {
-            haptic(CouiHapticEffect.Strength)
-            anchor.open { expanded = true }
-        },
-        endActions = {
+    val open = {
+        haptic(CouiHapticEffect.Strength)
+        anchor.open { expanded = true }
+    }
+    val end: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
             Text(
                 text = items.getOrNull(selectedIndex).orEmpty(),
                 color = if (enabled) colors.onSurfaceSecondary else colors.disabledOnSecondaryVariant,
                 style = COUITheme.textStyles.body2,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.CenterVertically).widthIn(max = 156.dp).padding(end = 4.dp),
             )
@@ -83,6 +79,19 @@ internal fun TuningDropdown(
                     anchor = anchor,
                 )
             }
-        },
-    )
+    }
+    val modifier = Modifier.couiMenuAnchor(anchor)
+    if (titleAction == null) {
+        BasicComponent(modifier = modifier, title = title, enabled = enabled, role = Role.DropdownList,
+            holdDownState = expanded && enabled, onClick = open, endActions = end)
+    } else {
+        BasicComponent(modifier = modifier, enabled = enabled, role = Role.DropdownList,
+            holdDownState = expanded && enabled, onClick = open, endActions = end) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, color = if (enabled) colors.onSurface else colors.disabledOnSecondaryVariant,
+                    style = COUITheme.textStyles.body1, modifier = Modifier.weight(1f, fill = false))
+                titleAction()
+            }
+        }
+    }
 }
