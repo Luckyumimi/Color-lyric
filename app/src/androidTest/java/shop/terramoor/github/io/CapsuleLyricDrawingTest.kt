@@ -22,6 +22,7 @@ import shop.terramoor.github.io.lyrics.LyricRows
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
+import shop.terramoor.github.io.settings.LyricAlignment
 import shop.terramoor.github.io.settings.LyricTintMode
 import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.PreviewLanguage
@@ -35,6 +36,7 @@ import shop.terramoor.github.io.systemui.EdgeFade
 import shop.terramoor.github.io.systemui.LyricInk
 import shop.terramoor.github.io.systemui.OuterLyricFeather
 import shop.terramoor.github.io.systemui.OuterLyricMask
+import shop.terramoor.github.io.systemui.TrackInfoDisplayMarquee
 import shop.terramoor.github.io.systemui.artworkBitmap
 import java.time.Duration
 import java.util.concurrent.FutureTask
@@ -412,8 +414,8 @@ class CapsuleLyricDrawingTest {
         val during = Bitmap.createBitmap(320, 120, Bitmap.Config.ARGB_8888)
         try {
             strip.update(frame, settings)
-            assertEquals(900L, strip.draw(Canvas(start), 20f, 0f, 300f, 120f, null, 0))
-            assertEquals(0L, strip.draw(Canvas(during), 20f, 0f, 300f, 120f, null, 1500))
+            assertEquals(3000L, strip.draw(Canvas(start), 20f, 0f, 300f, 120f, null, 0))
+            assertEquals(0L, strip.draw(Canvas(during), 20f, 0f, 300f, 120f, null, 3600))
             assertTrue(!start.sameAs(during))
             assertTrue(start.ink(20 until 300, 66 until 120) > 0)
             for (y in 66 until 120) for (x in 20 until 300) {
@@ -424,6 +426,27 @@ class CapsuleLyricDrawingTest {
         } finally {
             start.recycle()
             during.recycle()
+        }
+    }
+
+    @Test
+    fun trackTitleFollowsTheNativeViewportWhileItsMarqueeIsPaused() {
+        val strip = CapsuleLyricStrip(2f)
+        val marquee = TrackInfoDisplayMarquee()
+        val narrow = Bitmap.createBitmap(320, 120, Bitmap.Config.ARGB_8888)
+        val wide = Bitmap.createBitmap(320, 120, Bitmap.Config.ARGB_8888)
+        try {
+            strip.update(LyricFrame.trackInfo("Title", "Artist"), CapsuleSettings(lyricAlignment = LyricAlignment.CENTER))
+            assertNull(strip.draw(Canvas(narrow), 20f, 0f, 160f, 120f, null, 0,
+                trackInfoMarquee = marquee, trackInfoSettled = false))
+            assertNull(strip.draw(Canvas(wide), 20f, 0f, 300f, 120f, null, 150,
+                trackInfoMarquee = marquee, trackInfoSettled = false))
+            assertTrue(narrow.ink(20 until 120, 0 until 66) > 0)
+            assertEquals(0, wide.ink(20 until 120, 0 until 66))
+            assertTrue(wide.ink(120 until 200, 0 until 66) > 0)
+        } finally {
+            narrow.recycle()
+            wide.recycle()
         }
     }
 

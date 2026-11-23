@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.luckyumimi.terramoor"
         minSdk = 34
         targetSdk = 37
-        versionCode = 12
-        versionName = "1.8.4"
+        versionCode = 13
+        versionName = "1.8.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

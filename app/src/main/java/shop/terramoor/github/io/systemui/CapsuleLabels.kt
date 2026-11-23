@@ -16,6 +16,7 @@ import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.PlaybackClock
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** Draws lyrics over the OEM capsule surface and leaves the OEM controls in their own views. */
@@ -34,7 +35,8 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private var dimAlpha = 0
     private var displayLine: LyricFrame? = null
     private var clock: PlaybackClock? = null
-    private var trackInfoShownAt = 0L
+    private var trackInfoShown = false
+    private val trackInfoMarquee = TrackInfoDisplayMarquee()
     private val redrawTrackInfo = Runnable { if (capsule.isShown) capsule.invalidate() }
     private var displaySettings: CapsuleSettings? = null
     private var sizedParams: ViewGroup.LayoutParams? = null
@@ -54,12 +56,15 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         line: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?,
         clock: PlaybackClock? = null, ink: LyricInk = LyricInk.WHITE,
     ) {
-        if (displayLine != line) {
+        val showingTrackInfo = line?.isTrackInfo == true && capsule.isShown
+        val trackInfoVisibilityChanged = trackInfoShown != showingTrackInfo
+        trackInfoShown = showingTrackInfo
+        if (displayLine != line || trackInfoVisibilityChanged) {
             capsule.removeCallbacks(redrawTrackInfo)
-            if (line?.isTrackInfo == true) trackInfoShownAt = SystemClock.elapsedRealtime()
+            trackInfoMarquee.reset()
         }
         val changed = displayLine != line || displaySettings != settings || this.artwork !== artwork ||
-            this.clock != clock || this.ink != ink
+            this.clock != clock || this.ink != ink || trackInfoVisibilityChanged
         this.clock = clock
         displayLine = line
         displaySettings = settings
@@ -122,10 +127,12 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             val right = capsuleLyricsRight(width.toFloat(), waveformLeft, density, settings)
             val timing = clock
             val now = SystemClock.elapsedRealtime()
-            val position = if (line.isTrackInfo) now - trackInfoShownAt else timing?.position(now) ?: line.startMs
+            val position = if (line.isTrackInfo) now else timing?.position(now) ?: line.startMs
+            val settled = animatedWidth == null && abs(width - capsule.measuredWidth) <= 1
             val redrawDelay = strip.draw(
                 canvas, left, area.top, right, area.bottom,
                 lens, position, artworkArea = artworkArea,
+                trackInfoMarquee = trackInfoMarquee, trackInfoSettled = settled,
             )
             if (line.isTrackInfo) {
                 capsule.removeCallbacks(redrawTrackInfo)

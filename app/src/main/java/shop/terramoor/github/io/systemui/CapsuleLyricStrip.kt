@@ -59,6 +59,8 @@ internal class CapsuleLyricStrip(private val density: Float) {
         camera: CapsuleCamera?, position: Long,
         opacity: Float = 1f,
         artworkArea: RectF? = null,
+        trackInfoMarquee: TrackInfoDisplayMarquee? = null,
+        trackInfoSettled: Boolean = true,
     ): Long? {
         val current = frame ?: return null
         if (right <= left || bottom <= top || opacity <= 0f) return null
@@ -87,7 +89,10 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val travel = if (motion == LineMotion.UP) bottom - top else 0f
         val center = (top + bottom) / 2
         val marquee = if (current.isTrackInfo) {
-            TrackTitleMarquee.sample(position, viewport.travel(firstRow.width) / density, feather.trailingInset / density)
+            val overflow = viewport.travel(firstRow.width) / density
+            val inset = feather.trailingInset / density
+            trackInfoMarquee?.sample(position, trackInfoSettled, overflow, inset)
+                ?: TrackTitleMarquee.sample(position, overflow, inset)
         } else null
         val progress = marquee?.progress ?: current.scrollFraction(position)
         val secondIsStatic = current.isTrackInfo || current.rows.nextLyricStartMs != null
