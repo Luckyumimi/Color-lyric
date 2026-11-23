@@ -3,9 +3,12 @@ package shop.terramoor.github.io.systemui
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.ComposeShader
 import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Path
+import android.graphics.PorterDuff
 import android.graphics.Shader
 import android.graphics.Paint
 import android.graphics.Rect
@@ -26,13 +29,15 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 private const val CAMERA_FADE_RADIUS_DP = 2f
+private const val WORD_SWEEP_FEATHER_DP = 3f
+private const val UNPLAYED_ALPHA = 0.55f
 
 /** Draws each lyric lane once, with a fixed mask over the camera. */
 internal class CapsuleLyricStrip(private val density: Float) {
-    private val firstRow = Lane(density)
-    private val secondRow = Lane()
-    private val priorFirstRow = Lane(density)
-    private val priorSecondRow = Lane()
+    private val firstRow = Lane(density, rowUnsungOffsetPx = density)
+    private val secondRow = Lane(density)
+    private val priorFirstRow = Lane(density, rowUnsungOffsetPx = density)
+    private val priorSecondRow = Lane(density)
     private var frame: LyricFrame? = null
     private var motion = LineMotion.UP
     private var lyricAlignment = LyricAlignment.CENTER
@@ -250,8 +255,9 @@ internal class CapsuleLyricStrip(private val density: Float) {
 
     private fun pairTop(center: Float, first: Lane, second: Lane) = center - (first.height + second.height) / 2f
 
-    private class Lane(private val rowUnsungOffsetPx: Float = 0f) {
+    private class Lane(density: Float, private val rowUnsungOffsetPx: Float = 0f) {
         private val outerMask = OuterLyricMask()
+        private val wordSweep by lazy { WordHighlightSweep(WORD_SWEEP_FEATHER_DP * density) }
         private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG)
         private var layout: StaticLayout? = null
         private var text: String? = null
@@ -441,7 +447,7 @@ internal class CapsuleLyricStrip(private val density: Float) {
                         sx = 0f
                         sy = 0f
                     }
-                    drawLayout(target, measured, shift, crossing, unsungOffsetPx) { dx, dy, brightness ->
+                    drawLayout(target, measured, shift, crossing, unsungOffsetPx) { dx, dy, brightness, sweep ->
                         paint.alpha = (inkAlpha * brightness).toInt()
                         if (textured) {
                             textureMatrix.setScale(sx / scale, sy / scale)
@@ -452,6 +458,7 @@ internal class CapsuleLyricStrip(private val density: Float) {
                             shader.setLocalMatrix(textureMatrix)
                             paint.shader = shader
                         } else paint.shader = gradientShader
+                        if (sweep) paint.shader = wordSweep.applyTo(paint.shader, color)
                         target.translate(x + dx, y + dy)
                         if (scale != 1f) target.scale(scale, scale)
                     }
@@ -466,24 +473,24 @@ internal class CapsuleLyricStrip(private val density: Float) {
         private fun drawLayout(
             canvas: Canvas, measured: StaticLayout, shift: CameraWordShift?, crossing: CameraWordFade?,
             unsungOffsetPx: Float,
-            prepare: (dx: Float, dy: Float, alpha: Float) -> Unit,
+            prepare: (dx: Float, dy: Float, alpha: Float, sweep: Boolean) -> Unit,
         ) {
             val length = measured.text.length
             val active = words.getOrNull(wordIndex)
             if (shift == null && crossing == null && (words.isEmpty() || active?.until == length && wordFraction == 1f)) {
-                prepare(0f, 0f, 1f)
+                prepare(0f, 0f, 1f, false)
                 measured.draw(canvas)
                 return
             }
 
-            fun drawRange(from: Int, until: Int, alpha: Float, dy: Float) {
+            fun drawRange(from: Int, until: Int, alpha: Float, dy: Float, sweep: Boolean = false) {
                 if (from >= until) return
                 val split = shift?.split?.coerceIn(from, until) ?: until
                 fun drawPart(first: Int, last: Int, dx: Float, alpha: Float) {
                     if (first >= last || alpha <= 0f) return
                     val save = canvas.save()
                     try {
-                        prepare(dx, dy, alpha)
+                        prepare(dx, dy, alpha, sweep)
                         if (first == 0 && last == length || canvas.clipPath(selection(measured, first, last))) {
                             measured.draw(canvas)
                         }
@@ -520,7 +527,10 @@ internal class CapsuleLyricStrip(private val density: Float) {
             } else {
                 drawRange(0, active.from, 1f, 0f)
                 drawRange(active.until, length, UNPLAYED_ALPHA, unsungOffsetPx)
-                drawRange(active.from, active.until, lerp(UNPLAYED_ALPHA, 1f, wordFraction), unsungOffsetPx * wordOffset)
+                val sweeping = wordFraction > 0f &&
+                    wordSweep.move(selection(measured, active.from, active.until), wordFraction)
+                val alpha = if (sweeping) 1f else UNPLAYED_ALPHA
+                drawRange(active.from, active.until, alpha, unsungOffsetPx * wordOffset, sweeping)
             }
         }
 
@@ -576,10 +586,56 @@ internal class CapsuleLyricStrip(private val density: Float) {
             char.isLetter() && Character.UnicodeScript.of(char.code) == Character.UnicodeScript.LATIN
 
         private companion object {
-            const val UNPLAYED_ALPHA = 0.55f
             const val OPENING_PUNCTUATION = "([{（「『〈《“‘"
             const val FOLLOWING_PUNCTUATION = ")]}）」。』〉》”’，。、！？；：,.!?;:…"
         }
+    }
+}
+
+/** Modulates the word's existing ink in layout coordinates, even when the camera splits it. */
+private class WordHighlightSweep(private val maxFeatherWidth: Float) {
+    private val bounds = RectF()
+    private val matrix = Matrix()
+    private val mask = LinearGradient(
+        0f, 0f, 1f, 0f,
+        IntArray(5) { index ->
+            val fraction = index / 4f
+            val eased = fraction * fraction * (3f - 2f * fraction)
+            val alpha = (255f * (1f - (1f - UNPLAYED_ALPHA) * eased)).toInt()
+            Color.argb(alpha, 255, 255, 255)
+        },
+        null, Shader.TileMode.CLAMP,
+    )
+    private var solidColor = Color.TRANSPARENT
+    private var solidInk: Shader? = null
+    private var source: Shader? = null
+    private var composed: ComposeShader? = null
+
+    fun move(selection: Path, fraction: Float): Boolean {
+        selection.computeBounds(bounds, true)
+        val width = bounds.width()
+        if (width <= 0f) return false
+        val feather = minOf(maxFeatherWidth, width / 2f)
+        // At the exact start and end, the entire transition is outside the word.
+        val gradientStart = bounds.left - feather + (width + feather) * fraction
+        matrix.setScale(feather, 1f)
+        matrix.postTranslate(gradientStart, 0f)
+        mask.setLocalMatrix(matrix)
+        return true
+    }
+
+    fun applyTo(ink: Shader?, color: Int): Shader {
+        val original = ink ?: solidShader(color)
+        composed?.takeIf { source === original }?.let { return it }
+        source = original
+        return ComposeShader(original, mask, PorterDuff.Mode.DST_IN).also { composed = it }
+    }
+
+    private fun solidShader(color: Int): Shader {
+        solidInk?.takeIf { solidColor == color }?.let { return it }
+        solidColor = color
+        val opaque = color or Color.BLACK
+        return LinearGradient(0f, 0f, 1f, 0f, opaque, opaque, Shader.TileMode.CLAMP).also { solidInk = it }
     }
 }
 

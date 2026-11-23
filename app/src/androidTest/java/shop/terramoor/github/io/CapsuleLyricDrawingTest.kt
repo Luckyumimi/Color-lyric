@@ -184,6 +184,40 @@ class CapsuleLyricDrawingTest {
     }
 
     @Test
+    fun activeGlyphBrightensFromLeftToRightWithASoftEdge() {
+        val strip = CapsuleLyricStrip(4f)
+        val width = 320
+        val height = 120
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val rows = LyricRows("H", firstWords = listOf(LyricWord(0, 1, 1000L, 2000L)))
+        val ink = LyricGradient(Color.RED, Color.MAGENTA, Color.BLUE)
+        strip.update(LyricFrame(rows, 1000L, 3000L), CapsuleSettings(wordLyrics = true),
+            LyricInk(ink.center, ink.center, gradient = ink))
+        fun draw(position: Long): IntArray {
+            bitmap.eraseColor(Color.TRANSPARENT)
+            strip.draw(Canvas(bitmap), 0f, 0f, width.toFloat(), height.toFloat(), null, position)
+            return IntArray(width * height).also { bitmap.getPixels(it, 0, width, 0, 0, width, height) }
+        }
+        try {
+            val sung = draw(2000L)
+            val halfway = draw(1500L)
+            val later = draw(1850L)
+            val solidPixels = sung.indices.filter { Color.alpha(sung[it]) >= 248 }
+            val left = solidPixels.minBy { it % width }
+            val right = solidPixels.maxBy { it % width }
+            assertTrue(Color.alpha(halfway[left]) >= 246)
+            assertTrue(Color.alpha(halfway[right]) in 134..145)
+            assertTrue(solidPixels.any { Color.alpha(halfway[it]) in 155..230 })
+            assertTrue(solidPixels.any { Color.alpha(later[it]) - Color.alpha(halfway[it]) >= 50 })
+            for (channel in listOf(Color::red, Color::green, Color::blue)) {
+                assertEquals(channel(sung[right]).toFloat(), channel(halfway[right]).toFloat(), 3f)
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
     fun secondRowKeepsItsBaselineWithTimedOriginalOrUpcomingLyrics() {
         val strip = CapsuleLyricStrip(2f)
         val bitmap = Bitmap.createBitmap(160, 100, Bitmap.Config.ARGB_8888)
