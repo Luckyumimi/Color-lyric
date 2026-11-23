@@ -30,6 +30,7 @@ import shop.terramoor.github.io.settings.SecondRowContent
 import androidx.test.platform.app.InstrumentationRegistry
 import shop.terramoor.github.io.systemui.ArtworkLyricTint
 import shop.terramoor.github.io.systemui.CameraLyricMask
+import shop.terramoor.github.io.systemui.CapsuleArtworkBackground
 import shop.terramoor.github.io.systemui.CapsuleCamera
 import shop.terramoor.github.io.systemui.CapsuleLyricStrip
 import shop.terramoor.github.io.systemui.EdgeFade
@@ -44,6 +45,34 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class CapsuleLyricDrawingTest {
+    @Test
+    fun capsuleWidthOvershootContinuesTheArtworkAcrossBothEdges() {
+        val artwork = Bitmap.createBitmap(20, 8, Bitmap.Config.ARGB_8888)
+        val normal = Bitmap.createBitmap(160, 48, Bitmap.Config.ARGB_8888)
+        val expanded = Bitmap.createBitmap(160, 48, Bitmap.Config.ARGB_8888)
+        try {
+            val half = Paint().apply { color = Color.RED }
+            val source = Canvas(artwork)
+            source.drawRect(0f, 0f, 10f, 8f, half)
+            half.color = Color.GREEN
+            source.drawRect(10f, 0f, 20f, 8f, half)
+            val layout = RectF(20f, 4f, 140f, 44f)
+            val reveal = RectF(8f, 4f, 152f, 44f)
+            val background = CapsuleArtworkBackground()
+            background.draw(Canvas(normal), artwork, layout, layout, 30)
+            background.draw(Canvas(expanded), artwork, layout, reveal, 30)
+            for (x in 20 until 140) assertEquals(normal.getPixel(x, 24), expanded.getPixel(x, 24))
+            for (x in 8 until 20) assertEquals(normal.getPixel(20, 24), expanded.getPixel(x, 24))
+            for (x in 140 until 152) assertEquals(normal.getPixel(139, 24), expanded.getPixel(x, 24))
+            assertEquals(0, expanded.pixelAlpha(7, 24))
+            assertEquals(0, expanded.pixelAlpha(152, 24))
+        } finally {
+            artwork.recycle()
+            normal.recycle()
+            expanded.recycle()
+        }
+    }
+
     @Test
     fun adaptiveNotificationCoverSuppliesLyricTint() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

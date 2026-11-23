@@ -2,10 +2,7 @@ package shop.terramoor.github.io.systemui
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Rect
 import android.graphics.RectF
 import android.os.SystemClock
 import android.view.Gravity
@@ -43,11 +40,10 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private var nativeWidth = 0
     private val nativeMinimumWidth = capsule.minimumWidth
     private var appliedWidth: Int? = null
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val artworkBackground = CapsuleArtworkBackground()
     private val area = RectF()
     private val artworkArea = RectF()
     private val clip = Path()
-    private val crop = Rect()
     private val location = IntArray(2)
 
     val hasCustomContent: Boolean get() = displayLine != null || artwork != null
@@ -106,7 +102,9 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         val save = canvas.save()
         try {
             canvas.clipPath(clip)
-            drawArtwork(canvas)
+            artwork?.takeUnless { it.isRecycled }?.let {
+                artworkBackground.draw(canvas, it, artworkArea, area, dimAlpha)
+            }
             val line = displayLine ?: return "ARTWORK_ONLY"
             val settings = displaySettings ?: return "ARTWORK_ONLY"
             // Display cutout and getLocationOnScreen share display coordinates. Insets
@@ -161,15 +159,6 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             child = parent
         }
         return left.toFloat()
-    }
-
-    private fun drawArtwork(canvas: Canvas) {
-        val bitmap = artwork?.takeUnless { it.isRecycled } ?: return
-        artworkCrop(bitmap, artworkArea.width() / artworkArea.height(), crop)
-        paint.alpha = CapsuleSettings.ARTWORK_BACKGROUND_ALPHA
-        canvas.drawBitmap(bitmap, crop, artworkArea, paint)
-        paint.color = Color.argb(dimAlpha, 0, 0, 0)
-        canvas.drawRect(area, paint)
     }
 
     private fun updateCapsuleWidth(requestedWidth: Int?) {
