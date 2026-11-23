@@ -72,6 +72,32 @@ class TintArtworkSelectionTest {
         assertSame(firstCover, selection.select(true, null, firstCover, 1, trackIdentified = true).bitmap)
     }
 
+    @Test fun returnsToTheOriginalCoverWhenTheInterveningSessionNeverReplacedIt() {
+        val music = "music" to "song"
+        selection.onTrack(music)
+        assertSame(firstCover, selection.select(true, null, firstCover, 1, trackIdentified = true).bitmap)
+        selection.onTrack("video" to "clip")
+        assertNull(selection.select(true, null, firstCover, 1, trackIdentified = true).bitmap)
+        assertNull(selection.select(true, null, null, 0, trackIdentified = false).bitmap)
+
+        selection.onTrack(music)
+        val restored = selection.select(true, null, firstCover, 1, trackIdentified = true)
+        assertEquals(TintArtworkOrigin.NATIVE_COVER, restored.origin)
+        assertSame(firstCover, restored.bitmap)
+    }
+
+    @Test fun returningToMusicStillRejectsTheVideosCoverIfItWasActuallyShown() {
+        val music = "music" to "song"
+        selection.onTrack(music)
+        selection.select(true, null, firstCover, 1, trackIdentified = true)
+        selection.onTrack("video" to "clip")
+        assertSame(secondCover, selection.select(true, null, secondCover, 1, trackIdentified = true).bitmap)
+
+        selection.onTrack(music)
+        assertNull(selection.select(true, null, secondCover, 1, trackIdentified = true).bitmap)
+        assertSame(firstCover, selection.select(true, null, firstCover, 1, trackIdentified = true).bitmap)
+    }
+
     @Test fun disabledTintStillRemembersTheCoverButNeverSelectsItWithoutTrackIdentity() {
         selection.onTrack("player" to "first")
         val disabled = selection.select(false, albumArt, firstCover, 1, trackIdentified = true)

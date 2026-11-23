@@ -10,32 +10,34 @@ internal data class TintArtwork<Image>(val bitmap: Image?, val origin: TintArtwo
 
 /** Remembers the last image in the verified cover slot across track and session handoffs. */
 internal class TintArtworkSelection<Key : Any, Image : Any> {
-    private class Revision<T : Any>(bitmap: T, private val generation: Int) {
+    private class Revision<Key : Any, Image : Any>(val track: Key, bitmap: Image, private val generation: Int) {
         private val image = WeakReference(bitmap)
-        fun matches(bitmap: T, generation: Int) = image.get() === bitmap && this.generation == generation
+        fun matches(bitmap: Image, generation: Int) = image.get() === bitmap && this.generation == generation
     }
 
     private var track: Key? = null
-    private var lastCover: Revision<Image>? = null
-    private var precedingCover: Revision<Image>? = null
+    private var lastCover: Revision<Key, Image>? = null
+    private var precedingCover: Revision<Key, Image>? = null
 
     fun onTrack(key: Key) {
         if (track == key) return
-        precedingCover = lastCover
+        // A short handoff may end before the new player ever replaces the old cover.
+        precedingCover = lastCover?.takeUnless { it.track == key }
         track = key
     }
 
     fun select(
         enabled: Boolean, media: Image?, native: Image?, generation: Int, trackIdentified: Boolean,
     ): TintArtwork<Image> {
+        val currentTrack = track?.takeIf { trackIdentified }
         val unchanged = native != null && precedingCover?.matches(native, generation) == true
-        if (trackIdentified && native != null && !unchanged && lastCover?.matches(native, generation) != true) {
-            lastCover = Revision(native, generation)
+        if (currentTrack != null && native != null && !unchanged && lastCover?.matches(native, generation) != true) {
+            lastCover = Revision(currentTrack, native, generation)
         }
         return when {
             !enabled -> TintArtwork(null, TintArtworkOrigin.NOT_REQUESTED)
             media != null -> TintArtwork(media, TintArtworkOrigin.MEDIA_ALBUM_ART)
-            !trackIdentified || track == null || native == null ->
+            currentTrack == null || native == null ->
                 TintArtwork(null, TintArtworkOrigin.WAITING_FOR_ALBUM_ART)
             unchanged ->
                 TintArtwork(null, TintArtworkOrigin.WAITING_FOR_NATIVE_COVER_UPDATE)

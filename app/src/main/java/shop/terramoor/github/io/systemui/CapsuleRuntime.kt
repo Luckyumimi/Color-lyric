@@ -1,5 +1,6 @@
 package shop.terramoor.github.io.systemui
 
+import android.animation.ValueAnimator
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -30,6 +31,8 @@ import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.NoLyricsMode
 import java.lang.ref.WeakReference
+import java.util.WeakHashMap
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** Owns a single capsule and session, with all UI and callback state confined to the main thread. */
@@ -56,8 +59,11 @@ internal class CapsuleRuntime(
     private var mediaMissingSince: Long? = null
     private var destroyedToken: MediaSession.Token? = null
     private var session: Session? = null
+    private val pauseTimeout = CapsulePauseTimeout<NativeContract.PauseOwner>()
     private val tintArtworkSelection = TintArtworkSelection<Pair<MediaSession.Token, Track>, Bitmap>()
     private var labels: CapsuleLabels? = null
+    private val centeredMedia = WeakHashMap<ViewGroup, String>()
+    private val centerLocation = IntArray(2)
     private var renderedShown: Boolean? = null
     private var layoutChanged = false
     private var scheduledTick: LyricBoundaryTick? = null
@@ -181,8 +187,18 @@ internal class CapsuleRuntime(
     fun draw(instance: Any, canvas: Canvas) {
         val binding = labels ?: return
         val contract = plugin ?: return
-        if (binding.target.capsule !== instance || !contract.hasOwner(binding.target.capsule, media?.key ?: return)) return
-        val result = binding.draw(canvas, contract.drawingWidth(binding.target.capsule))
+        val candidate = media ?: return
+        val capsule = binding.target.capsule
+        if (capsule !== instance || session?.token != candidate.token || !contract.hasOwner(capsule, candidate.key)) return
+        val animatedWidth = contract.animatedDrawingWidth(capsule)
+        if (animatedWidth == null && centeredMedia[capsule] != candidate.key && capsule.width > 0) {
+            val center = capsule.topDisplayCutout()?.exactCenterX()
+            val scale = capsule.horizontalScreenScale()
+            if (center != null && scale != null && abs(center - visibleCenter(capsule, scale, null)) <= 2f) {
+                centeredMedia[capsule] = candidate.key
+            }
+        }
+        val result = binding.draw(canvas, animatedWidth)
         trace("draw", result)
         val frame = tintDrawFrame
         if (lastTintDrawFrame != frame || lastTintDrawResult != result) {
@@ -192,26 +208,103 @@ internal class CapsuleRuntime(
         }
     }
 
+    fun anchorMediaClose(shape: NativeContract.Plugin.CloseAnimation.Shape, animator: ValueAnimator) {
+        if (Looper.myLooper() != main.looper || !settings.enabled) return
+        val contract = plugin ?: return
+        val currentRoot = root ?: return
+        val capsule = shape.capsule
+        val container = shape.container
+        val key = centeredMedia[capsule] ?: return
+        if (capsule.parent !== container || !contract.belongs(container, currentRoot) ||
+            !contract.hasOwner(capsule, key) || !contract.isSingleLane(container)) return
+
+        var reported = false
+        var valid = true
+        // The OEM listener writes the animated rectangle first. Keep its size and move both edges
+        // by the same amount using the current on-screen position, even if the parent remeasures.
+        animator.addUpdateListener(object : ValueAnimator.AnimatorUpdateListener {
+            override fun onAnimationUpdate(animation: ValueAnimator) {
+                if (!valid) return
+                try {
+                    if (!settings.enabled || plugin !== contract || root !== currentRoot ||
+                        capsule.parent !== container || !capsule.isAttachedToWindow ||
+                        !contract.hasOwner(capsule, key) || !contract.isSingleLane(container)) {
+                        valid = false
+                        return
+                    }
+                    val center = capsule.topDisplayCutout()?.exactCenterX() ?: return
+                    val parentScale = container.horizontalScreenScale() ?: return
+                    val capsuleScale = capsule.scaleX * parentScale
+                    if (capsuleScale <= 0f || capsule.width <= 0) return
+                    val nativeCenter = visibleCenter(capsule, capsuleScale, contract.animatedDrawingWidth(capsule))
+                    val offset = capsuleCloseOffset(center, nativeCenter, parentScale)
+                    if (offset == 0) return
+                    capsule.offsetLeftAndRight(offset)
+                    if (!reported) {
+                        reported = true
+                        trace("close geometry", "offsetPx=$offset, nativeCenter=$nativeCenter, cutoutCenter=$center")
+                    }
+                } catch (failure: Throwable) {
+                    if (!isExpectedFailure(failure)) throw failure
+                    valid = false
+                    report("Media close frame", failure)
+                }
+            }
+        })
+    }
+
+    private fun visibleCenter(capsule: View, screenScale: Float, animatedWidth: Int?): Float {
+        capsule.getLocationOnScreen(centerLocation)
+        val center = if (animatedWidth == null) capsule.width / 2f
+        else nativeCapsuleClipLeft(capsule.measuredWidth, animatedWidth) + animatedWidth / 2f
+        return centerLocation[0] + center * screenScale
+    }
+
+    private fun View.horizontalScreenScale(): Float? {
+        var view: View? = this
+        var scale = 1f
+        while (view != null) {
+            if (view.rotation != 0f || view.rotationX != 0f || view.rotationY != 0f) return null
+            scale *= view.scaleX
+            view = view.parent as? View
+        }
+        return scale.takeIf { it.isFinite() && it > 0f }
+    }
+
     fun stabilizeMediaContentFrame(callback: Any): (() -> Unit)? {
         val contract = plugin ?: return null
         val binding = labels ?: return null
-        val active = binding.target.capsule
-        val key = media?.key ?: return null
+        val target = binding.target
+        val active = target.capsule
+        val key = media?.takeUnless { it.token == destroyedToken }?.key ?: return null
         if (!active.isShown || active.width <= 0 || !contract.hasOwner(active, key)) return null
+        if (contract.isAnimatingWidth(active)) return null
         val animation = contract.animation ?: return null
         val view = animation.view(callback)
-        // Scope the fix to the page containing both native media controls. The system's
-        // show/hide and expanded-card transitions use other paths and stay native.
-        fun isWithinPage(child: View): Boolean {
-            var parent = child.parent
-            while (parent != null && parent !== active) {
-                if (parent === view) return true
-                parent = parent.parent
-            }
-            return false
-        }
-        if (!isWithinPage(binding.target.artwork) || !isWithinPage(binding.target.waveform)) return null
+        // A frame callback may run between the OEM's measurements. Use only the existing binding.
+        if (!target.isContentPage(view)) return null
         return animation.stabilize(callback, view)
+    }
+
+    fun retainPausedCapsule(callback: Any): Boolean {
+        val timeout = host.pauseTimeout ?: return false
+        return pauseTimeout.retain { timeout.matches(it, callback) }.also { retained ->
+            if (retained) diagnostics.note("Paused media capsule retained at native status bar timeout")
+        }
+    }
+
+    private fun updatePauseOwner(binding: CapsuleLabels? = null, restore: Boolean = true) {
+        val timeout = host.pauseTimeout ?: return
+        val active = media
+        val watch = session
+        val controller = mediaController.get()
+        val next = if (settings.enabled && binding?.hasCustomContent == true && active != null &&
+            controller != null && watch?.token == active.token && watch.isPaused) {
+            NativeContract.PauseOwner(controller, active.key, active.token, active.owner)
+        } else null
+        pauseTimeout.update(next, restore)?.let { owner ->
+            timeout.restore(owner) { report("Media pause timeout restore", it) }
+        }
     }
 
     fun contentChanged(container: Any) {
@@ -274,6 +367,7 @@ internal class CapsuleRuntime(
     private fun detachPlugin() {
         if (plugin != null) diagnostics.note("Native capsule plugin hooks detached, count=${pluginHooks.size}")
         clearLabels()
+        centeredMedia.clear()
         pluginHooks.forEach { it.unhook() }
         pluginHooks = emptyList()
         plugin = null
@@ -300,7 +394,11 @@ internal class CapsuleRuntime(
         }
         clearMediaRetry()
         if (candidate?.token != previous?.token || candidate?.owner != previous?.owner) {
-            val reuseLabels = candidate != null && candidate.key == previous?.key && candidate.owner == previous.owner
+            // A player handoff can reuse the same native card. Keep its sizing child attached
+            // while switching sessions so the OEM does not measure a different width in between.
+            val reuseLabels = candidate != null && candidate.key == previous?.key && labels?.let {
+                plugin?.hasOwner(it.target.capsule, candidate.key) == true
+            } == true
             releaseSession(keepLabels = reuseLabels)
             if (candidate != null && candidate.token != destroyedToken) destroyedToken = null
         }
@@ -484,6 +582,7 @@ internal class CapsuleRuntime(
         clock: PlaybackClock? = null,
     ) {
         binding.render(frame, settings, background, clock, ink)
+        updatePauseOwner(binding)
         val kind = when {
             frame == null -> "NO_TEXT"
             frame.isTrackInfo -> "TRACK_INFO"
@@ -497,6 +596,7 @@ internal class CapsuleRuntime(
     private fun LyricInk.diagnosticColors() = "first=#${first.toUInt().toString(16)}, second=#${second.toUInt().toString(16)}"
 
     private fun clearLabels() {
+        updatePauseOwner()
         setLyricTick(null)
         renderedShown = null
         tintDrawFrame = null
@@ -511,6 +611,7 @@ internal class CapsuleRuntime(
     }
 
     private fun releaseSession(keepLabels: Boolean = false) {
+        updatePauseOwner()
         setLyricTick(null)
         val current = session
         session = null
@@ -595,6 +696,7 @@ internal class CapsuleRuntime(
         private var missingTrack = false
         private var trackInfoAvailable = false
         private var lastPlaybackState: Int? = null
+        val isPaused: Boolean get() = lastPlaybackState == PlaybackState.STATE_PAUSED
         private var lyricStatus: String? = null
         var lastLoggedLine: Int? = null
         private val expireMetadata = Runnable {
@@ -652,6 +754,7 @@ internal class CapsuleRuntime(
                 kotlin.math.abs(state.position - expectedPosition) > 1500L
             if (lastPlaybackState != state?.state || seek) {
                 lastPlaybackState = state?.state
+                if (state?.state == PlaybackState.STATE_PLAYING) updatePauseOwner(restore = false)
                 diagnostics.note("Playback state=${state?.state}, positionMs=${state?.position}, speed=${state?.playbackSpeed}, seek=$seek, expectedMs=$expectedPosition, durationMs=$duration")
             }
         }

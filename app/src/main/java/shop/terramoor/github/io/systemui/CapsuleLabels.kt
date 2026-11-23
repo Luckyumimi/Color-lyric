@@ -43,10 +43,12 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private var appliedWidth: Int? = null
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val area = RectF()
+    private val artworkArea = RectF()
     private val clip = Path()
     private val crop = Rect()
     private val location = IntArray(2)
-    private val offsets = IntArray(2)
+
+    val hasCustomContent: Boolean get() = displayLine != null || artwork != null
 
     fun render(
         line: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?,
@@ -80,19 +82,19 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         setFillerWidth(capsuleWidthPixels(CapsuleTuning.ISLAND_WIDTH.range.last / 2, density))
     }
 
-    private fun cameraBounds(): Rect? =
-        capsule.display?.cutout?.boundingRectTop?.takeUnless { it.isEmpty }
-            ?: capsule.rootWindowInsets?.displayCutout?.boundingRectTop?.takeUnless { it.isEmpty }
-
     fun paintDiagnostics() = strip.paintDiagnostics()
 
-    fun draw(canvas: Canvas, drawingWidth: Int): String {
+    fun draw(canvas: Canvas, animatedWidth: Int?): String {
         if (!capsule.isShown) return "CAPSULE_HIDDEN"
         if (displayLine == null && artwork == null) return "NO_LYRIC_OR_ARTWORK"
-        if (drawingWidth <= 0 || capsule.height <= 0) return "EMPTY_DRAWING_AREA"
-        // Shape and timing come from the OEM animator. Keep the text viewport stable while the shape is clipped.
-        val shapeLeft = (capsule.width - drawingWidth) / 2f
-        area.set(shapeLeft, 0f, shapeLeft + drawingWidth, capsule.height.toFloat())
+        val width = capsule.width
+        val height = capsule.height.toFloat()
+        if (width <= 0 || height <= 0) return "EMPTY_DRAWING_AREA"
+        val drawingWidth = animatedWidth ?: width
+        // Clip to the OEM drawable bounds without using the clip to resize the artwork or lyrics.
+        val shapeLeft = if (animatedWidth != null) nativeCapsuleClipLeft(capsule.measuredWidth, drawingWidth) else 0
+        area.set(shapeLeft.toFloat(), 0f, (shapeLeft + drawingWidth).toFloat(), height)
+        artworkArea.set(0f, 0f, width.toFloat(), height)
         clip.rewind()
         val radius = area.height() / 2f
         clip.addRoundRect(area, radius, radius, Path.Direction.CW)
@@ -104,7 +106,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             val settings = displaySettings ?: return "ARTWORK_ONLY"
             // Display cutout and getLocationOnScreen share display coordinates. Insets
             // delivered to the native capsule may already have consumed the cutout.
-            val camera = cameraBounds()
+            val camera = capsule.topDisplayCutout()
             capsule.getLocationOnScreen(location)
             val scaleX = capsule.scaleX.takeIf { it > 0f } ?: 1f
             // Only the horizontal span of the display cutout defines the lyric gap.
@@ -114,17 +116,16 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
                     it.width() / (2f * scaleX),
                 )
             }
-            val iconStart = viewLeft(target.artwork, 0f)
-            val width = capsule.width.toFloat()
-            val waveformLeft = viewLeft(target.waveform, width).coerceIn(0f, width)
+            val iconStart = layoutLeft(target.artwork, 0f)
+            val waveformLeft = layoutLeft(target.waveform, width.toFloat()).coerceIn(0f, width.toFloat())
             val left = capsuleLyricsLeft(iconStart + target.artwork.width, density, settings)
-            val right = capsuleLyricsRight(width, waveformLeft, density, settings)
+            val right = capsuleLyricsRight(width.toFloat(), waveformLeft, density, settings)
             val timing = clock
             val now = SystemClock.elapsedRealtime()
             val position = if (line.isTrackInfo) now - trackInfoShownAt else timing?.position(now) ?: line.startMs
             val redrawDelay = strip.draw(
                 canvas, left, area.top, right, area.bottom,
-                lens, position, artworkArea = area,
+                lens, position, artworkArea = artworkArea,
             )
             if (line.isTrackInfo) {
                 capsule.removeCallbacks(redrawTrackInfo)
@@ -141,18 +142,25 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         }
     }
 
-    private fun viewLeft(view: View, fallback: Float): Float {
-        if (!view.isShown || view.width <= 0) return fallback
-        view.getLocationOnScreen(offsets)
-        val scale = capsule.scaleX.takeIf { it > 0f } ?: 1f
-        return (offsets[0] - location[0]) / scale
+    private fun layoutLeft(view: View, fallback: Float): Float {
+        if (view.width <= 0) return fallback
+        // The OEM translates the controls independently while opening or replacing the content.
+        // Those translations must not move the lyric viewport or change its scroll distance.
+        var left = 0
+        var child = view
+        while (child !== capsule) {
+            val parent = child.parent as? View ?: return fallback
+            left += child.left - parent.scrollX
+            child = parent
+        }
+        return left.toFloat()
     }
 
     private fun drawArtwork(canvas: Canvas) {
         val bitmap = artwork?.takeUnless { it.isRecycled } ?: return
-        artworkCrop(bitmap, area.width() / area.height(), crop)
+        artworkCrop(bitmap, artworkArea.width() / artworkArea.height(), crop)
         paint.alpha = CapsuleSettings.ARTWORK_BACKGROUND_ALPHA
-        canvas.drawBitmap(bitmap, crop, area, paint)
+        canvas.drawBitmap(bitmap, crop, artworkArea, paint)
         paint.color = Color.argb(dimAlpha, 0, 0, 0)
         canvas.drawRect(area, paint)
     }

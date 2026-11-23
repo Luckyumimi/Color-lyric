@@ -28,3 +28,7 @@ internal fun capsuleLyricsRight(width: Float, waveformLeft: Float, density: Floa
     }
 
 internal fun capsuleWidthPixels(widthDp: Int, density: Float) = (widthDp * density).roundToInt()
+
+/** Matches CapsuleView.setCapsuleDrawableWidth, including overshoot and integer rounding. */
+internal fun nativeCapsuleClipLeft(measuredWidth: Int, animatedWidth: Int): Int =
+    (measuredWidth - animatedWidth) / 2

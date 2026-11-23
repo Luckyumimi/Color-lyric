@@ -1,12 +1,16 @@
 package shop.terramoor.github.io.systemui
 
+import android.animation.Animator
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.drawable.Icon
 import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Bundle
+import android.os.Handler
 import android.service.notification.StatusBarNotification
 import android.view.View
 import android.view.ViewGroup
@@ -35,6 +39,8 @@ internal object NativeContract {
         val owner: String,
         val artwork: Icon?,
     )
+
+    data class PauseOwner(val controller: Any, val key: String, val token: MediaSession.Token, val packageName: String)
 
     class Host(loader: ClassLoader, optionalMissing: (String, Mismatch) -> Unit) {
         private val host = loader.requiredClass(HOST)
@@ -68,6 +74,46 @@ internal object NativeContract {
         fun dispatchMethod() = media.method("sendDataToPlugin", Boolean::class.javaPrimitiveType!!,
             String::class.java, StatusBarNotification::class.java)
         val release = optional("media release callback", optionalMissing) { media.method("release", Void.TYPE) }
+        val pauseTimeout = if (lastPlayerId == null || sbn == null) null else optional("media pause timeout", optionalMissing) {
+            PauseTimeout(loader, lastPlayerId, sbn)
+        }
+
+        inner class PauseTimeout(loader: ClassLoader, private val activeId: Field, private val notification: Field) {
+            // On the verified host, R8 shares this Runnable class with the release task.
+            private val callback = loader.requiredClass("$MEDIA\$release\$1")
+            val run = callback.method("run", Void.TYPE)
+            private val receiver = callback.field("this\$0", media)
+            private val task = media.field("statusBarTimeoutRunnable", Runnable::class.java)
+            private val handler = media.field("myHandler", Handler::class.java)
+            private val showsOnStatusBar = media.field("showOnStatusBar", Boolean::class.javaPrimitiveType!!)
+            private val state = data.method("getState", Int::class.javaPrimitiveType!!)
+
+            fun matches(owner: PauseOwner, runnable: Any): Boolean =
+                receiver.get(runnable) === owner.controller && task.get(owner.controller) === runnable && isPaused(owner)
+
+            fun restore(owner: PauseOwner, onFailure: (Throwable) -> Unit) {
+                val nativeHandler = handler.get(owner.controller) as Handler
+                nativeHandler.post {
+                    try {
+                        if (isPaused(owner)) (task.get(owner.controller) as Runnable).run()
+                    } catch (failure: Throwable) {
+                        if (!isExpectedFailure(failure)) throw failure
+                        onFailure(failure)
+                    }
+                }
+            }
+
+            // Check first row (the OEM's status-bar player), not just the shared notification key.
+            private fun isPaused(owner: PauseOwner): Boolean {
+                val controller = owner.controller
+                if (!showsOnStatusBar.getBoolean(controller)) return false
+                if ((notification.get(controller) as? StatusBarNotification)?.key != owner.key) return false
+                val row = (list.get(controller) as? List<*>)?.iterator()?.let { if (it.hasNext()) it.next() else null }
+                return data.isInstance(row) && playerId.invoke(row) == activeId.get(controller) &&
+                    token.invoke(row) == owner.token && pkg.invoke(row) == owner.packageName &&
+                    state.invoke(row) == PlaybackState.STATE_PAUSED
+            }
+        }
 
         fun view(controller: Any): ViewGroup = container.get(controller) as ViewGroup
 
@@ -105,7 +151,10 @@ internal object NativeContract {
 
     data class Slot(val frame: ViewGroup, val stock: View)
     data class Target(val capsule: ViewGroup, val title: Slot, val translation: Slot,
-                      val artwork: View, val waveform: View)
+                      val artwork: View, val waveform: View) {
+        fun isContentPage(view: ViewGroup): Boolean = view.isInside(capsule) &&
+            artwork.isInside(view) && waveform.isInside(view)
+    }
 
     class Plugin(loader: ClassLoader, resources: Resources, optionalMissing: (String, Mismatch) -> Unit) {
         private val sideIconId = resources.pluginId("img_primary")
@@ -145,6 +194,9 @@ internal object NativeContract {
                 capsule.method("getCapsuleDrawableWidth", Int::class.javaPrimitiveType!!)
         }
         val animation = optional("native content animation stabilizer", optionalMissing) { Animation(loader) }
+        val closeAnimation = optional("native media close geometry", optionalMissing) {
+            CloseAnimation(loader, container, capsule)
+        }
 
         init {
             if (keys.isEmpty()) throw Mismatch("no instance String fields on ${item.returnType.name}")
@@ -176,17 +228,39 @@ internal object NativeContract {
             }
         }
 
+        class CloseAnimation(loader: ClassLoader, container: Class<*>, capsule: Class<*>) {
+            private val fragment = loader.requiredClass("com.oplus.systemui.plugins.seedling.capsule.animation.r")
+            private val geometry = loader.requiredClass("com.heytap.log.collect.auto.d")
+            private val bounds = loader.requiredClass("com.oplus.systemui.plugins.seedling.capsule.animation.q")
+            private val timing = loader.requiredClass("com.oplus.systemui.plugins.seedling.capsule.animation.b")
+            private val context = loader.requiredClass("com.oplus.systemui.plugins.seedling.engine.animatorengine.o")
+            val build = fragment.method("g", Animator::class.java, context)
+            val buildGeometry = geometry.method("C", ValueAnimator::class.java, bounds, bounds, timing)
+            private val closeContainer = fragment.field("d", container)
+            private val closeCapsule = fragment.field("e", capsule)
+            private val closeGeometry = fragment.field("i", geometry)
+
+            fun shape(fragment: Any) = Shape(
+                checkNotNull(closeGeometry.get(fragment)),
+                closeContainer.get(fragment) as ViewGroup,
+                closeCapsule.get(fragment) as ViewGroup,
+            )
+
+            data class Shape(val helper: Any, val container: ViewGroup, val capsule: ViewGroup)
+        }
+
         fun hasOwner(active: ViewGroup, notificationKey: String): Boolean {
             val model = item.invoke(active) ?: return false
             return keys.any { it.get(model) == notificationKey }
         }
 
-        fun drawingWidth(active: ViewGroup): Int {
-            val (changing, width) = animatedWidth ?: return active.width
-            return if (changing.invoke(active) == true) {
-                (width.invoke(active) as Int).takeIf { it > 0 } ?: active.width
-            } else active.width
-        }
+        fun isAnimatingWidth(active: ViewGroup): Boolean = animatedWidth?.first?.invoke(active) == true
+
+        fun isSingleLane(host: ViewGroup): Boolean = (showing?.invoke(host) as? List<*>)?.size?.let { it <= 1 } == true
+
+        fun animatedDrawingWidth(active: ViewGroup): Int? = if (isAnimatingWidth(active)) {
+            (animatedWidth?.second?.invoke(active) as? Int)?.takeIf { it > 0 }
+        } else null
 
         fun findTarget(root: ViewGroup, notificationKey: String, retained: Target? = null,
                        report: ((String) -> Unit)? = null): Target? {

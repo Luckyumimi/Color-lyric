@@ -1,5 +1,6 @@
 package shop.terramoor.github.io.systemui
 
+import android.animation.ValueAnimator
 import android.graphics.Canvas
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -50,6 +51,18 @@ class TerraMoorModule : XposedModule() {
                 after(method) { instance, _, _ -> runtime.pluginRemoved(instance) }
             } }
             val publication = installMediaPublication(host, runtime, hooks)
+            host.pauseTimeout?.let { timeout -> installOptional(hooks, "Media pause timeout hook") {
+                hook(timeout.run).setExceptionMode(ExceptionMode.PROTECTIVE).intercept { chain ->
+                    val retained = try {
+                        chain.thisObject?.let(runtime::retainPausedCapsule) == true
+                    } catch (failure: Throwable) {
+                        if (!isExpectedFailure(failure)) throw failure
+                        report("Media pause timeout", failure)
+                        false
+                    }
+                    if (retained) null else chain.proceed()
+                }
+            } }
             host.release?.let { method -> installOptional(hooks, "Media release hook") {
                 after(method) { instance, _, _ -> runtime.mediaReleased(instance) }
             } }
@@ -91,6 +104,7 @@ class TerraMoorModule : XposedModule() {
                 (args.firstOrNull() as? Canvas)?.let { runtime.draw(receiver, it) }
             }
             diagnostics?.note("Required plugin hook installed: ${plugin.draw.declaringClass.name}#${plugin.draw.name}")
+            plugin.closeAnimation?.let { installMediaClose(hooks, it, runtime) }
             plugin.animation?.let { animation -> installOptional(hooks, "Content animation hook") {
                 hook(animation.contentFrame).setExceptionMode(ExceptionMode.PROTECTIVE).intercept { chain ->
                     val restore = try {
@@ -117,6 +131,40 @@ class TerraMoorModule : XposedModule() {
         } catch (failure: Throwable) {
             hooks.forEach { it.unhook() }
             throw failure
+        }
+    }
+
+    private fun installMediaClose(hooks: MutableList<HookHandle>, contract: NativeContract.Plugin.CloseAnimation,
+                                  runtime: CapsuleRuntime) {
+        val building = ThreadLocal<NativeContract.Plugin.CloseAnimation.Shape>()
+        var geometryHook: HookHandle? = null
+        try {
+            geometryHook = after(contract.buildGeometry) { helper, _, result ->
+                val shape = building.get()?.takeIf { it.helper === helper } ?: return@after
+                (result as? ValueAnimator)?.let { runtime.anchorMediaClose(shape, it) }
+            }
+            hooks += hook(contract.build).setExceptionMode(ExceptionMode.PROTECTIVE).intercept { chain ->
+                val previous = building.get()
+                val shape = try {
+                    chain.thisObject?.let(contract::shape)
+                } catch (failure: Throwable) {
+                    if (!isExpectedFailure(failure)) throw failure
+                    report("Media close geometry", failure)
+                    null
+                }
+                building.set(shape)
+                try {
+                    chain.proceed()
+                } finally {
+                    if (previous == null) building.remove() else building.set(previous)
+                }
+            }
+            hooks += geometryHook
+            diagnostics?.note("Optional media close geometry hooks installed")
+        } catch (failure: Throwable) {
+            geometryHook?.unhook()
+            if (!isExpectedFailure(failure)) throw failure
+            report("Optional media close geometry hooks", failure)
         }
     }
 

@@ -10,8 +10,16 @@ import shop.terramoor.github.io.systemui.MediaCapsulePreviewGeometry
 import shop.terramoor.github.io.systemui.capsuleLyricsLeft
 import shop.terramoor.github.io.systemui.capsuleLyricsRight
 import shop.terramoor.github.io.systemui.compactCapsuleCenter
+import shop.terramoor.github.io.systemui.nativeCapsuleClipLeft
 
 class CapsuleTextViewportTest {
+    @Test
+    fun animatedClipUsesNativeIntegerBoundsDuringOpeningAndOvershoot() {
+        assertEquals(247, nativeCapsuleClipLeft(measuredWidth = 595, animatedWidth = 100))
+        assertEquals(0, nativeCapsuleClipLeft(measuredWidth = 595, animatedWidth = 594))
+        assertEquals(-8, nativeCapsuleClipLeft(measuredWidth = 595, animatedWidth = 612))
+    }
+
     @Test
     fun longLineMovesAtConstantSpeedAndShowsItsLastGlyph() {
         val viewport = CapsuleTextViewport(120f, 352f, LyricAlignment.LEFT)
