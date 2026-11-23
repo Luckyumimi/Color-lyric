@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Utiliser les couleurs de la pochette</string>
     <string name="lyric_tint_median_cut">Découpage médian</string>
     <string name="lyric_tint_oklch">Regroupement OKLCH</string>
+    <string name="lyric_tint_gradient">Dégradé de la pochette</string>
     <string name="tune_tint_strength">Intensité des couleurs</string>
     <string name="tune_text_details">Réglages du texte</string>
     <string name="tune_blur_details">Réglages du flou</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Réinitialiser l’apparence</string>
     <string name="value_percent">%1$d %%</string>
     <string name="camera_fade">Flou aux bords de la caméra</string>
-    <string name="tune_camera_radius">Rayon du dégradé</string>
     <string name="preview_title">Aperçu de la capsule</string>
     <string name="preview_sample">Exemple d’aperçu</string>
     <string name="preview_no_sync_lyrics">Sans paroles synchronisées</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Afficher la pochette</string>
     <string name="show_waveform">Afficher les barres audio</string>
     <string name="section_lyric_behavior">Comportement des paroles</string>
-    <string name="single_line_switch_mode">Changement sur une ligne</string>
-    <string name="double_line_switch_mode">Changement sur deux lignes</string>
-    <string name="lyric_switch_after_end">À la fin de la ligne actuelle</string>
-    <string name="lyric_switch_next_start">Au début de la ligne suivante</string>
+    <string name="lyric_word_highlight">Paroles mot à mot</string>
+    <string name="lyric_camera_word_avoidance">Mots entiers près de la caméra</string>
+    <string name="lyric_intro_dots">Compte à rebours à trois points avant les paroles</string>
     <string name="section_motion">Transition entre les lignes</string>
     <string name="motion_none">Instantanée</string>
     <string name="motion_up">Défilement vers le haut</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Sans paroles synchronisées</string>
     <string name="no_lyrics_empty">Masquer le texte</string>
     <string name="no_lyrics_track">Afficher le titre et l’artiste</string>
+    <string name="pause_behavior">Quand la musique est en pause</string>
+    <string name="pause_keep_current">Conserver le style actuel</string>
+    <string name="pause_restore_native">Rétablir le style par défaut</string>
     <string name="section_reset">Valeurs par défaut</string>
     <string name="section_provider">Fournisseurs de paroles</string>
     <string name="provider_both_required">Installer les deux</string>

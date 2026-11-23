@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Użyj kolorów z okładki</string>
     <string name="lyric_tint_median_cut">Podział medianowy</string>
     <string name="lyric_tint_oklch">Grupowanie OKLCH</string>
+    <string name="lyric_tint_gradient">Gradient z okładki</string>
     <string name="tune_tint_strength">Intensywność koloru</string>
     <string name="tune_text_details">Ustawienia tekstu</string>
     <string name="tune_blur_details">Ustawienia rozmycia</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Przywróć ustawienia wyglądu</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">Rozmycie przy krawędziach aparatu</string>
-    <string name="tune_camera_radius">Promień zanikania</string>
     <string name="preview_title">Podgląd kapsuły</string>
     <string name="preview_sample">Przykładowy utwór</string>
     <string name="preview_no_sync_lyrics">Brak zsynchronizowanego tekstu</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Pokaż okładkę</string>
     <string name="show_waveform">Pokaż wskaźnik dźwięku</string>
     <string name="section_lyric_behavior">Zachowanie tekstu</string>
-    <string name="single_line_switch_mode">Zmiana przy jednym wierszu</string>
-    <string name="double_line_switch_mode">Zmiana przy dwóch wierszach</string>
-    <string name="lyric_switch_after_end">Po zakończeniu bieżącego wiersza</string>
-    <string name="lyric_switch_next_start">Na początku kolejnego wiersza</string>
+    <string name="lyric_word_highlight">Tekst słowo po słowie</string>
+    <string name="lyric_camera_word_avoidance">Całe słowa obok aparatu</string>
+    <string name="lyric_intro_dots">Odliczanie wstępu trzema kropkami</string>
     <string name="section_motion">Przejście między wierszami</string>
     <string name="motion_none">Natychmiastowe</string>
     <string name="motion_up">Przewijanie w górę</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Bez zsynchronizowanego tekstu</string>
     <string name="no_lyrics_empty">Ukryj tekst</string>
     <string name="no_lyrics_track">Pokaż tytuł i wykonawcę</string>
+    <string name="pause_behavior">Po wstrzymaniu muzyki</string>
+    <string name="pause_keep_current">Zachowaj bieżący styl</string>
+    <string name="pause_restore_native">Przywróć domyślny styl</string>
     <string name="section_reset">Domyślne</string>
     <string name="section_provider">Dostawcy tekstów</string>
     <string name="provider_both_required">Zainstaluj oba</string>

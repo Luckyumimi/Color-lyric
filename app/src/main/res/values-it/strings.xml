@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Usa i colori della copertina</string>
     <string name="lyric_tint_median_cut">Taglio mediano</string>
     <string name="lyric_tint_oklch">Raggruppamento OKLCH</string>
+    <string name="lyric_tint_gradient">Gradiente della copertina</string>
     <string name="tune_tint_strength">Intensità del colore</string>
     <string name="tune_text_details">Impostazioni del testo</string>
     <string name="tune_blur_details">Impostazioni della sfocatura</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Ripristina le impostazioni grafiche</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">Sfocatura intorno alla fotocamera</string>
-    <string name="tune_camera_radius">Raggio della sfumatura</string>
     <string name="preview_title">Anteprima della capsula</string>
     <string name="preview_sample">Esempio di anteprima</string>
     <string name="preview_no_sync_lyrics">Nessun testo sincronizzato</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Mostra la copertina</string>
     <string name="show_waveform">Mostra le barre audio</string>
     <string name="section_lyric_behavior">Comportamento dei testi</string>
-    <string name="single_line_switch_mode">Cambio con una riga</string>
-    <string name="double_line_switch_mode">Cambio con due righe</string>
-    <string name="lyric_switch_after_end">Alla fine della riga corrente</string>
-    <string name="lyric_switch_next_start">All’inizio della riga successiva</string>
+    <string name="lyric_word_highlight">Testo parola per parola</string>
+    <string name="lyric_camera_word_avoidance">Parole intere accanto alla fotocamera</string>
+    <string name="lyric_intro_dots">Conto alla rovescia a tre punti</string>
     <string name="section_motion">Transizione tra righe</string>
     <string name="motion_none">Istantanea</string>
     <string name="motion_up">Scorri verso l’alto</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Senza testo sincronizzato</string>
     <string name="no_lyrics_empty">Nascondi il testo</string>
     <string name="no_lyrics_track">Mostra titolo e artista</string>
+    <string name="pause_behavior">Quando la musica è in pausa</string>
+    <string name="pause_keep_current">Mantieni lo stile attuale</string>
+    <string name="pause_restore_native">Ripristina lo stile predefinito</string>
     <string name="section_reset">Valori predefiniti</string>
     <string name="section_provider">Fornitori di testi</string>
     <string name="provider_both_required">Installali entrambi</string>

@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Lấy màu từ ảnh bìa</string>
     <string name="lyric_tint_median_cut">Chia theo trung vị</string>
     <string name="lyric_tint_oklch">Phân cụm OKLCH</string>
+    <string name="lyric_tint_gradient">Chuyển sắc theo ảnh bìa</string>
     <string name="tune_tint_strength">Cường độ màu</string>
     <string name="tune_text_details">Cài đặt chữ</string>
     <string name="tune_blur_details">Cài đặt làm mờ</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Đặt lại cài đặt giao diện</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">Làm mờ rìa camera</string>
-    <string name="tune_camera_radius">Bán kính làm mờ rìa</string>
     <string name="preview_title">Xem trước viên nang</string>
     <string name="preview_sample">Mẫu xem trước</string>
     <string name="preview_no_sync_lyrics">Không có lời đồng bộ</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Hiện ảnh bìa</string>
     <string name="show_waveform">Hiện thanh âm thanh</string>
     <string name="section_lyric_behavior">Cách hiển thị lời bài hát</string>
-    <string name="single_line_switch_mode">Thời điểm đổi một dòng</string>
-    <string name="double_line_switch_mode">Thời điểm đổi hai dòng</string>
-    <string name="lyric_switch_after_end">Khi dòng hiện tại kết thúc</string>
-    <string name="lyric_switch_next_start">Khi dòng tiếp theo bắt đầu</string>
+    <string name="lyric_word_highlight">Lời bài hát theo từng từ</string>
+    <string name="lyric_camera_word_avoidance">Giữ nguyên từ cạnh camera</string>
+    <string name="lyric_intro_dots">Đếm ngược mở đầu bằng ba chấm</string>
     <string name="section_motion">Hiệu ứng chuyển dòng</string>
     <string name="motion_none">Tức thì</string>
     <string name="motion_up">Cuộn lên</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Khi không có lời đồng bộ</string>
     <string name="no_lyrics_empty">Ẩn chữ</string>
     <string name="no_lyrics_track">Hiện tên bài hát và nghệ sĩ</string>
+    <string name="pause_behavior">Khi tạm dừng nhạc</string>
+    <string name="pause_keep_current">Giữ kiểu hiển thị hiện tại</string>
+    <string name="pause_restore_native">Khôi phục kiểu mặc định</string>
     <string name="section_reset">Mặc định</string>
     <string name="section_provider">Nhà cung cấp lời bài hát</string>
     <string name="provider_both_required">Cài cả hai</string>

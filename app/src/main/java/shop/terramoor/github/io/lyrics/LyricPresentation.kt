@@ -13,31 +13,47 @@ internal class LyricPresentation(private val timeline: Timeline, private val set
         settings.secondRowContent == SecondRowContent.TRANSLATION &&
         settings.missingTranslationMode == MissingTranslationMode.SINGLE_LINE && translation(index) == null
 
-    fun switchMode(index: Int): LyricSwitchMode =
-        if (settings.canShowNextLyric && (settings.secondRowContent == SecondRowContent.LYRIC || translation(index) == null)) {
-            settings.doubleLineSwitchMode
-        } else settings.singleLineSwitchMode
+    private fun nextLyric(index: Int): LyricLine? = (index + 1 until timeline.lines.size)
+        .firstOrNull { timeline.lines[it].text.isNotBlank() }?.let { timeline.lines[it] }
+
+    fun switchMode(index: Int): LyricSwitchMode {
+        if (!settings.doubleLine || fallsBackToSingleLine(index)) return LyricSwitchMode.AFTER_END
+        val hasSecondRow = (settings.secondRowContent == SecondRowContent.TRANSLATION && translation(index) != null) ||
+            nextLyric(index) != null
+        return if (hasSecondRow) LyricSwitchMode.AT_NEXT_START else LyricSwitchMode.AFTER_END
+    }
 
     fun indexAt(positionMs: Long): Int = timeline.displayIndexAt(positionMs, ::switchMode)
 
     private fun displayStart(index: Int): Long = timeline.displayStart(
-        index, if (index > 0) switchMode(index - 1) else settings.singleLineSwitchMode,
+        index, if (index > 0) switchMode(index - 1) else LyricSwitchMode.AFTER_END,
     )
 
     fun nextBoundary(index: Int): Long? = (index + 1).takeIf { it in timeline.lines.indices }?.let(::displayStart)
 
+    fun introAt(positionMs: Long, track: () -> LyricRows? = { null }): LyricFrame? {
+        if (!settings.introDots) return null
+        val first = timeline.lines.firstOrNull { it.text.isNotBlank() } ?: return null
+        if (positionMs !in 0L until first.startMs) return null
+        return LyricFrame.intro(first.startMs, track())
+    }
+
     private fun rowsAt(index: Int): LyricRows? {
         val line = timeline.lines.getOrNull(index)?.takeIf { it.text.isNotBlank() } ?: return null
-        if (!settings.doubleLine) return LyricRows(line.text)
+        val words = line.words.takeIf { settings.wordLyrics }.orEmpty()
+        if (!settings.doubleLine) return LyricRows(line.text, firstWords = words)
         if (settings.secondRowContent == SecondRowContent.TRANSLATION) {
             translation(index)?.let {
-                return if (settings.swapTranslation) LyricRows(it, line.text) else LyricRows(line.text, it)
+                return if (settings.swapTranslation) LyricRows(it, line.text, secondWords = words)
+                else LyricRows(line.text, it, firstWords = words)
             }
-            if (fallsBackToSingleLine(index)) return LyricRows(line.text, missingTranslationSingleLine = true)
+            if (fallsBackToSingleLine(index)) {
+                return LyricRows(line.text, missingTranslationSingleLine = true, firstWords = words)
+            }
         }
-        val next = (index + 1 until timeline.lines.size).firstOrNull { timeline.lines[it].text.isNotBlank() }
-            ?.let { timeline.lines[it] }
-        return LyricRows(line.text, second = next?.text, nextLyricStartMs = next?.startMs)
+        val next = nextLyric(index)
+        return LyricRows(line.text, second = next?.text, nextLyricStartMs = next?.startMs,
+            firstWords = words, secondWords = next?.words?.takeIf { settings.wordLyrics }.orEmpty())
     }
 
     fun frameAt(index: Int, durationMs: Long): LyricFrame? {

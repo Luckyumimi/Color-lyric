@@ -129,6 +129,9 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             CapsuleSettings.ENABLED -> current.copy(enabled = checked)
             CapsuleSettings.DOUBLE_LINE -> current.copy(doubleLine = checked)
             CapsuleSettings.SWAP_TRANSLATION -> current.copy(swapTranslation = checked)
+            CapsuleSettings.WORD_LYRICS -> current.copy(wordLyrics = checked)
+            CapsuleSettings.CAMERA_WORD_AVOIDANCE -> current.copy(cameraWordAvoidance = checked)
+            CapsuleSettings.INTRO_DOTS -> current.copy(introDots = checked)
             CapsuleSettings.ARTWORK -> current.copy(artwork = checked)
             CapsuleSettings.LYRIC_TINT_ENABLED -> current.copy(lyricTintEnabled = checked)
             CapsuleSettings.SHOW_COVER -> current.copy(showCover = checked)
@@ -192,18 +195,6 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         }
     }
 
-    internal fun setSingleLineSwitchMode(mode: LyricSwitchMode) {
-        save(state.value.settings.copy(singleLineSwitchMode = mode)) {
-            putString(CapsuleSettings.SINGLE_LINE_SWITCH_MODE, mode.name)
-        }
-    }
-
-    internal fun setDoubleLineSwitchMode(mode: LyricSwitchMode) {
-        save(state.value.settings.copy(doubleLineSwitchMode = mode)) {
-            putString(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE, mode.name)
-        }
-    }
-
     internal fun setMissingTranslationMode(mode: MissingTranslationMode) {
         save(state.value.settings.copy(missingTranslationMode = mode)) {
             putString(CapsuleSettings.MISSING_TRANSLATION_MODE, mode.name)
@@ -216,6 +207,12 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
 
     internal fun setNoLyrics(mode: NoLyricsMode) {
         save(state.value.settings.copy(noLyricsMode = mode)) { putString(CapsuleSettings.NO_LYRICS, mode.name) }
+    }
+
+    internal fun setPauseBehavior(behavior: PauseBehavior) {
+        save(state.value.settings.copy(pauseBehavior = behavior)) {
+            putString(CapsuleSettings.PAUSE_BEHAVIOR, behavior.name)
+        }
     }
 
     internal suspend fun snapshotForBackup(): CapsuleSettings? {
@@ -249,6 +246,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             remove(CapsuleSettings.CAMERA_FADE)
             remove(CapsuleSettings.MOTION)
             remove(CapsuleSettings.NO_LYRICS)
+            remove(CapsuleSettings.PAUSE_BEHAVIOR)
             writeLyricSettings(reset)
             remove(CapsuleSettings.SHOW_COVER)
             remove(CapsuleSettings.SHOW_WAVEFORM)
@@ -281,7 +279,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
                 runCatching {
                     val edit = prefs.edit().apply {
                         // Persist defaults/migration in the same transaction as the first edit.
-                        if (!prefs.contains(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)) writeLyricSettings(before)
+                        if (!prefs.contains(CapsuleSettings.DOUBLE_LINE)) writeLyricSettings(before)
                         write.edit(this)
                     }
                     if (edit.commit()) CapsuleSettings.read(prefs) else {

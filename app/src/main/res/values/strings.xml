@@ -25,6 +25,7 @@
     <string name="lyric_tint_median_cut">Median cut</string>
     <string name="lyric_tint_wallpaper" translatable="false">Material You</string>
     <string name="lyric_tint_oklch">OKLCH clustering</string>
+    <string name="lyric_tint_gradient">Cover gradient</string>
     <string name="tune_tint_strength">Color intensity</string>
     <string name="tune_text_details">Text settings</string>
     <string name="tune_blur_details">Blur settings</string>
@@ -66,7 +67,6 @@
     <string name="value_percent">%1$d%%</string>
     <string name="value_number" translatable="false">%1$d</string>
     <string name="camera_fade">Blur at camera edges</string>
-    <string name="tune_camera_radius">Edge fade radius</string>
     <string name="preview_title">Capsule preview</string>
     <string name="preview_sample">Preview sample</string>
     <string name="preview_no_sync_lyrics">No timed lyrics</string>
@@ -83,10 +83,9 @@
     <string name="show_cover">Show cover art</string>
     <string name="show_waveform">Show audio bars</string>
     <string name="section_lyric_behavior">Lyric behavior</string>
-    <string name="single_line_switch_mode">Single-line timing</string>
-    <string name="double_line_switch_mode">Two-line timing</string>
-    <string name="lyric_switch_after_end">When the current line ends</string>
-    <string name="lyric_switch_next_start">When the next line starts</string>
+    <string name="lyric_word_highlight">Word-by-word lyrics</string>
+    <string name="lyric_camera_word_avoidance">Keep lyrics whole beside the front camera (experimental)</string>
+    <string name="lyric_intro_dots">Intro countdown animation</string>
     <string name="section_motion">Line transition</string>
     <string name="motion_none">Instant</string>
     <string name="motion_up">Scroll up</string>
@@ -94,6 +93,9 @@
     <string name="section_no_lyrics">Without timed lyrics</string>
     <string name="no_lyrics_empty">Hide text</string>
     <string name="no_lyrics_track">Show title and artist</string>
+    <string name="pause_behavior">When music is paused</string>
+    <string name="pause_keep_current">Keep current style</string>
+    <string name="pause_restore_native">Restore default</string>
     <string name="section_reset">Defaults</string>
     <string name="section_provider">Lyric providers</string>
     <string name="provider_both_required">Install both</string>

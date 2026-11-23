@@ -9,8 +9,13 @@ import android.graphics.RenderNode
 import android.graphics.RectF
 import android.graphics.drawable.Icon
 import android.hardware.HardwareBuffer
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,6 +24,7 @@ import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.LyricLine
 import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.LyricRows
+import shop.terramoor.github.io.lyrics.LyricWord
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
@@ -32,9 +38,12 @@ import shop.terramoor.github.io.systemui.ArtworkLyricTint
 import shop.terramoor.github.io.systemui.CameraLyricMask
 import shop.terramoor.github.io.systemui.CapsuleArtworkBackground
 import shop.terramoor.github.io.systemui.CapsuleCamera
+import shop.terramoor.github.io.systemui.CapsuleLabels
 import shop.terramoor.github.io.systemui.CapsuleLyricStrip
 import shop.terramoor.github.io.systemui.EdgeFade
+import shop.terramoor.github.io.systemui.LyricGradient
 import shop.terramoor.github.io.systemui.LyricInk
+import shop.terramoor.github.io.systemui.NativeContract
 import shop.terramoor.github.io.systemui.OuterLyricFeather
 import shop.terramoor.github.io.systemui.OuterLyricMask
 import shop.terramoor.github.io.systemui.TrackInfoDisplayMarquee
@@ -45,6 +54,229 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class CapsuleLyricDrawingTest {
+    @Test
+    fun pausedNativePresentationReleasesWidthAndSlotsAndAllowsResuming() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val context = instrumentation.targetContext
+            val capsule = FrameLayout(context).apply {
+                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 40)
+                minimumWidth = 24
+            }
+            fun slot(): NativeContract.Slot {
+                val frame = FrameLayout(context)
+                val stock = View(context)
+                frame.addView(stock)
+                capsule.addView(frame)
+                return NativeContract.Slot(frame, stock)
+            }
+            val title = slot()
+            val subtitle = slot()
+            val artwork = View(context).also(capsule::addView)
+            val waveform = View(context).also(capsule::addView)
+            val labels = CapsuleLabels(NativeContract.Target(capsule, title, subtitle, artwork, waveform))
+            val settings = CapsuleSettings(showCover = false, showWaveform = false)
+            val line = LyricFrame(LyricRows("Lyric", "Translation"), startMs = 0L, endMs = 2_000L)
+
+            labels.render(line, settings, artwork = null)
+            assertTrue(labels.hasCustomContent)
+            assertTrue(capsule.layoutParams.width > 0)
+            assertEquals(View.INVISIBLE, artwork.visibility)
+            assertEquals(2, title.frame.childCount)
+
+            labels.restoreForPause()
+            labels.enforceNativeVisibility()
+            labels.maintainNativeSizing()
+            assertTrue(labels.nativeWhilePaused)
+            assertFalse(labels.hasCustomContent)
+            assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, capsule.layoutParams.width)
+            assertEquals(24, capsule.minimumWidth)
+            assertEquals(View.VISIBLE, artwork.visibility)
+            assertEquals(View.VISIBLE, waveform.visibility)
+            assertEquals(1, title.frame.childCount)
+
+            capsule.minimumWidth = 30
+            labels.restoreForPause()
+            labels.render(line, settings, artwork = null)
+            assertFalse(labels.nativeWhilePaused)
+            assertTrue(labels.hasCustomContent)
+            assertEquals(View.INVISIBLE, waveform.visibility)
+            labels.close()
+            assertEquals(30, capsule.minimumWidth)
+        }
+    }
+
+    @Test
+    fun introCountdownKeepsScrollingTrackInfoLeftAndTheThreeDotsRight() {
+        val strip = CapsuleLyricStrip(1f)
+        strip.update(LyricFrame.intro(3000L, LyricRows("ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(2), "Artist")),
+            CapsuleSettings(introDots = true, lyricAlignment = LyricAlignment.LEFT))
+        val image = Bitmap.createBitmap(200, 40, Bitmap.Config.ARGB_8888)
+        try {
+            val camera = CapsuleCamera(124f, 16f)
+            fun draw(position: Long): Long? {
+                image.eraseColor(Color.TRANSPARENT)
+                return strip.draw(Canvas(image), 0f, 0f, 200f, 40f, camera, position)
+            }
+            fun rows(y: Int): IntArray = IntArray(108 * 20).also { image.getPixels(it, 0, 108, 0, y, 108, 20) }
+
+            assertEquals(0L, draw(0L))
+            val titleAtStart = rows(0)
+            val artistAtStart = rows(20)
+            assertTrue(image.ink(0 until 108, 0 until 20) > 0)
+            assertTrue(image.ink(0 until 108, 20 until 40) > 0)
+            assertEquals(0L, draw(1500L))
+            assertFalse(titleAtStart.contentEquals(rows(0)))
+            assertArrayEquals(artistAtStart, rows(20))
+            assertEquals(0, image.ink(108 until 140, 0 until 40))
+            val starts = (140 until 199).count { x -> image.pixelAlpha(x, 20) <= 24 && image.pixelAlpha(x + 1, 20) > 24 }
+            assertEquals(3, starts)
+            assertNull(draw(3000L))
+            assertEquals(0, image.ink(0 until 200, 0 until 40))
+        } finally {
+            image.recycle()
+        }
+    }
+
+    @Test
+    fun introDotsUseTheFixedLargerRadius() {
+        val strip = CapsuleLyricStrip(2f)
+        val frame = LyricFrame.intro(3000L, LyricRows("Title", "Artist"))
+        val image = Bitmap.createBitmap(320, 64, Bitmap.Config.ARGB_8888)
+        try {
+            strip.update(frame, CapsuleSettings(introDots = true))
+            strip.draw(Canvas(image), 0f, 0f, 320f, 64f, CapsuleCamera(160f, 24f), 1500L)
+            // The center dot is at x=252 with radius a little over six physical pixels.
+            assertTrue(image.pixelAlpha(257, 32) > 24)
+            assertEquals(0, image.pixelAlpha(259, 32))
+        } finally {
+            image.recycle()
+        }
+    }
+
+    @Test
+    fun wordHighlightStartsBelowAndSettlesOntoTheOrdinaryBaseline() {
+        val strip = CapsuleLyricStrip(2f)
+        val bitmap = Bitmap.createBitmap(320, 80, Bitmap.Config.ARGB_8888)
+        val words = listOf(LyricWord(0, 2, 1000L, 1500L), LyricWord(2, 3, 2000L, 2500L))
+        val text = "H I"
+        fun draw(rows: LyricRows, position: Long): List<Int> {
+            bitmap.eraseColor(Color.TRANSPARENT)
+            strip.update(LyricFrame(rows, 1000L, 4000L), CapsuleSettings(wordLyrics = true))
+            strip.draw(Canvas(bitmap), 0f, 0f, 320f, 80f, null, position)
+            return (0 until 70).flatMap { x -> (0 until 80).map { y -> bitmap.pixelAlpha(x, y) } }
+        }
+        try {
+            val plain = draw(LyricRows(text), 2500L)
+            val timed = LyricRows(text, firstWords = words)
+            val unplayed = draw(timed, 900L)
+            val active = draw(timed, 1250L)
+            val completed = draw(timed, 2500L)
+            fun firstGlyphTop(pixels: List<Int>) = (0 until 18 * 80)
+                .filter { pixels[it] > 24 }.minOf { it % 80 }
+            assertEquals(firstGlyphTop(plain) + 2, firstGlyphTop(unplayed))
+            assertEquals(firstGlyphTop(plain), firstGlyphTop(active))
+            assertEquals(plain, completed)
+            assertTrue(active.sum() < completed.sum())
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun secondRowKeepsItsBaselineWithTimedOriginalOrUpcomingLyrics() {
+        val strip = CapsuleLyricStrip(2f)
+        val bitmap = Bitmap.createBitmap(160, 100, Bitmap.Config.ARGB_8888)
+        val words = listOf(LyricWord(0, 1, 1000L, 1500L))
+        fun secondGlyph(nextStart: Long?, ranges: List<LyricWord>, position: Long): Pair<Int, Int> {
+            val rows = LyricRows("Title", "H", nextLyricStartMs = nextStart, secondWords = ranges)
+            strip.update(LyricFrame(rows, 0L, 4000L), CapsuleSettings(wordLyrics = true))
+            bitmap.eraseColor(Color.TRANSPARENT)
+            strip.draw(Canvas(bitmap), 0f, 0f, 160f, 100f, null, position)
+            val box = 50 until 90
+            return box.first { bitmap.ink(0 until 30, it..it) > 0 } to
+                box.sumOf { y -> (0 until 30).sumOf { x -> bitmap.pixelAlpha(x, y) } }
+        }
+        try {
+            val plain = secondGlyph(null, emptyList(), 900L)
+            val unplayed = secondGlyph(null, words, 900L)
+            val sung = secondGlyph(null, words, 1500L)
+            assertEquals(plain.first, unplayed.first)
+            assertTrue(unplayed.second < plain.second)
+            assertEquals(plain, sung)
+            val plainPreview = secondGlyph(1000L, emptyList(), 900L)
+            val timedPreview = secondGlyph(1000L, words, 900L)
+            assertEquals(plainPreview.first, timedPreview.first)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun untimedTranslationScrollsWithTheTimedOriginalInTheSecondRow() {
+        val strip = CapsuleLyricStrip(2f)
+        val words = listOf(LyricWord(0, 6, 1000L, 1400L), LyricWord(6, 14, 2000L, 2800L),
+            LyricWord(14, 20, 2840L, 3200L))
+        val frame = LyricFrame(LyricRows("ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(2), "H".repeat(20),
+            secondWords = words), 1000L, 4000L)
+        val image = Bitmap.createBitmap(140, 80, Bitmap.Config.ARGB_8888)
+        fun draw(position: Long): Pair<Long?, IntArray> {
+            image.eraseColor(Color.TRANSPARENT)
+            val delay = strip.draw(Canvas(image), 0f, 0f, 140f, 80f, null, position)
+            val firstRow = IntArray(140 * 38)
+            image.getPixels(firstRow, 0, 140, 0, 0, 140, 38)
+            return delay to firstRow
+        }
+        try {
+            strip.update(frame, CapsuleSettings(wordLyrics = true))
+            val (nextWordDelay, atFirstWordEnd) = draw(1400L)
+            val (remainingDelay, duringGap) = draw(1750L)
+            val (activeDelay, duringSecondWord) = draw(2400L)
+            val (shortGapDelay, _) = draw(2810L)
+            val (afterLastDelay, _) = draw(3200L)
+            assertEquals(600L, nextWordDelay)
+            assertEquals(250L, remainingDelay)
+            assertEquals(0L, activeDelay)
+            assertEquals(0L, shortGapDelay)
+            assertNull(afterLastDelay)
+            assertArrayEquals(atFirstWordEnd, duringGap)
+            assertFalse(duringGap.contentEquals(duringSecondWord))
+        } finally {
+            image.recycle()
+        }
+    }
+
+    @Test
+    fun coverGradientKeepsTheSameGlyphColorsAcrossTheCameraGap() {
+        val strip = CapsuleLyricStrip(2f)
+        val settings = CapsuleSettings(cameraFade = false, lyricAlignment = LyricAlignment.LEFT)
+        val gradient = LyricGradient(Color.RED, Color.MAGENTA, Color.BLUE)
+        val image = Bitmap.createBitmap(280, 80, Bitmap.Config.ARGB_8888)
+        val reference = Bitmap.createBitmap(240, 80, Bitmap.Config.ARGB_8888)
+        try {
+            strip.update(LyricFrame(LyricRows("HHHHHHHHHH"), 0L, 4000L), settings,
+                LyricInk(gradient.start, gradient.start, gradient = gradient))
+            strip.draw(Canvas(image), 0f, 0f, 280f, 80f, CapsuleCamera(105f, 20f), 1200L)
+            strip.draw(Canvas(reference), 0f, 0f, 240f, 80f, null, 1200L)
+            var firstDifference = 0
+            var lastDifference = 0
+            for (x in 0 until 240) for (y in 0 until 80) {
+                val pixel = reference.getPixel(x, y)
+                assertEquals(pixel, image.getPixel(if (x < 85) x else x + 40, y))
+                if (Color.alpha(pixel) < 100) continue
+                val difference = Color.red(pixel) - Color.blue(pixel)
+                if (x in 0 until 42) firstDifference += difference
+                if (x in 105 until 240) lastDifference += difference
+            }
+            assertTrue(firstDifference > 0)
+            assertTrue(lastDifference < 0)
+            assertEquals(0, image.ink(85 until 125, 0 until 80))
+        } finally {
+            image.recycle()
+            reference.recycle()
+        }
+    }
+
     @Test
     fun capsuleWidthOvershootContinuesTheArtworkAcrossBothEdges() {
         val artwork = Bitmap.createBitmap(20, 8, Bitmap.Config.ARGB_8888)
@@ -217,9 +449,8 @@ class CapsuleLyricDrawingTest {
         ), start, end)
         val strip = CapsuleLyricStrip(3.5f)
         for (fade in listOf(false, true)) {
-            val settings = CapsuleSettings(cameraFade = fade)
-                .withTuning(mapOf(CapsuleTuning.CAMERA_FADE_RADIUS to 14))
-            strip.update(frame, settings)
+            strip.update(frame, CapsuleSettings(cameraFade = fade))
+            assertTrue(strip.paintDiagnostics().endsWith(if (fade) "cameraFadePx=7.0" else "cameraFadePx=0.0"))
             for (position in listOf(start, (start + end) / 2, end)) {
                 val image = Bitmap.createBitmap(710, 108, Bitmap.Config.ARGB_8888)
                 strip.draw(Canvas(image), 100f, 0f, 620f, 108f, CapsuleCamera(329f, 39f), position)

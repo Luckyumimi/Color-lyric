@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Usar as cores da capa</string>
     <string name="lyric_tint_median_cut">Corte pela mediana</string>
     <string name="lyric_tint_oklch">Agrupamento OKLCH</string>
+    <string name="lyric_tint_gradient">Gradiente da capa</string>
     <string name="tune_tint_strength">Intensidade da cor</string>
     <string name="tune_text_details">Ajustes de texto</string>
     <string name="tune_blur_details">Ajustes de desfoque</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Redefinir aparência</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">Desfoque ao redor da câmera</string>
-    <string name="tune_camera_radius">Raio do desvanecimento</string>
     <string name="preview_title">Prévia da cápsula</string>
     <string name="preview_sample">Exemplo de prévia</string>
     <string name="preview_no_sync_lyrics">Sem letra sincronizada</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Mostrar capa</string>
     <string name="show_waveform">Mostrar barras de áudio</string>
     <string name="section_lyric_behavior">Comportamento da letra</string>
-    <string name="single_line_switch_mode">Troca com uma linha</string>
-    <string name="double_line_switch_mode">Troca com duas linhas</string>
-    <string name="lyric_switch_after_end">Quando a linha atual termina</string>
-    <string name="lyric_switch_next_start">Quando a próxima linha começa</string>
+    <string name="lyric_word_highlight">Letra palavra por palavra</string>
+    <string name="lyric_camera_word_avoidance">Palavras inteiras ao lado da câmara</string>
+    <string name="lyric_intro_dots">Contagem da introdução com três pontos</string>
     <string name="section_motion">Transição entre linhas</string>
     <string name="motion_none">Instantânea</string>
     <string name="motion_up">Rolar para cima</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Sem letra sincronizada</string>
     <string name="no_lyrics_empty">Ocultar texto</string>
     <string name="no_lyrics_track">Mostrar título e artista</string>
+    <string name="pause_behavior">Ao pausar a música</string>
+    <string name="pause_keep_current">Manter o estilo atual</string>
+    <string name="pause_restore_native">Restaurar o estilo padrão</string>
     <string name="section_reset">Padrões</string>
     <string name="section_provider">Provedores de letras</string>
     <string name="provider_both_required">Instale os dois</string>

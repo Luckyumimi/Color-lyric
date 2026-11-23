@@ -10,11 +10,25 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import shop.terramoor.github.io.lyrics.LyricPayload
+import shop.terramoor.github.io.lyrics.LyricWord
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.NoLyricsMode
 
 @RunWith(AndroidJUnit4::class)
 class LyricFallbackTest {
+    @Test
+    fun providerConvertedTtmlSpansUseTheSongClock() {
+        val payload = JSONObject().put("songName", "Fixture")
+            .put("lyric", "[00:08]Hi there!\n[00:12]Plain")
+            .put("rawLyric", "[00:08]<00:08>Hi <00:09>there!<00:11>\n[00:12]Plain")
+            .put("ttml", """<tt xmlns="http://www.w3.org/ns/ttml">
+                <body><div><p begin="00:08.000" end="00:11.000"><span begin="00:08.000" end="00:08.500">Hi</span> <span begin="00:09.000" end="00:11.000">there!</span></p>
+                <p begin="00:12.000" end="00:14.000">Plain</p></div></body></tt>""")
+        val lines = requireNotNull(LyricPayload.parse(payload.toString(), "Fixture", false)).lines
+        assertEquals(listOf(LyricWord(0, 3, 8000L, 8500L), LyricWord(3, 9, 9000L, 11000L)), lines[0].words)
+        assertEquals(emptyList<LyricWord>(), lines[1].words)
+    }
+
     @Test
     fun noLyricFlagsAndStaticTtmlProvideNoTimeline() {
         val staticTtml = """

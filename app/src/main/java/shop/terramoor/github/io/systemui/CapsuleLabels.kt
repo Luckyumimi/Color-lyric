@@ -34,11 +34,11 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private var clock: PlaybackClock? = null
     private var trackInfoShown = false
     private val trackInfoMarquee = TrackInfoDisplayMarquee()
-    private val redrawTrackInfo = Runnable { if (capsule.isShown) capsule.invalidate() }
+    private val redrawContent = Runnable { if (capsule.isShown) capsule.invalidate() }
     private var displaySettings: CapsuleSettings? = null
     private var sizedParams: ViewGroup.LayoutParams? = null
     private var nativeWidth = 0
-    private val nativeMinimumWidth = capsule.minimumWidth
+    private var nativeMinimumWidth = capsule.minimumWidth
     private var appliedWidth: Int? = null
     private val artworkBackground = CapsuleArtworkBackground()
     private val area = RectF()
@@ -47,16 +47,20 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private val location = IntArray(2)
 
     val hasCustomContent: Boolean get() = displayLine != null || artwork != null
+    var nativeWhilePaused = false
+        private set
 
     fun render(
         line: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?,
         clock: PlaybackClock? = null, ink: LyricInk = LyricInk.WHITE,
     ) {
+        if (displaySettings == null) nativeMinimumWidth = capsule.minimumWidth
+        nativeWhilePaused = false
         val showingTrackInfo = line?.isTrackInfo == true && capsule.isShown
         val trackInfoVisibilityChanged = trackInfoShown != showingTrackInfo
         trackInfoShown = showingTrackInfo
         if (displayLine != line || trackInfoVisibilityChanged) {
-            capsule.removeCallbacks(redrawTrackInfo)
+            capsule.removeCallbacks(redrawContent)
             trackInfoMarquee.reset()
         }
         val changed = displayLine != line || displaySettings != settings || this.artwork !== artwork ||
@@ -109,8 +113,12 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             val settings = displaySettings ?: return "ARTWORK_ONLY"
             // Display cutout and getLocationOnScreen share display coordinates. Insets
             // delivered to the native capsule may already have consumed the cutout.
-            val camera = capsule.topDisplayCutout()
-            capsule.getLocationOnScreen(location)
+            val displayCamera = capsule.topDisplayCutout()
+            val windowCamera = if (displayCamera == null && (line.isIntro || settings.cameraWordAvoidance)) {
+                capsule.rootWindowInsets?.displayCutout?.boundingRectTop?.takeUnless { it.isEmpty }
+            } else null
+            val camera = displayCamera ?: windowCamera
+            if (windowCamera != null) capsule.getLocationInWindow(location) else capsule.getLocationOnScreen(location)
             val scaleX = capsule.scaleX.takeIf { it > 0f } ?: 1f
             // Only the horizontal span of the display cutout defines the lyric gap.
             val lens = camera?.let {
@@ -132,14 +140,15 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
                 lens, position, artworkArea = artworkArea,
                 trackInfoMarquee = trackInfoMarquee, trackInfoSettled = settled,
             )
+            capsule.removeCallbacks(redrawContent)
             if (line.isTrackInfo) {
-                capsule.removeCallbacks(redrawTrackInfo)
                 if (capsule.windowVisibility == View.VISIBLE && redrawDelay != null) {
                     if (redrawDelay == 0L) capsule.postInvalidateOnAnimation()
-                    else capsule.postDelayed(redrawTrackInfo, redrawDelay)
+                    else capsule.postDelayed(redrawContent, redrawDelay)
                 }
-            } else if (redrawDelay == 0L && timing?.moving == true && timing.speed > 0f) {
-                capsule.postInvalidateOnAnimation()
+            } else if (redrawDelay != null && timing?.moving == true && timing.speed > 0f) {
+                if (redrawDelay == 0L) capsule.postInvalidateOnAnimation()
+                else timing.delayTo(position, position + redrawDelay)?.let { capsule.postDelayed(redrawContent, it) }
             }
             return "LYRICS_DRAWN"
         } finally {
@@ -203,14 +212,24 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         waveformVisibility.apply(!settings.showWaveform)
     }
 
+    fun restoreForPause() {
+        nativeWhilePaused = true
+        close()
+    }
+
     fun close() {
-        capsule.removeCallbacks(redrawTrackInfo)
+        if (displaySettings == null) return
+        displaySettings = null
+        capsule.removeCallbacks(redrawContent)
         coverVisibility.restore()
         waveformVisibility.restore()
         updateCapsuleWidth(null)
         clearFiller()
         displayLine = null
         artwork = null
+        clock = null
+        trackInfoShown = false
+        trackInfoMarquee.reset()
         capsule.invalidate()
     }
 

@@ -51,6 +51,14 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 2. 启用 TerraMoor，作用域勾选「系统界面」，重启「系统界面」或系统后打开 TerraMoor。应用内的重启按钮需要 Root 授权。
 3. 在首页确认 LSPosed 已勾选「系统界面」、已启用流体云歌词、ColorOS Live Lyrics Bridge 和通用播放器 Provider 均已安装，再到「调整」设置显示效果。
 
+在「调整 → 歌词行为」可以分别开启「逐字歌词」「歌词整字避让前摄（实验）」和「前奏倒计时动画」，三项默认关闭。逐字效果需要歌词提供方传入逐字时间，长句的横向滚动会跟随原文亮起。前奏圆点在前摄右侧倒计时，左侧显示歌名和歌手，超出宽度的文字会滚动。
+
+单排歌词在本句播完时切换，双排在下句开始时切换。开启模糊渐隐后，前摄边缘的渐隐半径为 2 dp。
+
+在「调整 → 歌词着色 → 取色模式」选择「渐变取色」，可以用封面的两种代表色绘制整句歌词。
+
+「调整」里的「暂停音乐后行为」默认保持模块样式。选择「恢复默认」后，暂停时显示 ColorOS 原生流体云，继续播放时再切回模块样式。
+
 ## 模块结构
 
 源码在 `app/src/main/java/shop/terramoor/github/io/`。
@@ -58,7 +66,7 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 | 目录 | 职责 |
 | --- | --- |
 | `settings/` | COUI 首页、调整页和关于页，Provider 状态与入口，后台串行远程配置写入，预览和 JSON 备份。 |
-| `lyrics/` | 读取媒体会话的 `lyricInfo`，解析 LRC 和可匹配的 TTML 句尾，为预览与原生胶囊生成同样的歌词帧和切换边界。 |
+| `lyrics/` | 读取媒体会话的 `lyricInfo`，解析 LRC 和可匹配的 TTML 句尾及逐字时间，为预览与原生胶囊生成歌词帧和切换边界。 |
 | `systemui/` | 挂载媒体胶囊 Hook，校验系统接口、媒体会话及视图所有权。沿用系统动画绘制歌词与背景，停用时恢复原生胶囊。 |
 | `app/src/main/java/io/github/libxposed/service/` | API 102 设置服务入口校验。 |
 | `app/src/main/resources/META-INF/xposed/` | 模块入口和静态 `com.android.systemui` 作用域。 |

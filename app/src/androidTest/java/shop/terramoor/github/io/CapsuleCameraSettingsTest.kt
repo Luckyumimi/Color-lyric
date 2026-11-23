@@ -18,9 +18,9 @@ import shop.terramoor.github.io.settings.CapsuleBackup
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LyricAlignment
-import shop.terramoor.github.io.settings.LyricSwitchMode
 import shop.terramoor.github.io.settings.LyricTintMode
 import shop.terramoor.github.io.settings.MissingTranslationMode
+import shop.terramoor.github.io.settings.PauseBehavior
 import shop.terramoor.github.io.settings.SecondRowContent
 import shop.terramoor.github.io.settings.TerraMoorApp
 import shop.terramoor.github.io.settings.writeSettings
@@ -37,8 +37,8 @@ class CapsuleCameraSettingsTest {
             val settings = CapsuleSettings.read(preferences)
             assertEquals(true, settings.enabled)
             assertEquals(true, settings.doubleLine)
-            assertEquals(LyricSwitchMode.AT_NEXT_START, settings.doubleLineSwitchMode)
             assertEquals(true, settings.artwork)
+            assertEquals(PauseBehavior.KEEP_CURRENT, settings.pauseBehavior)
             assertEquals(LyricAlignment.LEFT, settings.lyricAlignment)
             assertEquals(170, settings[CapsuleTuning.ISLAND_WIDTH])
             assertEquals(25, settings[CapsuleTuning.ARTWORK_DIM])
@@ -64,18 +64,23 @@ class CapsuleCameraSettingsTest {
     }
 
     @Test
-    fun backupRestorePersistsFadeAndRadius() {
+    fun backupRestorePersistsFadeAndClearsRetiredPreferences() {
         val context = InstrumentationRegistry.getInstrumentation().context
         val prefs = context.getSharedPreferences("camera-settings-test", 0)
         try {
             for (fade in listOf(false, true)) {
                 val expected = CapsuleSettings(cameraFade = fade, lyricAlignment = LyricAlignment.LEFT)
-                    .withTuning(mapOf(CapsuleTuning.CAMERA_FADE_RADIUS to 11, CapsuleTuning.ISLAND_WIDTH to 174))
+                    .withTuning(mapOf(CapsuleTuning.ISLAND_WIDTH to 174))
                 val imported = CapsuleBackup.decode(CapsuleBackup.encode(expected).byteInputStream())
+                prefs.edit().putInt("camera_fade_radius", 11).putString("single_line_switch_mode", "AT_NEXT_START")
+                    .putString("double_line_switch_mode", "AFTER_END").putInt("intro_dot_size", 50).commit()
                 prefs.edit().apply { writeSettings(imported) }.commit()
                 val actual = CapsuleSettings.read(prefs)
                 assertEquals(fade, actual.cameraFade)
-                assertEquals(11, actual[CapsuleTuning.CAMERA_FADE_RADIUS])
+                assertFalse(prefs.contains("camera_fade_radius"))
+                assertFalse(prefs.contains("single_line_switch_mode"))
+                assertFalse(prefs.contains("double_line_switch_mode"))
+                assertFalse(prefs.contains("intro_dot_size"))
                 assertEquals(LyricAlignment.LEFT, actual.lyricAlignment)
                 assertEquals(174, actual[CapsuleTuning.ISLAND_WIDTH])
             }
@@ -85,31 +90,29 @@ class CapsuleCameraSettingsTest {
     }
 
     @Test
-    fun versionOneBackupKeepsFadeAndRadius() {
-        val legacy = JSONObject(CapsuleBackup.encode(CapsuleSettings(cameraFade = false)
-            .withTuning(mapOf(CapsuleTuning.CAMERA_FADE_RADIUS to 8))))
+    fun versionOneBackupKeepsFadeAndIgnoresOldRadius() {
+        val legacy = JSONObject(CapsuleBackup.encode(CapsuleSettings(cameraFade = false)))
         legacy.put("version", 1)
         legacy.getJSONObject("settings").apply {
             put(CapsuleSettings.LEGACY_TRANSLATION, true)
             remove(CapsuleSettings.LYRIC_ALIGNMENT)
             remove(CapsuleTuning.ISLAND_WIDTH.key)
             put("text_width", 48)
+            put("camera_fade_radius", 8)
         }
         val imported = CapsuleBackup.decode(legacy.toString().byteInputStream())
         assertEquals(LyricAlignment.CENTER, imported.lyricAlignment)
         assertEquals(202, imported[CapsuleTuning.ISLAND_WIDTH])
         assertFalse(imported.cameraFade)
-        assertEquals(8, imported[CapsuleTuning.CAMERA_FADE_RADIUS])
+        assertFalse(JSONObject(CapsuleBackup.encode(imported)).getJSONObject("settings").has("camera_fade_radius"))
     }
 
     @Test
     fun versionThreeRoundBackupRestoresWithoutRetiredShape() {
-        val data = JSONObject(CapsuleBackup.encode(CapsuleSettings(cameraFade = true)
-            .withTuning(mapOf(CapsuleTuning.CAMERA_FADE_RADIUS to 9))))
+        val data = JSONObject(CapsuleBackup.encode(CapsuleSettings(cameraFade = true)))
         data.put("version", 3)
         data.getJSONObject("settings").put("camera_shape", "ROUND").put(CapsuleSettings.LEGACY_TRANSLATION, true)
         val restored = CapsuleBackup.decode(data.toString().byteInputStream())
-        assertEquals(9, restored[CapsuleTuning.CAMERA_FADE_RADIUS])
         assertEquals(true, restored.cameraFade)
         assertFalse(JSONObject(CapsuleBackup.encode(restored)).getJSONObject("settings").has("camera_shape"))
     }
@@ -145,14 +148,11 @@ class CapsuleCameraSettingsTest {
                 .putInt(CapsuleTuning.FIRST_ROW_SIZE.key, 12).commit()
             val migrated = CapsuleSettings.read(prefs)
             assertFalse(migrated.doubleLine)
-            assertEquals(LyricSwitchMode.AFTER_END, migrated.doubleLineSwitchMode)
             assertEquals(12, migrated[CapsuleTuning.FIRST_ROW_SIZE])
             val backup = JSONObject(CapsuleBackup.encode(migrated)).put("version", 5)
             backup.getJSONObject("settings").apply {
                 remove(CapsuleSettings.DOUBLE_LINE)
                 remove(CapsuleSettings.SECOND_ROW_CONTENT)
-                remove(CapsuleSettings.SINGLE_LINE_SWITCH_MODE)
-                remove(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)
                 remove(CapsuleSettings.MISSING_TRANSLATION_MODE)
                 remove(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND)
                 put(CapsuleSettings.LEGACY_TRANSLATION, false)
@@ -161,8 +161,7 @@ class CapsuleCameraSettingsTest {
 
             prefs.edit().putBoolean(CapsuleSettings.DOUBLE_LINE, true).commit()
             assertEquals(true, CapsuleSettings.read(prefs).doubleLine)
-            val v6 = migrated.copy(secondRowContent = SecondRowContent.LYRIC,
-                doubleLineSwitchMode = LyricSwitchMode.AT_NEXT_START, fallbackSingleLineExpand = false)
+            val v6 = migrated.copy(secondRowContent = SecondRowContent.LYRIC, fallbackSingleLineExpand = false)
             prefs.edit().apply { writeSettings(CapsuleBackup.decode(CapsuleBackup.encode(v6).byteInputStream())) }.commit()
             assertFalse(prefs.contains(CapsuleSettings.LEGACY_TRANSLATION))
             assertEquals(v6, CapsuleSettings.read(prefs))
@@ -190,10 +189,10 @@ class CapsuleCameraSettingsTest {
                 app.previewTuning(CapsuleTuning.FIRST_ROW_SIZE, 12)
                 app.set(CapsuleSettings.DOUBLE_LINE, false)
                 app.setSecondRowContent(SecondRowContent.LYRIC)
-                app.setSingleLineSwitchMode(LyricSwitchMode.AT_NEXT_START)
                 app.setMissingTranslationMode(MissingTranslationMode.DOUBLE_LYRICS)
                 app.set(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, false)
                 app.setLyricTintMode(LyricTintMode.OKLCH)
+                app.setPauseBehavior(PauseBehavior.RESTORE_NATIVE)
                 app.previewTuning(CapsuleTuning.TINT_STRENGTH, 50)
                 app.set(CapsuleSettings.LYRIC_TINT_ENABLED, false)
             }
@@ -205,12 +204,11 @@ class CapsuleCameraSettingsTest {
             assertFalse(settings.doubleLine)
             assertEquals(12, settings[CapsuleTuning.FIRST_ROW_SIZE])
             assertEquals(SecondRowContent.LYRIC, settings.secondRowContent)
-            assertEquals(LyricSwitchMode.AT_NEXT_START, settings.singleLineSwitchMode)
-            assertEquals(LyricSwitchMode.AT_NEXT_START, settings.doubleLineSwitchMode)
             assertEquals(MissingTranslationMode.DOUBLE_LYRICS, settings.missingTranslationMode)
             assertFalse(settings.fallbackSingleLineExpand)
             assertFalse(settings.lyricTintEnabled)
             assertEquals(LyricTintMode.OKLCH, settings.lyricTintMode)
+            assertEquals(PauseBehavior.RESTORE_NATIVE, settings.pauseBehavior)
             assertEquals(50, settings[CapsuleTuning.TINT_STRENGTH])
         } finally {
             prefs.unregisterOnSharedPreferenceChangeListener(listener)

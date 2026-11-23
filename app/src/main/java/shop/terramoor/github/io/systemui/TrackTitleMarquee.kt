@@ -2,7 +2,7 @@ package shop.terramoor.github.io.systemui
 
 import kotlin.math.roundToLong
 
-/** Local display time, independent of media position, pause and lyric timing. */
+/** Timing for a title to travel to the far edge and back. */
 internal object TrackTitleMarquee {
     private const val HOLD_MS = 3000L
     private const val SPEED_DP_PER_SECOND = 32f
@@ -10,15 +10,23 @@ internal object TrackTitleMarquee {
     data class Sample(val progress: Float, val redrawDelayMs: Long?)
 
     fun sample(elapsedMs: Long, overflowDp: Float, trailingInsetDp: Float): Sample {
+        return sample(elapsedMs, overflowDp, trailingInsetDp, HOLD_MS)
+    }
+
+    fun sampleIntro(positionMs: Long, endMs: Long, overflowDp: Float, trailingInsetDp: Float): Sample {
+        return sample(positionMs, overflowDp, trailingInsetDp, minOf(HOLD_MS, endMs / 4L))
+    }
+
+    private fun sample(elapsedMs: Long, overflowDp: Float, trailingInsetDp: Float, startHoldMs: Long): Sample {
         if (overflowDp <= 0f) return Sample(0f, null)
         val duration = ((overflowDp + trailingInsetDp) * 1000f / SPEED_DP_PER_SECOND).roundToLong().coerceAtLeast(1L)
-        val forwardEnd = HOLD_MS + duration
+        val forwardEnd = startHoldMs + duration
         val returnStart = forwardEnd + HOLD_MS
         val cycle = returnStart + duration
         val position = elapsedMs.coerceAtLeast(0) % cycle
         return when {
-            position < HOLD_MS -> Sample(0f, HOLD_MS - position)
-            position < forwardEnd -> Sample((position - HOLD_MS).toFloat() / duration, 0L)
+            position < startHoldMs -> Sample(0f, startHoldMs - position)
+            position < forwardEnd -> Sample((position - startHoldMs).toFloat() / duration, 0L)
             position < returnStart -> Sample(1f, returnStart - position)
             else -> Sample((cycle - position).toFloat() / duration, 0L)
         }

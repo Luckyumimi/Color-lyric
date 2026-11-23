@@ -6,6 +6,13 @@ import shop.terramoor.github.io.systemui.TrackInfoDisplayMarquee
 import shop.terramoor.github.io.systemui.TrackTitleMarquee
 
 class TrackTitleMarqueeTest {
+    @Test fun introCanStartScrollingBeforeTheFirstLyric() {
+        assertEquals(TrackTitleMarquee.Sample(0f, null), TrackTitleMarquee.sampleIntro(1500, 3000, 0f, 8f))
+        assertEquals(TrackTitleMarquee.Sample(0f, 1L), TrackTitleMarquee.sampleIntro(749, 3000, 24f, 8f))
+        assertEquals(TrackTitleMarquee.Sample(0.5f, 0L), TrackTitleMarquee.sampleIntro(1250, 3000, 24f, 8f))
+        assertEquals(TrackTitleMarquee.Sample(1f, 3000L), TrackTitleMarquee.sampleIntro(1750, 3000, 24f, 8f))
+    }
+
     @Test fun fittingTitleNeverRequestsAnotherDraw() {
         assertEquals(TrackTitleMarquee.Sample(0f, null), TrackTitleMarquee.sample(2000, 0f, 8f))
     }

@@ -30,6 +30,7 @@ import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.NoLyricsMode
+import shop.terramoor.github.io.settings.PauseBehavior
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 import kotlin.math.abs
@@ -87,7 +88,8 @@ internal class CapsuleRuntime(
         val binding = labels
         binding?.enforceNativeVisibility()
         if (binding != null && (renderedShown != binding.target.capsule.isShown ||
-                (settings.artwork || settings.lyricTintEnabled) && session?.artworkChanged(binding.target.artwork) == true)) {
+                !binding.nativeWhilePaused && (settings.artwork || settings.lyricTintEnabled) &&
+                session?.artworkChanged(binding.target.artwork) == true)) {
             protect("Capsule visibility or artwork", ::render)
         }
         true
@@ -186,6 +188,7 @@ internal class CapsuleRuntime(
 
     fun draw(instance: Any, canvas: Canvas) {
         val binding = labels ?: return
+        if (binding.nativeWhilePaused) return
         val contract = plugin ?: return
         val candidate = media ?: return
         val capsule = binding.target.capsule
@@ -227,6 +230,7 @@ internal class CapsuleRuntime(
                 if (!valid) return
                 try {
                     if (!settings.enabled || plugin !== contract || root !== currentRoot ||
+                        centeredMedia[capsule] != key ||
                         capsule.parent !== container || !capsule.isAttachedToWindow ||
                         !contract.hasOwner(capsule, key) || !contract.isSingleLane(container)) {
                         valid = false
@@ -274,6 +278,7 @@ internal class CapsuleRuntime(
     fun stabilizeMediaContentFrame(callback: Any): (() -> Unit)? {
         val contract = plugin ?: return null
         val binding = labels ?: return null
+        if (binding.nativeWhilePaused) return null
         val target = binding.target
         val active = target.capsule
         val key = media?.takeUnless { it.token == destroyedToken }?.key ?: return null
@@ -298,7 +303,8 @@ internal class CapsuleRuntime(
         val active = media
         val watch = session
         val controller = mediaController.get()
-        val next = if (settings.enabled && binding?.hasCustomContent == true && active != null &&
+        val next = if (settings.enabled && settings.pauseBehavior == PauseBehavior.KEEP_CURRENT &&
+            binding?.hasCustomContent == true && active != null &&
             controller != null && watch?.token == active.token && watch.isPaused) {
             NativeContract.PauseOwner(controller, active.key, active.token, active.owner)
         } else null
@@ -510,6 +516,15 @@ internal class CapsuleRuntime(
         val watch = session ?: return
         val shown = binding.target.capsule.isShown
         renderedShown = shown
+        if (watch.isPaused && settings.pauseBehavior == PauseBehavior.RESTORE_NATIVE) {
+            centeredMedia.remove(binding.target.capsule)
+            binding.restoreForPause()
+            setLyricTick(null)
+            tintDrawFrame = null
+            updatePauseOwner()
+            setStatus("Using native media capsule while paused")
+            return
+        }
         val tintEnabled = settings.lyricTintEnabled
         val artwork = watch.artworkSource(candidate.artwork, binding.target.artwork)
         val background = if (settings.artwork) watch.background(artwork, settings[CapsuleTuning.BLUR]) else null
@@ -543,15 +558,17 @@ internal class CapsuleRuntime(
         val index = if (watch.hasPlaybackPosition) presentation.indexAt(position) else -1
         val line = timeline.lines.getOrNull(index)?.takeIf { it.text.isNotBlank() }
         val next = presentation.nextBoundary(index)
-        val frame = presentation.frameAt(index, watch.duration)
+        val frame = if (watch.hasPlaybackPosition) {
+            presentation.introAt(position) { watch.trackInfo()?.rows } ?: presentation.frameAt(index, watch.duration)
+        } else null
         if (watch.lastLoggedLine != index) {
             watch.lastLoggedLine = index
             val mode = index.takeIf { it >= 0 }?.let(presentation::switchMode)
             diagnostics.note("[lyric schedule] index=$index/${timeline.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, scrollEnd=${frame?.endMs}, displayStart=${frame?.displayStartMs}, next=$next, mode=$mode, secondRow=${frame?.rows?.second != null}, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
         }
         if (frame != null) {
-            renderFrame(binding, frame, "SYNCED", background, ink, clock)
-            setStatus("Rendering lyrics in native media capsule")
+            renderFrame(binding, frame, if (frame.isIntro) "INTRO_DOTS" else "SYNCED", background, ink, clock)
+            setStatus(if (frame.isIntro) "Rendering intro countdown" else "Rendering lyrics in native media capsule")
         } else {
             val introInfo = if (index < 0 && settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
             renderFrame(binding, introInfo, "INTRO_OR_GAP", background, ink)
@@ -586,6 +603,7 @@ internal class CapsuleRuntime(
         val kind = when {
             frame == null -> "NO_TEXT"
             frame.isTrackInfo -> "TRACK_INFO"
+            frame.isIntro -> "INTRO_DOTS"
             else -> "LYRICS"
         }
         val detail = "${session?.tintCorrelation()}, phase=$phase, kind=$kind, secondRow=${frame?.rows?.second != null}, opacity=${settings[CapsuleTuning.FIRST_ROW_OPACITY]}/${settings[CapsuleTuning.SECOND_ROW_OPACITY]}, ${ink.diagnosticColors()}"
@@ -593,7 +611,11 @@ internal class CapsuleRuntime(
         trace("tint/frame", detail)
     }
 
-    private fun LyricInk.diagnosticColors() = "first=#${first.toUInt().toString(16)}, second=#${second.toUInt().toString(16)}"
+    private fun LyricInk.diagnosticColors(): String {
+        val rows = "first=#${first.toUInt().toString(16)}, second=#${second.toUInt().toString(16)}"
+        val stops = gradient ?: return rows
+        return "$rows, gradient=#${stops.start.toUInt().toString(16)}..#${stops.end.toUInt().toString(16)}"
+    }
 
     private fun clearLabels() {
         updatePauseOwner()
@@ -732,7 +754,7 @@ internal class CapsuleRuntime(
         override fun onPlaybackStateChanged(state: PlaybackState?) = protect("Playback state") {
             if (session === this) {
                 playbackChanged(state)
-                render()
+                if (labels == null) postRefresh() else render()
             }
         }
 

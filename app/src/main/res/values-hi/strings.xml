@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">कवर से रंग चुनें</string>
     <string name="lyric_tint_median_cut">मीडियन कट</string>
     <string name="lyric_tint_oklch">OKLCH क्लस्टरिंग</string>
+    <string name="lyric_tint_gradient">कवर रंगों का ग्रेडिएंट</string>
     <string name="tune_tint_strength">रंग की तीव्रता</string>
     <string name="tune_text_details">टेक्स्ट सेटिंग</string>
     <string name="tune_blur_details">धुंधलापन सेटिंग</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">दिखावट की सेटिंग रीसेट करें</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">कैमरे के किनारे धुंधले करें</string>
-    <string name="tune_camera_radius">किनारों के धुंधलेपन की त्रिज्या</string>
     <string name="preview_title">कैप्सूल का प्रीव्यू</string>
     <string name="preview_sample">प्रीव्यू का नमूना</string>
     <string name="preview_no_sync_lyrics">समय के साथ सिंक किए गए बोल नहीं हैं</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">कवर दिखाएं</string>
     <string name="show_waveform">ऑडियो बार दिखाएं</string>
     <string name="section_lyric_behavior">गीत के बोल का व्यवहार</string>
-    <string name="single_line_switch_mode">एक पंक्ति बदलने का समय</string>
-    <string name="double_line_switch_mode">दो पंक्तियां बदलने का समय</string>
-    <string name="lyric_switch_after_end">मौजूदा पंक्ति खत्म होने पर</string>
-    <string name="lyric_switch_next_start">अगली पंक्ति शुरू होने पर</string>
+    <string name="lyric_word_highlight">शब्द-दर-शब्द गीत के बोल</string>
+    <string name="lyric_camera_word_avoidance">कैमरे के पास पूरे शब्द दिखाएँ</string>
+    <string name="lyric_intro_dots">शुरुआत में तीन बिंदुओं की उलटी गिनती</string>
     <string name="section_motion">पंक्तियों के बदलने का इफ़ेक्ट</string>
     <string name="motion_none">तुरंत</string>
     <string name="motion_up">ऊपर स्क्रोल करें</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">सिंक किए गए बोल न होने पर</string>
     <string name="no_lyrics_empty">टेक्स्ट छिपाएं</string>
     <string name="no_lyrics_track">गाने का नाम और कलाकार दिखाएं</string>
+    <string name="pause_behavior">संगीत रोकने पर</string>
+    <string name="pause_keep_current">मौजूदा शैली बनाए रखें</string>
+    <string name="pause_restore_native">डिफ़ॉल्ट शैली बहाल करें</string>
     <string name="section_reset">डिफ़ॉल्ट</string>
     <string name="section_provider">बोल के प्रोवाइडर</string>
     <string name="provider_both_required">दोनों इंस्टॉल करें</string>

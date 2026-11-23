@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Ambil warna dari sampul</string>
     <string name="lyric_tint_median_cut">Median cut</string>
     <string name="lyric_tint_oklch">Klasterisasi OKLCH</string>
+    <string name="lyric_tint_gradient">Gradien sampul</string>
     <string name="tune_tint_strength">Intensitas warna</string>
     <string name="tune_text_details">Pengaturan teks</string>
     <string name="tune_blur_details">Pengaturan buram</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Setel ulang tampilan</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">Efek buram di tepi kamera</string>
-    <string name="tune_camera_radius">Radius pudar di tepi</string>
     <string name="preview_title">Pratinjau kapsul</string>
     <string name="preview_sample">Contoh pratinjau</string>
     <string name="preview_no_sync_lyrics">Tidak ada lirik tersinkron</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Tampilkan sampul lagu</string>
     <string name="show_waveform">Tampilkan bilah audio</string>
     <string name="section_lyric_behavior">Perilaku lirik</string>
-    <string name="single_line_switch_mode">Waktu pergantian satu baris</string>
-    <string name="double_line_switch_mode">Waktu pergantian dua baris</string>
-    <string name="lyric_switch_after_end">Saat baris ini selesai</string>
-    <string name="lyric_switch_next_start">Saat baris berikutnya dimulai</string>
+    <string name="lyric_word_highlight">Lirik per kata</string>
+    <string name="lyric_camera_word_avoidance">Kata utuh di samping kamera</string>
+    <string name="lyric_intro_dots">Hitung mundur intro dengan tiga titik</string>
     <string name="section_motion">Transisi antarbaris</string>
     <string name="motion_none">Langsung</string>
     <string name="motion_up">Gulir ke atas</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Tanpa lirik tersinkron</string>
     <string name="no_lyrics_empty">Sembunyikan teks</string>
     <string name="no_lyrics_track">Tampilkan judul dan artis</string>
+    <string name="pause_behavior">Saat musik dijeda</string>
+    <string name="pause_keep_current">Pertahankan gaya saat ini</string>
+    <string name="pause_restore_native">Pulihkan gaya bawaan</string>
     <string name="section_reset">Setelan awal</string>
     <string name="section_provider">Penyedia lirik</string>
     <string name="provider_both_required">Pasang keduanya</string>

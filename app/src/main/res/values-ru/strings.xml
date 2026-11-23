@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Использовать цвета обложки</string>
     <string name="lyric_tint_median_cut">Медианное разбиение</string>
     <string name="lyric_tint_oklch">Кластеризация OKLCH</string>
+    <string name="lyric_tint_gradient">Градиент обложки</string>
     <string name="tune_tint_strength">Интенсивность цвета</string>
     <string name="tune_text_details">Настройки текста</string>
     <string name="tune_blur_details">Настройки размытия</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Сбросить оформление</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">Размытие по краям камеры</string>
-    <string name="tune_camera_radius">Радиус затухания</string>
     <string name="preview_title">Предпросмотр капсулы</string>
     <string name="preview_sample">Пример для просмотра</string>
     <string name="preview_no_sync_lyrics">Нет синхронного текста</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Показывать обложку</string>
     <string name="show_waveform">Показывать индикатор звука</string>
     <string name="section_lyric_behavior">Поведение текста</string>
-    <string name="single_line_switch_mode">Смена при одной строке</string>
-    <string name="double_line_switch_mode">Смена при двух строках</string>
-    <string name="lyric_switch_after_end">В конце текущей строки</string>
-    <string name="lyric_switch_next_start">В начале следующей строки</string>
+    <string name="lyric_word_highlight">Пословная подсветка текста</string>
+    <string name="lyric_camera_word_avoidance">Целые слова рядом с камерой</string>
+    <string name="lyric_intro_dots">Отсчёт вступления тремя точками</string>
     <string name="section_motion">Переход между строками</string>
     <string name="motion_none">Мгновенно</string>
     <string name="motion_up">Прокрутка вверх</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Без синхронного текста</string>
     <string name="no_lyrics_empty">Скрывать текст</string>
     <string name="no_lyrics_track">Показывать название и исполнителя</string>
+    <string name="pause_behavior">При паузе музыки</string>
+    <string name="pause_keep_current">Сохранить текущий стиль</string>
+    <string name="pause_restore_native">Восстановить стиль по умолчанию</string>
     <string name="section_reset">По умолчанию</string>
     <string name="section_provider">Источники текстов</string>
     <string name="provider_both_required">Установите оба</string>

@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">앨범 표지에서 색상 가져오기</string>
     <string name="lyric_tint_median_cut">중앙값 분할</string>
     <string name="lyric_tint_oklch">OKLCH 군집화</string>
+    <string name="lyric_tint_gradient">커버 색상 그라데이션</string>
     <string name="tune_tint_strength">색상 강도</string>
     <string name="tune_text_details">텍스트 설정</string>
     <string name="tune_blur_details">흐림 설정</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">모양 설정 초기화</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">카메라 가장자리 흐림</string>
-    <string name="tune_camera_radius">가장자리 페이드 반경</string>
     <string name="preview_title">캡슐 미리보기</string>
     <string name="preview_sample">미리보기 예시</string>
     <string name="preview_no_sync_lyrics">동기화된 가사 없음</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">앨범 표지 표시</string>
     <string name="show_waveform">오디오 막대 표시</string>
     <string name="section_lyric_behavior">가사 동작</string>
-    <string name="single_line_switch_mode">한 줄 전환 시점</string>
-    <string name="double_line_switch_mode">두 줄 전환 시점</string>
-    <string name="lyric_switch_after_end">현재 줄이 끝날 때</string>
-    <string name="lyric_switch_next_start">다음 줄이 시작될 때</string>
+    <string name="lyric_word_highlight">단어별 가사 강조</string>
+    <string name="lyric_camera_word_avoidance">카메라 옆에 온전한 글자 표시</string>
+    <string name="lyric_intro_dots">전주 점 3개 카운트다운</string>
     <string name="section_motion">줄 전환 효과</string>
     <string name="motion_none">즉시 전환</string>
     <string name="motion_up">위로 스크롤</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">동기화된 가사가 없을 때</string>
     <string name="no_lyrics_empty">텍스트 숨기기</string>
     <string name="no_lyrics_track">곡 제목과 아티스트 표시</string>
+    <string name="pause_behavior">음악을 일시 정지했을 때</string>
+    <string name="pause_keep_current">현재 스타일 유지</string>
+    <string name="pause_restore_native">기본 스타일로 복원</string>
     <string name="section_reset">기본값 복원</string>
     <string name="section_provider">가사 제공자</string>
     <string name="provider_both_required">둘 다 설치</string>

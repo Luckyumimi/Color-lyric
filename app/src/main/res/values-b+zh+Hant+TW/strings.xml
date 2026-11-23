@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">依封面著色</string>
     <string name="lyric_tint_median_cut">中位數切割</string>
     <string name="lyric_tint_oklch">OKLCH 分群</string>
+    <string name="lyric_tint_gradient">漸層取色</string>
     <string name="tune_tint_strength">取色強度</string>
     <string name="tune_text_details">字級設定</string>
     <string name="tune_blur_details">模糊設定</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">重設樣式參數</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">邊緣模糊漸層</string>
-    <string name="tune_camera_radius">模糊淡出半徑</string>
     <string name="preview_title">膠囊預覽</string>
     <string name="preview_sample">預覽範例</string>
     <string name="preview_no_sync_lyrics">無同步歌詞</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">顯示歌曲封面</string>
     <string name="show_waveform">顯示音訊律動</string>
     <string name="section_lyric_behavior">歌詞行為</string>
-    <string name="single_line_switch_mode">單行切換時機</string>
-    <string name="double_line_switch_mode">雙行切換時機</string>
-    <string name="lyric_switch_after_end">目前這句播完時</string>
-    <string name="lyric_switch_next_start">下一句開始時</string>
+    <string name="lyric_word_highlight">逐字歌詞</string>
+    <string name="lyric_camera_word_avoidance">歌詞整字避讓前置鏡頭（實驗）</string>
+    <string name="lyric_intro_dots">前奏倒數動畫</string>
     <string name="section_motion">逐句切換動畫</string>
     <string name="motion_none">直接切換</string>
     <string name="motion_up">向上捲動</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">無同步歌詞時</string>
     <string name="no_lyrics_empty">不顯示文字</string>
     <string name="no_lyrics_track">顯示歌名和歌手</string>
+    <string name="pause_behavior">暫停音樂後的行為</string>
+    <string name="pause_keep_current">保持不變</string>
+    <string name="pause_restore_native">恢復預設</string>
     <string name="section_reset">還原預設</string>
     <string name="section_provider">歌詞提供者</string>
     <string name="provider_both_required">兩個都要安裝</string>

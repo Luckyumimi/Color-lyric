@@ -6,7 +6,7 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 12
+    private const val VERSION = 14
     private const val MAX_BYTES = 16 * 1024
     const val TRANSLATION_HELP_HIDDEN = "translation_help_hidden"
 
@@ -18,8 +18,9 @@ internal object CapsuleBackup {
             .put(CapsuleSettings.DOUBLE_LINE, settings.doubleLine)
             .put(CapsuleSettings.SECOND_ROW_CONTENT, settings.secondRowContent.name)
             .put(CapsuleSettings.SWAP_TRANSLATION, settings.swapTranslation)
-            .put(CapsuleSettings.SINGLE_LINE_SWITCH_MODE, settings.singleLineSwitchMode.name)
-            .put(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE, settings.doubleLineSwitchMode.name)
+            .put(CapsuleSettings.WORD_LYRICS, settings.wordLyrics)
+            .put(CapsuleSettings.CAMERA_WORD_AVOIDANCE, settings.cameraWordAvoidance)
+            .put(CapsuleSettings.INTRO_DOTS, settings.introDots)
             .put(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)
             .put(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, settings.fallbackSingleLineExpand)
             .put(CapsuleSettings.ARTWORK, settings.artwork)
@@ -31,6 +32,7 @@ internal object CapsuleBackup {
             .put(CapsuleSettings.CAMERA_FADE, settings.cameraFade)
             .put(CapsuleSettings.MOTION, settings.motion.name)
             .put(CapsuleSettings.NO_LYRICS, settings.noLyricsMode.name)
+            .put(CapsuleSettings.PAUSE_BEHAVIOR, settings.pauseBehavior.name)
         CapsuleTuning.entries.forEach { data.put(it.key, settings[it]) }
         val appPreferences = JSONObject().put(TRANSLATION_HELP_HIDDEN, translationHelpHidden)
         return JSONObject().put("format", FORMAT).put("version", VERSION)
@@ -59,13 +61,14 @@ internal object CapsuleBackup {
                 ?: error("Invalid tuning")
         }
         val lyrics = if (version < 6) {
-            CapsuleSettings.migratedLegacy(flag(CapsuleSettings.LEGACY_TRANSLATION))
+            CapsuleSettings(doubleLine = flag(CapsuleSettings.LEGACY_TRANSLATION))
         } else CapsuleSettings(
             doubleLine = flag(CapsuleSettings.DOUBLE_LINE),
             secondRowContent = SecondRowContent.valueOf(data.getString(CapsuleSettings.SECOND_ROW_CONTENT)),
             swapTranslation = if (version >= 12) flag(CapsuleSettings.SWAP_TRANSLATION) else false,
-            singleLineSwitchMode = LyricSwitchMode.valueOf(data.getString(CapsuleSettings.SINGLE_LINE_SWITCH_MODE)),
-            doubleLineSwitchMode = LyricSwitchMode.valueOf(data.getString(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE)),
+            wordLyrics = version >= 13 && flag(CapsuleSettings.WORD_LYRICS),
+            cameraWordAvoidance = version >= 13 && flag(CapsuleSettings.CAMERA_WORD_AVOIDANCE),
+            introDots = version >= 13 && flag(CapsuleSettings.INTRO_DOTS),
             missingTranslationMode = MissingTranslationMode.valueOf(data.getString(CapsuleSettings.MISSING_TRANSLATION_MODE)),
             fallbackSingleLineExpand = flag(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND),
         )
@@ -84,6 +87,8 @@ internal object CapsuleBackup {
             cameraFade = flag(CapsuleSettings.CAMERA_FADE),
             motion = LineMotion.fromStored(data.getString(CapsuleSettings.MOTION)) ?: error("Invalid line motion"),
             noLyricsMode = NoLyricsMode.valueOf(data.getString(CapsuleSettings.NO_LYRICS)),
+            pauseBehavior = if (version >= 14) PauseBehavior.valueOf(data.getString(CapsuleSettings.PAUSE_BEHAVIOR))
+            else lyrics.pauseBehavior,
             tuning = tuning,
         )
         val helpHidden = if (version < 10) null else {
@@ -98,8 +103,9 @@ internal fun SharedPreferences.Editor.writeLyricSettings(settings: CapsuleSettin
     putBoolean(CapsuleSettings.DOUBLE_LINE, settings.doubleLine)
     putString(CapsuleSettings.SECOND_ROW_CONTENT, settings.secondRowContent.name)
     putBoolean(CapsuleSettings.SWAP_TRANSLATION, settings.swapTranslation)
-    putString(CapsuleSettings.SINGLE_LINE_SWITCH_MODE, settings.singleLineSwitchMode.name)
-    putString(CapsuleSettings.DOUBLE_LINE_SWITCH_MODE, settings.doubleLineSwitchMode.name)
+    putBoolean(CapsuleSettings.WORD_LYRICS, settings.wordLyrics)
+    putBoolean(CapsuleSettings.CAMERA_WORD_AVOIDANCE, settings.cameraWordAvoidance)
+    putBoolean(CapsuleSettings.INTRO_DOTS, settings.introDots)
     putString(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)
     putBoolean(CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND, settings.fallbackSingleLineExpand)
     remove(CapsuleSettings.LEGACY_TRANSLATION)
@@ -114,10 +120,15 @@ internal fun SharedPreferences.Editor.writeSettings(settings: CapsuleSettings) {
     putBoolean(CapsuleSettings.SHOW_COVER, settings.showCover)
     putBoolean(CapsuleSettings.SHOW_WAVEFORM, settings.showWaveform)
     remove("camera_shape") // Retired in version 4.
+    remove("camera_fade_radius")
+    remove("single_line_switch_mode")
+    remove("double_line_switch_mode")
+    remove("intro_dot_size")
     putString(CapsuleSettings.LYRIC_ALIGNMENT, settings.lyricAlignment.name)
     putBoolean(CapsuleSettings.CAMERA_FADE, settings.cameraFade)
     putString(CapsuleSettings.MOTION, settings.motion.name)
     putString(CapsuleSettings.NO_LYRICS, settings.noLyricsMode.name)
+    putString(CapsuleSettings.PAUSE_BEHAVIOR, settings.pauseBehavior.name)
     CapsuleSettings.retiredTintKeys.forEach { remove(it) }
     CapsuleTuning.entries.forEach { putInt(it.key, settings[it]) }
 }

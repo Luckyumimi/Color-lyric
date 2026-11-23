@@ -234,8 +234,6 @@ internal fun TuningPage(
                     enabled = ready,
                     onCheckedChange = { app.set(CapsuleSettings.CAMERA_FADE, it) },
                 )
-                HorizontalDivider(divider)
-                slider(CapsuleTuning.CAMERA_FADE_RADIUS, R.string.tune_camera_radius, R.string.value_dp, ready && settings.cameraFade)
             }
             SettingsGroup(stringResource(R.string.section_artwork_tuning)) {
                 TactileSwitchPreference(
@@ -263,6 +261,7 @@ internal fun TuningPage(
                 if (settings.lyricTintEnabled) {
                     val modes = listOf(
                         LyricTintMode.OKLCH to R.string.lyric_tint_oklch,
+                        LyricTintMode.GRADIENT to R.string.lyric_tint_gradient,
                         LyricTintMode.TEXTURE to R.string.lyric_tint_texture,
                     )
                     HorizontalDivider(divider)
@@ -282,24 +281,25 @@ internal fun TuningPage(
                 }
             }
             SettingsGroup(stringResource(R.string.section_lyric_behavior)) {
-                val switchOptions = listOf(
-                    LyricSwitchMode.AFTER_END to R.string.lyric_switch_after_end,
-                    LyricSwitchMode.AT_NEXT_START to R.string.lyric_switch_next_start,
-                )
-                TuningDropdown(
-                    title = stringResource(R.string.single_line_switch_mode),
-                    items = switchOptions.map { stringResource(it.second) },
-                    selectedIndex = switchOptions.indexOfFirst { it.first == settings.singleLineSwitchMode },
+                TactileSwitchPreference(
+                    checked = settings.wordLyrics,
+                    onCheckedChange = { app.set(CapsuleSettings.WORD_LYRICS, it) },
+                    title = stringResource(R.string.lyric_word_highlight),
                     enabled = ready,
-                    onSelectedIndexChange = { app.setSingleLineSwitchMode(switchOptions[it].first) },
                 )
                 HorizontalDivider(divider)
-                TuningDropdown(
-                    title = stringResource(R.string.double_line_switch_mode),
-                    items = switchOptions.map { stringResource(it.second) },
-                    selectedIndex = switchOptions.indexOfFirst { it.first == settings.doubleLineSwitchMode },
-                    enabled = ready && settings.canShowNextLyric,
-                    onSelectedIndexChange = { app.setDoubleLineSwitchMode(switchOptions[it].first) },
+                TactileSwitchPreference(
+                    checked = settings.cameraWordAvoidance,
+                    onCheckedChange = { app.set(CapsuleSettings.CAMERA_WORD_AVOIDANCE, it) },
+                    title = stringResource(R.string.lyric_camera_word_avoidance),
+                    enabled = ready,
+                )
+                HorizontalDivider(divider)
+                TactileSwitchPreference(
+                    checked = settings.introDots,
+                    onCheckedChange = { app.set(CapsuleSettings.INTRO_DOTS, it) },
+                    title = stringResource(R.string.lyric_intro_dots),
+                    enabled = ready,
                 )
                 HorizontalDivider(divider)
                 val motionOptions = listOf(
@@ -321,6 +321,14 @@ internal fun TuningPage(
                     selectedIndex = NoLyricsMode.entries.indexOf(settings.noLyricsMode),
                     enabled = ready,
                     onSelectedIndexChange = { app.setNoLyrics(NoLyricsMode.entries[it]) },
+                )
+                HorizontalDivider(divider)
+                TuningDropdown(
+                    title = stringResource(R.string.pause_behavior),
+                    items = listOf(stringResource(R.string.pause_keep_current), stringResource(R.string.pause_restore_native)),
+                    selectedIndex = settings.pauseBehavior.ordinal,
+                    enabled = ready,
+                    onSelectedIndexChange = { app.setPauseBehavior(PauseBehavior.entries[it]) },
                 )
             }
             SettingsGroup(stringResource(R.string.section_reset)) {

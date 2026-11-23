@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Kleuren van de hoes gebruiken</string>
     <string name="lyric_tint_median_cut">Mediaansplitsing</string>
     <string name="lyric_tint_oklch">OKLCH-clustering</string>
+    <string name="lyric_tint_gradient">Kleurverloop van hoes</string>
     <string name="tune_tint_strength">Kleurintensiteit</string>
     <string name="tune_text_details">Tekstinstellingen</string>
     <string name="tune_blur_details">Vervagingsinstellingen</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Weergave herstellen</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">Vervaging rond de camera</string>
-    <string name="tune_camera_radius">Straal van de vervaging</string>
     <string name="preview_title">Capsulevoorbeeld</string>
     <string name="preview_sample">Voorbeeld</string>
     <string name="preview_no_sync_lyrics">Geen gesynchroniseerde songtekst</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Hoes tonen</string>
     <string name="show_waveform">Audiobalken tonen</string>
     <string name="section_lyric_behavior">Gedrag van songteksten</string>
-    <string name="single_line_switch_mode">Wisselen bij één regel</string>
-    <string name="double_line_switch_mode">Wisselen bij twee regels</string>
-    <string name="lyric_switch_after_end">Aan het einde van de huidige regel</string>
-    <string name="lyric_switch_next_start">Aan het begin van de volgende regel</string>
+    <string name="lyric_word_highlight">Songtekst woord voor woord</string>
+    <string name="lyric_camera_word_avoidance">Hele woorden naast de camera</string>
+    <string name="lyric_intro_dots">Aftellen bij intro met drie stippen</string>
     <string name="section_motion">Regelovergang</string>
     <string name="motion_none">Direct</string>
     <string name="motion_up">Omhoog schuiven</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Zonder gesynchroniseerde songtekst</string>
     <string name="no_lyrics_empty">Tekst verbergen</string>
     <string name="no_lyrics_track">Titel en artiest tonen</string>
+    <string name="pause_behavior">Wanneer muziek is gepauzeerd</string>
+    <string name="pause_keep_current">Huidige stijl behouden</string>
+    <string name="pause_restore_native">Standaardstijl herstellen</string>
     <string name="section_reset">Standaardwaarden</string>
     <string name="section_provider">Songtekstaanbieders</string>
     <string name="provider_both_required">Installeer beide</string>

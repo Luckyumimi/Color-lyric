@@ -25,7 +25,8 @@ class LyricTimelineTest {
 
     @Test fun enhancedLrcRetainsTheLineEndAndGaps() {
         val timeline = Timeline.parse("untimed", "[00:02.00]<00:02.00>Keep <00:02.45>spaces<00:03.00>\n[00:04]", "")!!
-        assertEquals(listOf(LyricLine(2000, "Keep spaces", endMs = 3000), LyricLine(4000, "")), timeline.lines)
+        assertEquals(listOf(LyricLine(2000, "Keep spaces", endMs = 3000), LyricLine(4000, "")),
+            timeline.lines.map { it.copy(words = emptyList()) })
         assertNull(Timeline.parse("[ar:Artist]", "[00:99]invalid", "[00:00]translation only"))
     }
 

@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Warna daripada kulit album</string>
     <string name="lyric_tint_median_cut">Potongan median</string>
     <string name="lyric_tint_oklch">Pengelompokan OKLCH</string>
+    <string name="lyric_tint_gradient">Kecerunan kulit album</string>
     <string name="tune_tint_strength">Keamatan warna</string>
     <string name="tune_text_details">Tetapan teks</string>
     <string name="tune_blur_details">Tetapan kabur</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Tetapkan semula rupa</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">Kabur di tepi kamera</string>
-    <string name="tune_camera_radius">Jejari pudar tepi</string>
     <string name="preview_title">Pratonton kapsul</string>
     <string name="preview_sample">Contoh pratonton</string>
     <string name="preview_no_sync_lyrics">Tiada lirik terselaras</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Paparkan kulit album</string>
     <string name="show_waveform">Paparkan bar audio</string>
     <string name="section_lyric_behavior">Gelagat lirik</string>
-    <string name="single_line_switch_mode">Masa pertukaran satu baris</string>
-    <string name="double_line_switch_mode">Masa pertukaran dua baris</string>
-    <string name="lyric_switch_after_end">Apabila baris semasa tamat</string>
-    <string name="lyric_switch_next_start">Apabila baris seterusnya bermula</string>
+    <string name="lyric_word_highlight">Lirik perkataan demi perkataan</string>
+    <string name="lyric_camera_word_avoidance">Perkataan penuh di sebelah kamera</string>
+    <string name="lyric_intro_dots">Kiraan detik intro tiga titik</string>
     <string name="section_motion">Peralihan baris</string>
     <string name="motion_none">Serta-merta</string>
     <string name="motion_up">Tatal ke atas</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Tanpa lirik terselaras</string>
     <string name="no_lyrics_empty">Sembunyikan teks</string>
     <string name="no_lyrics_track">Paparkan tajuk dan artis</string>
+    <string name="pause_behavior">Apabila muzik dijeda</string>
+    <string name="pause_keep_current">Kekalkan gaya semasa</string>
+    <string name="pause_restore_native">Pulihkan gaya lalai</string>
     <string name="section_reset">Lalai</string>
     <string name="section_provider">Penyedia lirik</string>
     <string name="provider_both_required">Pasang kedua-duanya</string>

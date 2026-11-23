@@ -71,6 +71,10 @@ internal class ArtworkLyricTint {
             val texture = textureBitmap(source, settings)
             if (texture == null) LyricInk.WHITE else LyricInk(-1, -1, texture)
         } else if (seed == null) LyricInk.WHITE
+        else if (mode == LyricTintMode.GRADIENT && result.secondSeed != null) {
+            contrastDetail = "contrastPolicy=light_gradient"
+            lyricGradientInk(seed, result.secondSeed, settings)
+        }
         else {
             val samples = sampleBackground(background, aspect, baseColor, settings[CapsuleTuning.ARTWORK_DIM])
             val backgroundKind = if (background == null || background.isRecycled || background.config == Bitmap.Config.HARDWARE) "BASE" else "BITMAP"
@@ -78,6 +82,7 @@ internal class ArtworkLyricTint {
         }
         outcome = when {
             mode == LyricTintMode.TEXTURE && ink.texture != null -> "TEXTURE"
+            ink.gradient != null -> "GRADIENT"
             seed == null -> "NO_USABLE_ACCENT"
             ink != LyricInk.WHITE -> "TINTED"
             else -> "WHITE_INK"
@@ -89,7 +94,9 @@ internal class ArtworkLyricTint {
         return ink
     }
 
-    private data class Extraction(val seed: LabColor?, val status: String, val detail: String = "unavailable")
+    private data class Extraction(
+        val seed: LabColor?, val status: String, val detail: String = "unavailable", val secondSeed: LabColor? = null,
+    )
 
     private fun extract(source: Bitmap, mode: LyricTintMode): Extraction {
         return try {
@@ -106,10 +113,17 @@ internal class ArtworkLyricTint {
             val sampleDetail = "sample=${width}x$height, opaque=${colors.size}/${pixels.size}, config=${sample.config}, generation=${source.generationId}"
             if (colors.isEmpty()) return Extraction(null, "NO_OPAQUE_PIXELS", sampleDetail)
             var candidates = "algorithm=$mode"
+            var secondSeed: LabColor? = null
             val seed = when (mode) {
                 LyricTintMode.TEXTURE -> ArtworkQuantization.medianCut(colors)
                 LyricTintMode.MEDIAN_CUT -> ArtworkQuantization.medianCut(colors)
                 LyricTintMode.OKLCH -> ArtworkQuantization.oklch(colors)
+                LyricTintMode.GRADIENT -> {
+                    val (first, second) = ArtworkQuantization.gradientAccents(colors)
+                    secondSeed = second
+                    candidates += ", endpoints=${if (second != null) 2 else if (first != null) 1 else 0}"
+                    first
+                }
                 LyricTintMode.WALLPAPER -> {
                     // WallpaperColors uses the OS's Material quantizer and ranked candidates.
                     val palette = WallpaperColors.fromBitmap(sample)
@@ -126,7 +140,8 @@ internal class ArtworkLyricTint {
                 fun average(shift: Int) = colors.map { channel(it, shift) }.average().roundToInt()
                 LabColor.fromRgb(opaqueRgb(average(16), average(8), average(0)))
             } else null
-            Extraction(seed ?: fallback, if (seed == null) "AVERAGE_FALLBACK" else "CANDIDATE_FOUND", "$sampleDetail, $candidates")
+            Extraction(seed ?: fallback, if (seed == null) "AVERAGE_FALLBACK" else "CANDIDATE_FOUND",
+                "$sampleDetail, $candidates", secondSeed)
         } catch (error: IllegalArgumentException) {
             Extraction(null, error.javaClass.simpleName)
         } catch (error: IllegalStateException) {

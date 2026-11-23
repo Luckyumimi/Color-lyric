@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">Kapaktaki renkleri kullan</string>
     <string name="lyric_tint_median_cut">Medyan kesme</string>
     <string name="lyric_tint_oklch">OKLCH kümeleme</string>
+    <string name="lyric_tint_gradient">Kapak renk geçişi</string>
     <string name="tune_tint_strength">Renk yoğunluğu</string>
     <string name="tune_text_details">Metin ayarları</string>
     <string name="tune_blur_details">Bulanıklık ayarları</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">Görünüm ayarlarını sıfırla</string>
     <string name="value_percent">%%%1$d</string>
     <string name="camera_fade">Kamera kenarında bulanıklık</string>
-    <string name="tune_camera_radius">Solma yarıçapı</string>
     <string name="preview_title">Kapsül önizlemesi</string>
     <string name="preview_sample">Önizleme örneği</string>
     <string name="preview_no_sync_lyrics">Senkronize şarkı sözü yok</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">Kapağı göster</string>
     <string name="show_waveform">Ses çubuklarını göster</string>
     <string name="section_lyric_behavior">Şarkı sözü davranışı</string>
-    <string name="single_line_switch_mode">Tek satır geçiş zamanı</string>
-    <string name="double_line_switch_mode">İki satır geçiş zamanı</string>
-    <string name="lyric_switch_after_end">Geçerli satır bitince</string>
-    <string name="lyric_switch_next_start">Sonraki satır başlayınca</string>
+    <string name="lyric_word_highlight">Kelime kelime şarkı sözü</string>
+    <string name="lyric_camera_word_avoidance">Kamera yanında tam kelimeler</string>
+    <string name="lyric_intro_dots">Üç noktalı giriş geri sayımı</string>
     <string name="section_motion">Satır geçişi</string>
     <string name="motion_none">Anında</string>
     <string name="motion_up">Yukarı kaydır</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">Senkronize şarkı sözü yoksa</string>
     <string name="no_lyrics_empty">Metni gizle</string>
     <string name="no_lyrics_track">Parça adını ve sanatçıyı göster</string>
+    <string name="pause_behavior">Müzik duraklatıldığında</string>
+    <string name="pause_keep_current">Mevcut stili koru</string>
+    <string name="pause_restore_native">Varsayılan stili geri yükle</string>
     <string name="section_reset">Varsayılanlar</string>
     <string name="section_provider">Şarkı sözü sağlayıcıları</string>
     <string name="provider_both_required">İkisini de yükleyin</string>

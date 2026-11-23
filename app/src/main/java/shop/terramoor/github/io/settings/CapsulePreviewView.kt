@@ -70,15 +70,18 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         if (settings == newSettings && language == newLanguage) return
         val motionChanged = settings.motion != newSettings.motion
         val languageChanged = language != newLanguage
-        if (languageChanged) {
+        val introChanged = settings.introDots != newSettings.introDots
+        if (languageChanged || introChanged) {
             language = newLanguage
-            timeline = language.timeline(resources)
-            blurredCover = null
-            blurStrength = -1
+            timeline = language.timeline(resources, intro = newSettings.introDots)
+            if (languageChanged) {
+                blurredCover = null
+                blurStrength = -1
+            }
             startedAt = SystemClock.elapsedRealtime()
         }
         presentation = timeline?.let { LyricPresentation(it, newSettings) }
-        if (motionChanged && !languageChanged) presentation?.nextBoundary(0)?.let {
+        if (motionChanged && !languageChanged && !introChanged) presentation?.nextBoundary(0)?.let {
             startedAt = SystemClock.elapsedRealtime() + 360L - it
         }
         if (presentation == null && newSettings.noLyricsMode != settings.noLyricsMode) startedAt = SystemClock.elapsedRealtime()
@@ -98,7 +101,8 @@ internal class CapsulePreviewView(context: Context) : View(context) {
         super.onDraw(canvas)
         cancelHoldRedraw()
         val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L)
-        val position = elapsed % PREVIEW_DURATION_MS
+        val duration = PREVIEW_DURATION_MS + if (settings.introDots && presentation != null) PREVIEW_INTRO_MS else 0L
+        val position = elapsed % duration
         val lyrics = presentation
         val index = lyrics?.indexAt(position) ?: -1
         if (activeFrame != index) {
@@ -106,7 +110,7 @@ internal class CapsulePreviewView(context: Context) : View(context) {
             val frame = if (lyrics == null) {
                 language.trackInfo(resources).takeIf { settings.noLyricsMode == NoLyricsMode.TRACK }
             } else {
-                val timed = lyrics.frameAt(index, PREVIEW_DURATION_MS)
+                val timed = lyrics.introAt(position) { language.sampleTrack(resources) } ?: lyrics.frameAt(index, duration)
                 val lastIndex = timeline?.lines?.lastIndex
                 if (index == 0 && elapsed >= PREVIEW_DURATION_MS && lastIndex != null) {
                     timed?.copy(priorRows = lyrics.frameAt(lastIndex, PREVIEW_DURATION_MS)?.rows)
@@ -167,7 +171,7 @@ internal class CapsulePreviewView(context: Context) : View(context) {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (language == PreviewLanguage.NO_SYNC_LYRICS) {
+        if (language == PreviewLanguage.NO_SYNC_LYRICS || settings.introDots) {
             activeFrame = Int.MIN_VALUE
             invalidate()
         }

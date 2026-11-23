@@ -39,8 +39,20 @@ internal object ArtworkQuantization {
     }
 
     // Cluster in the Cartesian form of OKLCH so that hues near 0° and 360° stay adjacent.
-    fun oklch(pixels: IntArray): LabColor? {
-        if (pixels.isEmpty()) return null
+    fun oklch(pixels: IntArray): LabColor? = choose(cluster(pixels))
+
+    fun gradientAccents(pixels: IntArray): Pair<LabColor?, LabColor?> {
+        val populated = representativeSwatches(cluster(pixels)).toList()
+        val first = populated.maxByOrNull { it.population }?.color ?: return null to null
+        // Area anchors the main color. Pick a second color by area and perceptual separation.
+        val second = populated.asSequence()
+            .filter { first.distanceSquared(it.color) >= 0.08 * 0.08 }
+            .maxByOrNull { it.population * first.distanceSquared(it.color) }
+        return first to second?.color
+    }
+
+    private fun cluster(pixels: IntArray): List<Swatch> {
+        if (pixels.isEmpty()) return emptyList()
         val histogram = pixels.asIterable().groupingBy { it }.eachCount()
         val points = histogram.map { (rgb, count) -> Swatch(LabColor.fromRgb(rgb), count) }
         val centers = mutableListOf(points.maxBy { it.population }.color)
@@ -67,14 +79,22 @@ internal object ArtworkQuantization {
                 if (count > 0) centers[i] = LabColor(light[i] / count, a[i] / count, b[i] / count)
             }
         }
-        return choose(centers.mapIndexed { index, color -> Swatch(color, populations[index]) })
+        return centers.mapIndexed { index, color -> Swatch(color, populations[index]) }
     }
 
-    private fun choose(swatches: List<Swatch>): LabColor? {
-        val minPopulation = maxOf(1, swatches.sumOf { it.population } / 50)
-        return swatches.asSequence()
-            .filter { it.population >= minPopulation && it.color.chroma >= 0.018 }
-            .maxByOrNull { sqrt(it.population.toDouble()) * it.color.chroma }
-            ?.color
+    private fun choose(swatches: List<Swatch>): LabColor? =
+        usableSwatches(swatches).maxByOrNull(::accentScore)?.color
+
+    private fun accentScore(swatch: Swatch): Double = sqrt(swatch.population.toDouble()) * swatch.color.chroma
+
+    private fun usableSwatches(swatches: List<Swatch>): Sequence<Swatch> {
+        return representativeSwatches(swatches).filter { it.color.chroma >= MIN_ACCENT_CHROMA }
     }
+
+    private fun representativeSwatches(swatches: List<Swatch>): Sequence<Swatch> {
+        val minPopulation = maxOf(1, swatches.sumOf { it.population } / 50)
+        return swatches.asSequence().filter { it.population >= minPopulation }
+    }
+
+    private const val MIN_ACCENT_CHROMA = 0.018
 }

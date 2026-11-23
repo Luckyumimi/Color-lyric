@@ -36,7 +36,7 @@ internal object TtmlEnds {
         }.getOrDefault(emptyMap())
     }
 
-    private fun timestamp(value: String?): Long? {
+    internal fun timestamp(value: String?): Long? {
         if (value == null) return null
         clock.matchEntire(value)?.destructured?.let { (hour, minute, second, fraction) ->
             if (second.toInt() >= 60 || (hour.isNotEmpty() && minute.toInt() >= 60)) return null

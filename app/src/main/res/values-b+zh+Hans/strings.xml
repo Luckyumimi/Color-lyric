@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">根据封面着色</string>
     <string name="lyric_tint_median_cut">中位切分</string>
     <string name="lyric_tint_oklch">OKLCH 聚类</string>
+    <string name="lyric_tint_gradient">渐变取色</string>
     <string name="tune_tint_strength">取色强度</string>
     <string name="tune_text_details">字号设置</string>
     <string name="tune_blur_details">模糊设置</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">重置样式参数</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">边缘模糊渐变</string>
-    <string name="tune_camera_radius">模糊渐隐半径</string>
     <string name="preview_title">胶囊预览</string>
     <string name="preview_sample">预览样例</string>
     <string name="preview_no_sync_lyrics">无同步歌词</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">显示歌曲封面</string>
     <string name="show_waveform">显示律动频段</string>
     <string name="section_lyric_behavior">歌词行为</string>
-    <string name="single_line_switch_mode">单排歌词切换</string>
-    <string name="double_line_switch_mode">双排歌词切换</string>
-    <string name="lyric_switch_after_end">本句播完时切</string>
-    <string name="lyric_switch_next_start">下句开始时切</string>
+    <string name="lyric_word_highlight">逐字歌词</string>
+    <string name="lyric_camera_word_avoidance">歌词整字避让前摄（实验）</string>
+    <string name="lyric_intro_dots">前奏倒计时动画</string>
     <string name="section_motion">逐句切换动效</string>
     <string name="motion_none">直接切换</string>
     <string name="motion_up">向上滚动</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">无同步歌词时</string>
     <string name="no_lyrics_empty">不显示文字</string>
     <string name="no_lyrics_track">显示歌名和歌手</string>
+    <string name="pause_behavior">暂停音乐后行为</string>
+    <string name="pause_keep_current">保持不变</string>
+    <string name="pause_restore_native">恢复默认</string>
     <string name="section_reset">恢复默认</string>
     <string name="section_provider">歌词提供者</string>
     <string name="provider_both_required">两个都要装</string>

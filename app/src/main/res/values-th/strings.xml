@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">ใช้สีจากภาพปก</string>
     <string name="lyric_tint_median_cut">แบ่งตามค่ามัธยฐาน</string>
     <string name="lyric_tint_oklch">จัดกลุ่มแบบ OKLCH</string>
+    <string name="lyric_tint_gradient">ไล่สีจากปก</string>
     <string name="tune_tint_strength">ความเข้มของสี</string>
     <string name="tune_text_details">การตั้งค่าข้อความ</string>
     <string name="tune_blur_details">การตั้งค่าความเบลอ</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">รีเซ็ตการแสดงผล</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">เบลอบริเวณขอบกล้อง</string>
-    <string name="tune_camera_radius">รัศมีการไล่ความเบลอ</string>
     <string name="preview_title">ตัวอย่างแคปซูล</string>
     <string name="preview_sample">ตัวอย่างการแสดงผล</string>
     <string name="preview_no_sync_lyrics">ไม่มีเนื้อเพลงที่ซิงค์</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">แสดงภาพปก</string>
     <string name="show_waveform">แสดงแถบเสียง</string>
     <string name="section_lyric_behavior">การแสดงเนื้อเพลง</string>
-    <string name="single_line_switch_mode">จังหวะเปลี่ยนแบบหนึ่งบรรทัด</string>
-    <string name="double_line_switch_mode">จังหวะเปลี่ยนแบบสองบรรทัด</string>
-    <string name="lyric_switch_after_end">เมื่อจบบรรทัดปัจจุบัน</string>
-    <string name="lyric_switch_next_start">เมื่อเริ่มบรรทัดถัดไป</string>
+    <string name="lyric_word_highlight">ไฮไลต์เนื้อเพลงทีละคำ</string>
+    <string name="lyric_camera_word_avoidance">แสดงคำเต็มข้างกล้อง</string>
+    <string name="lyric_intro_dots">นับถอยหลังช่วงเกริ่นด้วยจุดสามจุด</string>
     <string name="section_motion">การเปลี่ยนบรรทัด</string>
     <string name="motion_none">เปลี่ยนทันที</string>
     <string name="motion_up">เลื่อนขึ้น</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">เมื่อไม่มีเนื้อเพลงที่ซิงค์</string>
     <string name="no_lyrics_empty">ซ่อนข้อความ</string>
     <string name="no_lyrics_track">แสดงชื่อเพลงและศิลปิน</string>
+    <string name="pause_behavior">เมื่อหยุดเพลงชั่วคราว</string>
+    <string name="pause_keep_current">คงรูปแบบปัจจุบัน</string>
+    <string name="pause_restore_native">คืนค่ารูปแบบเริ่มต้น</string>
     <string name="section_reset">ค่าเริ่มต้น</string>
     <string name="section_provider">ผู้ให้บริการเนื้อเพลง</string>
     <string name="provider_both_required">ติดตั้งทั้งสองรายการ</string>

@@ -23,6 +23,7 @@
     <string name="lyric_tint_enabled">ジャケットの色を使う</string>
     <string name="lyric_tint_median_cut">メディアンカット</string>
     <string name="lyric_tint_oklch">OKLCH クラスタリング</string>
+    <string name="lyric_tint_gradient">カバーのグラデーション</string>
     <string name="tune_tint_strength">着色の強さ</string>
     <string name="tune_text_details">文字設定</string>
     <string name="tune_blur_details">ぼかし設定</string>
@@ -62,7 +63,6 @@
     <string name="reset_tuning">表示設定をリセット</string>
     <string name="value_percent">%1$d%%</string>
     <string name="camera_fade">カメラ周辺のぼかし</string>
-    <string name="tune_camera_radius">フェード範囲</string>
     <string name="preview_title">カプセルのプレビュー</string>
     <string name="preview_sample">プレビューサンプル</string>
     <string name="preview_no_sync_lyrics">同期歌詞なし</string>
@@ -79,10 +79,9 @@
     <string name="show_cover">ジャケットを表示</string>
     <string name="show_waveform">オーディオバーを表示</string>
     <string name="section_lyric_behavior">歌詞の動作</string>
-    <string name="single_line_switch_mode">1行表示の切替</string>
-    <string name="double_line_switch_mode">2行表示の切替</string>
-    <string name="lyric_switch_after_end">現在の行が終わったとき</string>
-    <string name="lyric_switch_next_start">次の行が始まったとき</string>
+    <string name="lyric_word_highlight">歌詞の単語ごとの強調</string>
+    <string name="lyric_camera_word_avoidance">カメラ横で文字を分割しない</string>
+    <string name="lyric_intro_dots">イントロの3点カウントダウン</string>
     <string name="section_motion">行の切替効果</string>
     <string name="motion_none">効果なし</string>
     <string name="motion_up">上にスクロール</string>
@@ -90,6 +89,9 @@
     <string name="section_no_lyrics">同期歌詞がないとき</string>
     <string name="no_lyrics_empty">テキストを表示しない</string>
     <string name="no_lyrics_track">曲名とアーティストを表示</string>
+    <string name="pause_behavior">音楽の一時停止時</string>
+    <string name="pause_keep_current">表示を維持</string>
+    <string name="pause_restore_native">標準の表示に戻す</string>
     <string name="section_reset">既定に戻す</string>
     <string name="section_provider">歌詞プロバイダー</string>
     <string name="provider_both_required">両方必要</string>

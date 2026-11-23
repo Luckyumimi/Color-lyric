@@ -2,7 +2,13 @@ package shop.terramoor.github.io.lyrics
 
 import shop.terramoor.github.io.settings.LyricSwitchMode
 
-internal data class LyricLine(val startMs: Long, val text: String, val translation: String? = null, val endMs: Long? = null)
+internal data class LyricLine(
+    val startMs: Long,
+    val text: String,
+    val translation: String? = null,
+    val endMs: Long? = null,
+    val words: List<LyricWord> = emptyList(),
+)
 
 internal class Timeline private constructor(internal val lines: List<LyricLine>) {
     internal fun indexAt(positionMs: Long): Int {
@@ -50,13 +56,16 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
 
         private val time = Regex("""(?:\[(\d{1,4}):(\d{2})(?:[.:](\d{1,3}))?]|<(\d{1,4}):(\d{2})(?:[.:](\d{1,3}))?>)""")
 
-        fun parse(lyric: String, rawLyric: String, translation: String, ends: Map<Long, Long> = emptyMap()): Timeline? {
+        fun parse(
+            lyric: String, rawLyric: String, translation: String, ends: Map<Long, Long> = emptyMap(),
+            ttmlWords: Map<Long, LyricWordLine> = emptyMap(),
+        ): Timeline? {
             val timedRaw = if (rawLyric != lyric) parseLane(rawLyric) else emptyList()
             val rawByTime = timedRaw.associateBy { it.startMs }
             val originals = parseLane(lyric).takeIf(::hasTimedText)
                 ?: timedRaw.takeIf(::hasTimedText).orEmpty()
             if (originals.isEmpty()) return null
-            val translations = parseLane(translation)
+            val translations = parseLane(translation, readWords = false)
             // Each translation belongs to at most one source line. Exact timestamps win.
             val matched = arrayOfNulls<String>(originals.size)
             val translatedByTime = translations.associateBy { it.startMs }
@@ -92,17 +101,24 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
                 }
             }
             return Timeline(originals.mapIndexed { i, line ->
-                val rawEnd = rawByTime[line.startMs]?.takeIf { it.text == line.text }?.endMs
-                line.copy(translation = matched[i]?.takeUnless { it == line.text },
-                    endMs = (line.endMs ?: rawEnd ?: ends[line.startMs])?.takeIf { it > line.startMs })
+                val raw = rawByTime[line.startMs]
+                val rawEnd = raw?.takeIf { it.text == line.text }?.endMs
+                val end = (line.endMs ?: rawEnd ?: ends[line.startMs])?.takeIf { it > line.startMs }
+                val words = ttmlWords[line.startMs]?.match(line.text, line.startMs, end).orEmpty()
+                    .ifEmpty { raw?.wordTimingFor(line, end).orEmpty() }
+                    .ifEmpty { line.wordTimingFor(line, end) }
+                line.copy(translation = matched[i]?.takeUnless { it == line.text }, endMs = end, words = words)
             })
         }
+
+        private fun LyricLine.wordTimingFor(line: LyricLine, endMs: Long?): List<LyricWord> =
+            if (words.isEmpty()) emptyList() else LyricWordLine(text, words).match(line.text, line.startMs, endMs)
 
         // An untimed source can serialize every line with a zero timestamp.
         private fun hasTimedText(lines: List<LyricLine>): Boolean =
             lines.any { it.text.isNotBlank() } && lines.any { it.startMs > 0L }
 
-        private fun parseLane(input: String): List<LyricLine> {
+        private fun parseLane(input: String, readWords: Boolean = true): List<LyricLine> {
             val lines = sortedMapOf<Long, LyricLine>()
             for (inputLine in input.lineSequence().take(4000)) {
                 if (inputLine.length > 8192) continue
@@ -118,20 +134,44 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
                     // Angle tags in enhanced LRC give word timing, not repeat-line timestamps.
                     if (mark.value.startsWith('<')) break
                 }
-                val text = time.replace(line.substring(prefixEnd), "").trim().take(512)
+                val plain = time.replace(line.substring(prefixEnd), "")
+                val text = plain.trim().take(512)
                 val explicitEnd = marks.lastOrNull()?.takeIf {
                     it.range.first >= prefixEnd && it.range.last == line.lastIndex && it.value.startsWith('<')
                 }?.toMillis()
+                val words = if (readWords) parseWords(line, marks, plain, text) else emptyList()
                 // Keep timestamp-only lines as explicit gaps.
                 for (start in starts) {
                     if (lines.size >= 4000) break
                     if (text.isNotEmpty() || !lines.containsKey(start)) {
-                        lines[start] = LyricLine(start, text, endMs = explicitEnd?.takeIf { it > start })
+                        lines[start] = LyricLine(start, text, endMs = explicitEnd?.takeIf { it > start }, words = words)
                     }
                 }
             }
             if (lines.values.none { it.text.isNotEmpty() }) return emptyList()
             return lines.values.toList()
+        }
+
+        private fun parseWords(line: String, marks: List<MatchResult>, plain: String, text: String): List<LyricWord> {
+            if (text.isEmpty() || plain.trim().length != text.length) return emptyList()
+            val firstWord = marks.indexOfFirst { it.value.startsWith('<') }
+            if (firstWord < 0 || firstWord > 1 || marks.drop(firstWord).any { !it.value.startsWith('<') }) return emptyList()
+            val linePrefix = if (firstWord == 0) 0 else marks[0].range.last + 1
+            val leadingSpace = plain.length - plain.trimStart().length
+            var offset = marks[firstWord].range.first - linePrefix - leadingSpace
+            val words = ArrayList<LyricWord>()
+            for (index in firstWord until marks.size) {
+                val mark = marks[index]
+                val from = mark.range.last + 1
+                val next = marks.getOrNull(index + 1)
+                val length = (next?.range?.first ?: line.length) - from
+                val start = mark.toMillis() ?: return emptyList()
+                val textFrom = offset.coerceIn(0, text.length)
+                val textUntil = (offset + length).coerceIn(0, text.length)
+                if (textUntil > textFrom) words += LyricWord(textFrom, textUntil, start, next?.toMillis())
+                offset += length
+            }
+            return words
         }
 
         private fun MatchResult.toMillis(): Long? {

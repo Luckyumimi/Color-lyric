@@ -33,6 +33,7 @@ internal object LyricPayload {
         val timeline = Timeline.parse(lyric, raw,
             translationKeys.firstNotNullOfOrNull { json.text(it).takeIf(String::isNotBlank) }.orEmpty(),
             TtmlEnds.parse(ttml),
+            TtmlWords.parse(ttml),
         )
         return Result(if (timeline == null) Outcome.NO_TIMED_LINES else Outcome.PARSED,
             timeline, lyric.isNotBlank() || raw.isNotBlank(), ttml.isNotBlank())

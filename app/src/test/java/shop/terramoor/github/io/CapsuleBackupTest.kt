@@ -10,18 +10,20 @@ import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LineMotion
 import shop.terramoor.github.io.settings.LyricTintMode
-import shop.terramoor.github.io.settings.LyricSwitchMode
 import shop.terramoor.github.io.settings.MissingTranslationMode
+import shop.terramoor.github.io.settings.PauseBehavior
 import shop.terramoor.github.io.settings.SecondRowContent
 
 class CapsuleBackupTest {
     @Test fun freshDefaultsUseSeparateSwitchModesAndTheExistingSliderValues() {
         val fresh = CapsuleSettings()
+        assertEquals(PauseBehavior.KEEP_CURRENT, fresh.pauseBehavior)
         assertTrue(fresh.doubleLine)
         assertEquals(SecondRowContent.TRANSLATION, fresh.secondRowContent)
         assertFalse(fresh.swapTranslation)
-        assertEquals(LyricSwitchMode.AFTER_END, fresh.singleLineSwitchMode)
-        assertEquals(LyricSwitchMode.AT_NEXT_START, fresh.doubleLineSwitchMode)
+        assertFalse(fresh.wordLyrics)
+        assertFalse(fresh.cameraWordAvoidance)
+        assertFalse(fresh.introDots)
         assertEquals(MissingTranslationMode.SINGLE_LINE, fresh.missingTranslationMode)
         assertTrue(fresh.fallbackSingleLineExpand)
         assertEquals(11, fresh[CapsuleTuning.FIRST_ROW_SIZE])
@@ -33,7 +35,7 @@ class CapsuleBackupTest {
         assertEquals(100, fresh[CapsuleTuning.TINT_STRENGTH])
     }
 
-    @Test fun v5TranslationFlagMigratesWithLegacyTimingAndSliderKeys() {
+    @Test fun v5TranslationFlagMigratesWithLegacySliderKeys() {
         for (translation in listOf(false, true)) {
             val v5 = """{
                 "format":"terramoor.settings","version":5,"settings":{
@@ -47,8 +49,6 @@ class CapsuleBackupTest {
             val settings = CapsuleBackup.decode(v5.byteInputStream())
             assertEquals(translation, settings.doubleLine)
             assertEquals(SecondRowContent.TRANSLATION, settings.secondRowContent)
-            assertEquals(LyricSwitchMode.AFTER_END, settings.singleLineSwitchMode)
-            assertEquals(LyricSwitchMode.AFTER_END, settings.doubleLineSwitchMode)
             assertEquals(MissingTranslationMode.SINGLE_LINE, settings.missingTranslationMode)
             assertTrue(settings.fallbackSingleLineExpand)
             assertEquals(12, settings[CapsuleTuning.FIRST_ROW_SIZE])
@@ -70,23 +70,66 @@ class CapsuleBackupTest {
         assertFalse(restored.swapTranslation)
     }
 
-    @Test fun v12RoundTripPreservesTintAndInactiveSettings() {
+    @Test fun coverGradientModeSurvivesBackupImport() {
+        val settings = CapsuleSettings(lyricTintMode = LyricTintMode.GRADIENT)
+        val restored = CapsuleBackup.decode(CapsuleBackup.encode(settings).byteInputStream())
+        assertEquals(LyricTintMode.GRADIENT, restored.lyricTintMode)
+    }
+
+    @Test fun v12BackupLeavesOptionalEffectsDisabled() {
+        val root = JSONObject(CapsuleBackup.encode(CapsuleSettings(swapTranslation = true)))
+        root.put("version", 12)
+        val data = root.getJSONObject("settings")
+        data.remove(CapsuleSettings.WORD_LYRICS)
+        data.remove(CapsuleSettings.CAMERA_WORD_AVOIDANCE)
+        data.remove(CapsuleSettings.INTRO_DOTS)
+        val restored = CapsuleBackup.decode(root.toString().byteInputStream())
+        assertTrue(restored.swapTranslation)
+        assertFalse(restored.wordLyrics)
+        assertFalse(restored.cameraWordAvoidance)
+        assertFalse(restored.introDots)
+    }
+
+    @Test fun v13BackupIgnoresRetiredDisplaySettings() {
+        val root = JSONObject(CapsuleBackup.encode(CapsuleSettings(doubleLine = false, introDots = true, cameraFade = false)))
+        val retiredSettings = mapOf("intro_dot_size" to 50, "camera_fade_radius" to 14,
+            "single_line_switch_mode" to "AT_NEXT_START", "double_line_switch_mode" to "AFTER_END")
+        val data = root.getJSONObject("settings")
+        retiredSettings.forEach { (key, value) -> data.put(key, value) }
+        val restored = CapsuleBackup.decode(root.toString().byteInputStream())
+        assertFalse(restored.doubleLine)
+        assertTrue(restored.introDots)
+        assertFalse(restored.cameraFade)
+        val exported = JSONObject(CapsuleBackup.encode(restored)).getJSONObject("settings")
+        assertTrue(retiredSettings.keys.none(exported::has))
+    }
+
+    @Test fun v13BackupDefaultsToKeepingCurrentStyleOnPause() {
+        val backup = JSONObject(CapsuleBackup.encode(CapsuleSettings())).put("version", 13)
+        backup.getJSONObject("settings").remove(CapsuleSettings.PAUSE_BEHAVIOR)
+        val restored = CapsuleBackup.decode(backup.toString().byteInputStream())
+        assertEquals(PauseBehavior.KEEP_CURRENT, restored.pauseBehavior)
+    }
+
+    @Test fun v14RoundTripPreservesTintPauseBehaviorAndInactiveSettings() {
         val expected = CapsuleSettings(
             doubleLine = false,
             secondRowContent = SecondRowContent.LYRIC,
             swapTranslation = true,
-            singleLineSwitchMode = LyricSwitchMode.AT_NEXT_START,
-            doubleLineSwitchMode = LyricSwitchMode.AFTER_END,
+            wordLyrics = true,
+            cameraWordAvoidance = true,
+            introDots = true,
             missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS,
             fallbackSingleLineExpand = false,
             lyricTintEnabled = false,
             lyricTintMode = LyricTintMode.TEXTURE,
+            pauseBehavior = PauseBehavior.RESTORE_NATIVE,
         ).withTuning(CapsuleTuning.entries.associateWith {
             if (it == CapsuleTuning.TINT_STRENGTH) 75 else it.range.last
         })
         val encoded = CapsuleBackup.encode(expected)
         val root = JSONObject(encoded)
-        assertEquals(12, root.getInt("version"))
+        assertEquals(14, root.getInt("version"))
         val data = root.getJSONObject("settings")
         assertFalse(data.getBoolean(CapsuleSettings.LYRIC_TINT_ENABLED))
         assertFalse(data.has("translation"))
@@ -171,7 +214,6 @@ class CapsuleBackupTest {
         assertFalse(imported.lyricTintEnabled)
         assertEquals(LyricTintMode.OKLCH, imported.lyricTintMode)
         assertEquals(SecondRowContent.LYRIC, imported.secondRowContent)
-        assertEquals(LyricSwitchMode.AT_NEXT_START, imported.doubleLineSwitchMode)
         assertEquals(100, imported[CapsuleTuning.TINT_STRENGTH])
     }
 
