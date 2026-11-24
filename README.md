@@ -1,6 +1,6 @@
-# TerraMoor
+# Colorlyric
 
-TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中显示歌词，支持实时调参、无歌词回退和模糊封面背景。
+Colorlyric 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中显示歌词，支持实时调参、无歌词回退和模糊封面背景。
 
 **仅支持 ColorOS 17**
 
@@ -48,7 +48,7 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 ## 安装
 
 1. 在 Releases 下载 APK。
-2. 启用 TerraMoor，作用域勾选「系统界面」，重启「系统界面」或系统后打开 TerraMoor。应用内的重启按钮需要 Root 授权。
+2. 启用 Color lyric，作用域勾选「系统界面」，重启「系统界面」或系统后打开 Color lyric。应用内的重启按钮需要 Root 授权。
 3. 在首页确认 LSPosed 已勾选「系统界面」、已启用流体云歌词、ColorOS Live Lyrics Bridge 和通用播放器 Provider 均已安装，再到「调整」设置显示效果。
 
 在「调整 → 歌词行为」可以分别开启「逐字歌词」「歌词整字避让前摄（实验）」和「前奏倒计时动画」，三项默认关闭。歌词提供方传入逐字时间时，高亮会从左到右扫过字形，亮暗边界以渐变过渡，长句滚动跟随原文亮起。前奏圆点在前摄右侧倒计时，左侧显示歌名和歌手，超出宽度的文字会滚动。
@@ -61,7 +61,7 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 
 ## 模块结构
 
-源码在 `app/src/main/java/shop/terramoor/github/io/`。
+源码: `app/src/main/java/shop/terramoor/github/io/`。
 
 | 目录 | 职责 |
 | --- | --- |
@@ -72,7 +72,7 @@ TerraMoor 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中�
 | `app/src/main/resources/META-INF/xposed/` | 模块入口和静态 `com.android.systemui` 作用域。 |
 | `app/src/test/`、`app/src/androidTest/` | JVM 单测及设备测试。 |
 
-播放器或 Provider 把歌词写入媒体会话。TerraMoor 从当前胶囊关联的 Token 获取歌词。设置经 LSPosed Remote Preferences 传到 SystemUI。首页仅检查已知的两个 Provider 包名，在「关于」点击「检查更新」会请求 GitHub API，显示版本状态或连接失败。
+播放器或 Provider 把歌词写入媒体会话。Color lyric 从当前胶囊关联的 Token 获取歌词。设置经 LSPosed Remote Preferences 传到 SystemUI。首页仅检查已知的两个 Provider 包名，在「关于」点击「检查更新」会请求 GitHub API，显示版本状态或连接失败。
 
 ## 开发与反馈
 
