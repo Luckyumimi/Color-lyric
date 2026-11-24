@@ -42,6 +42,9 @@ internal object IntroLyricCredits {
 
     private val titleSeparator = Regex("[-–—|/•·:]| by ")
     private val creditSeparator = Regex("[:=–—]| - ")
+    private val headerDashes = setOf("-", "–", "—")
+    private val headerLyricistLabels = setOf("词", "詞", "作词", "作詞", "lyricist", "lyricsby", "wordsby")
+    private val headerComposerLabels = setOf("曲", "作曲", "composer", "composedby", "musicby")
     private val roleSeparator = Regex("[/&+、・·]")
     private val bilingualBoundary = Regex("(?<=\\p{IsHan})(?=[a-z])")
     private val qualifier = Regex("(?:\\s*\\([^()]+\\))+$")
@@ -51,11 +54,13 @@ internal object IntroLyricCredits {
     private val nonNameChars = Regex("[^\\p{L}\\p{M}\\p{N}]+")
     private val spaces = Regex("\\s+")
     private val rightsNotices = setOf(
-        "qq音乐享有本翻译作品的著作权", "qq音樂享有本翻譯作品的著作權",
         "未经著作权人许可,不得翻唱、翻录或使用", "未經著作權人許可,不得翻唱、翻錄或使用",
     )
     private val translationRights = Regex(
         """(?:(?:本|[该該])(?:歌曲|首|曲)?(?:的)?)?(?:歌[词詞])?翻[译譯](?:作品)?(?:的)?(?:版[权權]|著作[权權])\s*:?\s*(?:均)?(?:[归歸][^。!?;:]{1,64}(?:所有|持有)|由[^。!?;:]{1,64}(?:享有|持有|所有))""",
+    )
+    private val holderFirstTranslationRights = Regex(
+        """[^。!?;:,]{1,128}?\s*享有\s*(?:本|[该該])\s*翻[译譯]\s*作品\s*(?:的\s*)?(?:著作[权權]|版[权權])""",
     )
     private val instrumentalNotices = setOf(
         "纯音乐,请欣赏", "純音樂,請欣賞", "纯音乐,无歌词", "純音樂,無歌詞",
@@ -89,7 +94,11 @@ internal object IntroLyricCredits {
                 val right = text.substring(separator.range.last + 1).trimStart()
                 (matchesTitle(left) && (matchesArtist(right) ||
                     (index == opening && followedByCredit && separator.value != ":" && right.isNotEmpty()))) ||
-                    (matchesArtist(left) && matchesTitle(right))
+                    (matchesArtist(left) && matchesTitle(right)) ||
+                    // A provider can label the same track in another language. QQ's opening
+                    // title row is corroborated by separate lyricist and composer credits.
+                    (index == opening && lines[index].startMs <= 3_000L && separator.value in headerDashes &&
+                        nameKey(left).isNotEmpty() && hasOpeningCreditsForArtist(lines, next, right))
             }
             if (header) {
                 index++
@@ -112,6 +121,30 @@ internal object IntroLyricCredits {
         return index
     }
 
+    private fun hasOpeningCreditsForArtist(lines: List<LyricLine>, start: Int, artist: String): Boolean {
+        val creditedArtists = artistKeys(artist).toSet()
+        if (creditedArtists.isEmpty()) return false
+        var hasLyricist = false
+        var hasComposer = false
+        for (index in start until lines.size) {
+            val line = lines[index]
+            if (line.startMs > 30_000L) break
+            val text = normalize(line.text)
+            if (text.isBlank()) continue
+            if (!isOpeningMetadata(text)) break
+            val content = unwrap(text)
+            val separator = creditSeparator.find(content) ?: continue
+            val label = nameKey(content.substring(0, separator.range.first))
+            if (label !in headerLyricistLabels && label !in headerComposerLabels) continue
+            val name = content.substring(separator.range.last + 1).trim()
+            if (artistKeys(name).none { it in creditedArtists }) continue
+            if (label in headerLyricistLabels) hasLyricist = true
+            if (label in headerComposerLabels) hasComposer = true
+            if (hasLyricist && hasComposer) return true
+        }
+        return false
+    }
+
     fun skipTranslationRow(value: String): Boolean {
         val text = normalize(value)
         return text.isEmpty() || text == "//" || isRightsNotice(text)
@@ -119,12 +152,15 @@ internal object IntroLyricCredits {
 
     fun isOpeningTranslationCredit(value: String): Boolean = isOpeningMetadata(normalize(value))
 
+    fun isCopyrightNotice(value: String): Boolean = isRightsNotice(normalize(value))
+
     private fun isOpeningMetadata(text: String): Boolean = isCredit(text) || isRightsNotice(text) ||
         text.removeSurrounding("[", "]").removeSurrounding("(", ")").trim().trimEnd('。', '.', '!', ' ') in instrumentalNotices
 
     private fun isRightsNotice(text: String): Boolean {
-        val notice = unwrap(text).removePrefix("版权声明:").removePrefix("版權聲明:").trim().trimEnd('。', '.', '!', ' ')
-        return notice in rightsNotices || translationRights.matches(notice)
+        val notice = unwrap(text.trimEnd('。', '.', ' ', '!'))
+            .removePrefix("版权声明:").removePrefix("版權聲明:").trim().let(::unwrap).trimEnd('。', '.', ' ', '!')
+        return notice in rightsNotices || translationRights.matches(notice) || holderFirstTranslationRights.matches(notice)
     }
 
     private fun isCredit(text: String): Boolean {

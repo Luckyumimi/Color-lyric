@@ -3,6 +3,7 @@ package shop.terramoor.github.io
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import shop.terramoor.github.io.lyrics.LyricCountdown
 import shop.terramoor.github.io.lyrics.LyricLine
@@ -13,6 +14,8 @@ import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.SecondRowContent
 import shop.terramoor.github.io.systemui.countdownDotScale
+import shop.terramoor.github.io.systemui.interludeCapsuleWidth
+import shop.terramoor.github.io.systemui.interludeViewportInset
 
 class LyricCountdownTest {
     private val enabled = CapsuleSettings(introDots = true, wordLyrics = true)
@@ -34,6 +37,49 @@ class LyricCountdownTest {
         assertEquals(1f, countdownDotScale(500L, 7500L, isIntro = false), 0f)
         assertEquals(1.25f, countdownDotScale(3500L, 7500L, isIntro = false), 0f)
         assertEquals(1f, countdownDotScale(6500L, 7500L, isIntro = false), 0f)
+    }
+
+    @Test fun interludeWidthContractsAfterTheLyricTransitionBreathesAndReopensBeforeTheNextLine() {
+        val gap = LyricCountdown(2000L, 9500L)
+        fun width(time: Long, countdown: LyricCountdown = gap) = interludeCapsuleWidth(countdown, time,
+            normalWidth = 170, height = 30f, density = 1f, leading = 25f, trailing = 28f,
+            cameraOffset = 0f, cameraRadius = 11f, animateOutgoingLyric = true)
+
+        assertEquals(170, width(2260L))
+        val shrink = (2260L..2500L step 5L).map { width(it) }
+        assertTrue(shrink.zipWithNext().all { (a, b) -> a - b in 0..2 })
+        val compact = shrink.last()
+        assertTrue(width(2380L) in (compact + 1) until 170)
+        assertTrue(width(4000L) > compact)
+        assertTrue(width(5500L) > width(4000L))
+        assertEquals(compact, width(8500L))
+
+        val reopen = (9080L..9500L step 5L).map { width(it) }
+        assertEquals(compact, reopen.first())
+        assertTrue(reopen.zipWithNext().all { (a, b) -> b - a in 0..2 })
+        assertTrue(width(9270L) in (compact + 1) until 170)
+        assertEquals(170, width(9468L))
+        assertEquals(170, width(9500L))
+        assertEquals(170, width(3500L, LyricCountdown(0L, 9500L)))
+    }
+
+    @Test fun compactWidthReservesControlsCameraAndDotsWithoutExceedingTheConfiguredWidth() {
+        val gap = LyricCountdown(2000L, 9500L)
+        fun width(maximum: Int, offset: Float, radius: Float) = interludeCapsuleWidth(gap, 5500L,
+            normalWidth = maximum, height = 30f, density = 1f, leading = 25f, trailing = 28f,
+            cameraOffset = offset, cameraRadius = radius, animateOutgoingLyric = true)
+
+        assertTrue(width(180, 0f, 11f) > width(180, 0f, 0f))
+        assertTrue(width(180, 3f, 11f) > width(180, 0f, 11f))
+        assertEquals(156, width(156, 3f, 11f))
+    }
+
+    @Test fun interludeViewportBlendsFromFullWidthAfterNativeTakeover() {
+        assertEquals(0 to true, interludeViewportInset(170, 100, 0L))
+        val insets = (0L..240L step 16L).map { interludeViewportInset(170, 100, it).first }
+        assertTrue(insets.zipWithNext().all { (a, b) -> b - a in 0..4 })
+        assertEquals(35 to false, interludeViewportInset(170, 100, 240L))
+        assertEquals(0 to false, interludeViewportInset(170, 170, 100L))
     }
 
     @Test fun shortIntroSkipsDotsAndLongIntroBecomesTheOutgoingFrame() {
@@ -65,7 +111,11 @@ class LyricCountdownTest {
             val countdown = LyricCountdown(2500L, 9500L)
             for (position in listOf(9499L, 5200L, 2500L)) { // Includes seeking backward inside the gap.
                 val index = presentation.indexAt(position)
-                assertEquals(countdown, presentation.frameAt(index, duration)?.countdown)
+                val gap = checkNotNull(presentation.frameAt(index, duration))
+                assertEquals(countdown, gap.countdown)
+                assertEquals(2500L, gap.motionStartMs)
+                assertEquals(frame.rows, gap.priorRows)
+                assertEquals(LyricRows(""), gap.rows)
                 assertEquals(9500L, presentation.nextBoundary(index))
             }
             val resumed = checkNotNull(presentation.frameAt(presentation.indexAt(9500L), duration))

@@ -1,5 +1,7 @@
 package shop.terramoor.github.io.systemui
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.SharedPreferences
 import android.graphics.Bitmap
@@ -57,6 +59,7 @@ internal class CapsuleRuntime(
     private var root: ViewGroup? = null
     private var plugin: NativeContract.Plugin? = null
     private var pluginHooks = emptyList<HookHandle>()
+    private var viewportHookInstalled = false
     private var rejectedLoader = WeakReference<ClassLoader>(null)
     private var mediaController = WeakReference<Any>(null)
     private var dispatched: StatusBarNotification? = null
@@ -67,6 +70,8 @@ internal class CapsuleRuntime(
     private val pauseTimeout = CapsulePauseTimeout<NativeContract.PauseOwner>()
     private val tintArtworkSelection = TintArtworkSelection<Pair<MediaSession.Token, Track>, Bitmap>()
     private var labels: CapsuleLabels? = null
+    private var mediaCardScene: MediaCardScene? = null
+    private val interludeStatusBarSpace = InterludeStatusBarSpace()
     private val centeredMedia = WeakHashMap<ViewGroup, String>()
     private val centerLocation = IntArray(2)
     private var renderedShown: Boolean? = null
@@ -95,6 +100,12 @@ internal class CapsuleRuntime(
                 !binding.nativeWhilePaused && (settings.artwork || settings.lyricTintEnabled) &&
                 session?.artworkChanged(binding.target.artwork) == true)) {
             protect("Capsule visibility or artwork", ::render)
+        }
+        val viewportBinding = labels?.takeIf { it.hasInterludeViewport }
+        if (viewportBinding != null) {
+            protect("Capsule viewport") { prepareViewport(viewportBinding) }
+        } else {
+            updateInterludeStatusBarSpace(compact = false)
         }
         true
     }
@@ -197,6 +208,125 @@ internal class CapsuleRuntime(
         if (settings.enabled && plugin?.belongs(container, currentRoot) == true) layoutChanged = true
     }
 
+    fun viewportHookInstalled() {
+        viewportHookInstalled = true
+    }
+
+    fun nativeWidthAnimationStarted(instance: Any) {
+        val binding = labels?.takeIf { it.target.capsule === instance } ?: return
+        updateInterludeStatusBarSpace(compact = false)
+        if (currentMediaCardScene(binding) == null) binding.suspendViewport()
+    }
+
+    fun beginMediaCardScene(container: ViewGroup, name: String) {
+        if (Looper.myLooper() != main.looper || !settings.enabled || !viewportHookInstalled) return
+        val currentRoot = root ?: return
+        val contract = plugin ?: return
+        if (!contract.belongs(container, currentRoot)) return
+        if (labels?.target?.capsule?.parent === container) updateInterludeStatusBarSpace(compact = false)
+        mediaCardScene = null
+        if (name !in INTERLUDE_HANDOFF_SCENES) return
+        val active = media ?: return
+        if (session?.token != active.token || !contract.isSingleLane(container)) return
+        // During card dismissal the OEM may lay out a replacement capsule after this callback.
+        // Scope the handoff to the container and media owner, not to the old instance of CapsuleView.
+        val scene = MediaCardScene(container, active.token, active.key, name, SystemClock.elapsedRealtime() + CARD_SCENE_MS)
+        mediaCardScene = scene
+        if (labels?.hasInterludeViewport == true) trace("card/viewport", "$name BEGIN")
+    }
+
+    fun endMediaCardScene(container: ViewGroup) {
+        if (Looper.myLooper() != main.looper) return
+        val scene = mediaCardScene?.takeIf { it.container === container } ?: return
+        scene.ended = true
+        if (labels?.hasInterludeViewport == true) trace("card/viewport", "${scene.name} END")
+    }
+
+    private fun currentMediaCardScene(binding: CapsuleLabels): MediaCardScene? {
+        val scene = mediaCardScene ?: return null
+        val active = media
+        if (active?.token != scene.token || session?.token != scene.token || active.key != scene.key ||
+            SystemClock.elapsedRealtime() >= scene.expiresAt) {
+            mediaCardScene = null
+            return null
+        }
+        return scene.takeIf { binding.target.capsule.parent === it.container &&
+            binding.hasInterludeViewport && !binding.nativeWhilePaused }
+    }
+
+    private fun prepareViewport(binding: CapsuleLabels) {
+        val contract = plugin
+        val active = media
+        val capsule = binding.target.capsule
+        val scene = currentMediaCardScene(binding)
+        val ownsViewport = viewportHookInstalled && contract != null && active != null &&
+            session?.token == active.token && contract.hasOwner(capsule, active.key) &&
+            contract.supportsInterludeViewport(capsule)
+        val hasDrawingBounds = capsule.isShown && capsule.isHardwareAccelerated && capsule.isLaidOut &&
+            capsule.width > 0 && capsule.height > 0 && isAlignedWithCutout(capsule)
+        val settled = hasDrawingBounds && !capsule.isLayoutRequested &&
+            capsule.width == capsule.measuredWidth && capsule.height == capsule.measuredHeight &&
+            capsule.scaleX == 1f && capsule.scaleY == 1f && capsule.translationX == 0f &&
+            contract?.isAnimatingWidth(capsule) == false
+        // Hidden or zero-sized frames are part of the native animation. Keep the current
+        // outline until the next drawable frame rather than restarting from full width.
+        if (scene != null && ownsViewport && !hasDrawingBounds) {
+            updateInterludeStatusBarSpace(compact = false)
+            return
+        }
+        val canCompact = ownsViewport && (settled || scene != null && hasDrawingBounds)
+        val applied = binding.prepareViewport(SystemClock.elapsedRealtime(), canCompact, resumeInterlude = scene != null,
+            animatedWidth = if (scene != null) contract?.animatedDrawingWidth(capsule) else null)
+        updateInterludeStatusBarSpace(compact = scene == null && settled && applied &&
+            capsule.windowVisibility == View.VISIBLE && binding.shouldReserveCompactStatusBarSpace)
+        if (scene != null && applied) sampleCoverAnchor(scene, binding)
+        if (scene?.ended == true && applied && settled) {
+            mediaCardScene = null
+            trace("card/viewport", "${scene.name} RESUMED ${binding.viewportWidth}px/${capsule.width}px, " +
+                "peak=${scene.peakDrawnWidth}px, widestUnclipped=${scene.widestUnclipped}px, " +
+                "coverSamples=${scene.coverSamples}, coverError=${scene.maxCoverError.roundToInt()}px")
+        }
+    }
+
+    private fun updateInterludeStatusBarSpace(compact: Boolean) {
+        if (Looper.myLooper() != main.looper) return
+        val space = plugin?.statusBarSpace ?: return
+        try {
+            val width = interludeStatusBarSpace.update(compact, space::width, space::publish) ?: return
+            trace("interlude/statusbar", "reserved=${space.width()}px, requested=${width}px")
+        } catch (failure: Throwable) {
+            if (!isExpectedFailure(failure)) throw failure
+            report("Interlude status bar placeholder", failure)
+        }
+    }
+
+    private fun sampleCoverAnchor(scene: MediaCardScene, binding: CapsuleLabels) {
+        val anchor = binding.coverAnchorX ?: return
+        val cover = binding.target.artwork
+        if (!cover.isShown) return
+        val capsule = binding.target.capsule
+        val coverScale = cover.horizontalScreenScale() ?: return
+        val capsuleScale = capsule.horizontalScreenScale() ?: return
+        capsule.getLocationOnScreen(centerLocation)
+        val left = centerLocation[0]
+        val expected = left + anchor * capsuleScale
+        cover.getLocationOnScreen(centerLocation)
+        val actual = centerLocation[0] + cover.width / 2f * coverScale
+        if (scene.coverSamples == 0) {
+            val center = left + capsule.width / 2f * capsuleScale
+            trace("card/viewport", "${scene.name} COVER_FIRST ${binding.viewportWidth}px, " +
+                "coverFromCenter=${(actual - center).roundToInt()}px")
+        }
+        scene.coverSamples++
+        scene.maxCoverError = maxOf(scene.maxCoverError, abs(actual - expected))
+    }
+
+    private fun isAlignedWithCutout(capsule: View): Boolean {
+        val scale = capsule.horizontalScreenScale() ?: return false
+        val center = capsule.topDisplayCutout()?.exactCenterX() ?: return true
+        return abs(center - visibleCenter(capsule, scale, null)) <= 2f
+    }
+
     fun draw(instance: Any, canvas: Canvas) {
         val binding = labels ?: return
         if (binding.nativeWhilePaused) return
@@ -213,6 +343,14 @@ internal class CapsuleRuntime(
             }
         }
         val result = binding.draw(canvas, animatedWidth)
+        currentMediaCardScene(binding)?.takeIf { result == "LYRICS_DRAWN" }?.let {
+            val visibleWidth = minOf(binding.viewportWidth, animatedWidth ?: capsule.width)
+            if (it.peakDrawnWidth == 0) {
+                trace("card/viewport", "${it.name} FIRST_DRAW ${visibleWidth}px/${capsule.width}px, native=$animatedWidth")
+            }
+            it.peakDrawnWidth = maxOf(it.peakDrawnWidth, visibleWidth)
+            if (visibleWidth == capsule.width) it.widestUnclipped = maxOf(it.widestUnclipped, visibleWidth)
+        }
         trace("draw", result)
         val frame = tintDrawFrame
         if (lastTintDrawFrame != frame || lastTintDrawResult != result) {
@@ -232,6 +370,11 @@ internal class CapsuleRuntime(
         if (capsule.parent !== container || !contract.belongs(container, currentRoot) ||
             !contract.hasOwner(capsule, key) || !contract.isSingleLane(container)) return
 
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationStart(animation: Animator) {
+                nativeWidthAnimationStarted(capsule)
+            }
+        })
         var reported = false
         var valid = true
         // The OEM listener writes the animated rectangle first. Keep its size and move both edges
@@ -327,6 +470,7 @@ internal class CapsuleRuntime(
     fun contentChanged(container: Any) {
         val currentRoot = root ?: return
         if (!settings.enabled || plugin?.belongs(container, currentRoot) != true) return
+        labels?.takeIf { it.target.capsule.parent === container && currentMediaCardScene(it) == null }?.suspendViewport()
         // Add the sizing child before the OEM measures the new item and captures animation bounds.
         val refreshPending = main.hasCallbacks(refresh)
         if (refreshPending) main.removeCallbacks(refresh)
@@ -398,11 +542,13 @@ internal class CapsuleRuntime(
     }
 
     private fun detachPlugin() {
+        mediaCardScene = null
         if (plugin != null) diagnostics.note("Native capsule plugin hooks detached, count=${pluginHooks.size}")
         clearLabels()
         centeredMedia.clear()
         pluginHooks.forEach { it.unhook() }
         pluginHooks = emptyList()
+        viewportHookInstalled = false
         plugin = null
         root = null
     }
@@ -545,6 +691,7 @@ internal class CapsuleRuntime(
         renderedShown = shown
         if (watch.isPaused && settings.pauseBehavior == PauseBehavior.RESTORE_NATIVE) {
             centeredMedia.remove(binding.target.capsule)
+            updateInterludeStatusBarSpace(compact = false)
             binding.restoreForPause()
             setLyricTick(null)
             tintDrawFrame = null
@@ -631,6 +778,7 @@ internal class CapsuleRuntime(
         clock: PlaybackClock? = null,
     ) {
         binding.render(frame, settings, background, clock, ink, trackIdentity = session?.trackIdentity)
+        if (!binding.shouldReserveCompactStatusBarSpace) updateInterludeStatusBarSpace(compact = false)
         updatePauseOwner(binding)
         val kind = when {
             frame == null -> "NO_TEXT"
@@ -651,6 +799,7 @@ internal class CapsuleRuntime(
     }
 
     private fun clearLabels() {
+        updateInterludeStatusBarSpace(compact = false)
         updatePauseOwner()
         setLyricTick(null)
         renderedShown = null
@@ -667,11 +816,15 @@ internal class CapsuleRuntime(
 
     private fun releaseSession(keepLabels: Boolean = false) {
         updatePauseOwner()
+        mediaCardScene = null
         setLyricTick(null)
         val current = session
         session = null
         current?.cancelMetadataExpiry()
-        if (!keepLabels) clearLabels()
+        if (keepLabels) {
+            updateInterludeStatusBarSpace(compact = false)
+            labels?.suspendViewport()
+        } else clearLabels()
         current?.controller?.unregisterCallback(current)
     }
 
@@ -1015,8 +1168,26 @@ internal class CapsuleRuntime(
 
     private data class Track(val id: String?, val title: String?, val artist: String?)
 
+    private data class MediaCardScene(
+        val container: ViewGroup,
+        val token: MediaSession.Token,
+        val key: String,
+        val name: String,
+        val expiresAt: Long,
+        var ended: Boolean = false,
+        var peakDrawnWidth: Int = 0,
+        var widestUnclipped: Int = 0,
+        var coverSamples: Int = 0,
+        var maxCoverError: Float = 0f,
+    )
+
     private companion object {
         const val MEDIA_HANDOFF_MS = 300L
         const val METADATA_GRACE_MS = 750L
+        const val CARD_SCENE_MS = 2_000L
+        val INTERLUDE_HANDOFF_SCENES = setOf(
+            "CAPSULE_TO_CARD", "CARD_TO_CAPSULE", "CARD_TO_CAPSULE_BY_INTERRUPT",
+            "SINGLE_CAPSULE_TO_APP", "APP_TO_CAPSULE_WITH_NONE", "APP_TO_CAPSULE",
+        )
     }
 }

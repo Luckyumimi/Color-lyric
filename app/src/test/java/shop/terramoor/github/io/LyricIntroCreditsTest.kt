@@ -114,6 +114,54 @@ class LyricIntroCreditsTest {
         assertEquals("远方 - 灯影", LyricPresentation(afterCredit, enabled).lines.first().text)
     }
 
+    @Test fun qrcOpeningCreditsIdentifyTheHeaderWhenPlaybackMetadataUsesAnotherLanguage() {
+        // QQ Music IDs 202714435 and 202071047. Header credits and first vocal times match the source.
+        val original = """
+            [00:00.724]ピースサイン - 米津玄師 (よねづ けんし)
+            [00:06.932]词：米津玄師
+            [00:10.892]曲：米津玄師
+        """.trimIndent()
+        val tvEdit = """
+            [00:00.710]ピースサイン (TV edit.) - 米津玄師 (よねづ けんし)
+            [00:05.384]词：米津玄師
+            [00:08.294]曲：米津玄師
+            [00:11.518]编曲：米津玄師
+        """.trimIndent()
+        val cases = listOf(Triple(original, "00:18.955", 18955L), Triple(tvEdit, "00:19.078", 19078L))
+        for ((credits, tag, first) in cases) {
+            for ((title, artist) in listOf("Peace Sign" to "Kenshi Yonezu", "V字手势" to "米津玄师")) {
+                val payload = JSONObject().put("songName", title).put("artist", artist)
+                    .put("lyric", "$credits\n[$tag]新しい歌")
+                    .put("rawLyric", "$credits\n[$tag]<$tag>新しい<00:19.500>歌<00:20.000>")
+                    .put("translationLyric", "[$tag]新的歌")
+                val timeline = checkNotNull(LyricPayload.parse(payload.toString(), title, true, artist))
+                val presentation = LyricPresentation(timeline, enabled)
+                assertEquals(-1, presentation.indexAt(first - 1))
+                assertEquals(first, presentation.introAt(first - 1)?.endMs)
+                val frame = checkNotNull(presentation.frameAt(0, 25000L))
+                assertEquals(first, frame.displayStartMs)
+                assertEquals("新しい歌", frame.rows.first)
+                assertEquals("新的歌", frame.rows.second)
+                assertEquals(listOf(LyricWord(0, 3, first, 19500L), LyricWord(3, 4, 19500L, 20000L)), frame.rows.firstWords)
+                val withoutFilter = LyricPresentation(timeline, enabled.copy(introDots = false))
+                assertEquals(timeline.lines.first().text, withoutFilter.lines.first().text)
+            }
+        }
+    }
+
+    @Test fun unrelatedOpeningLineNeedsBothMatchingSongwritingCreditsToBeTreatedAsAHeader() {
+        val opening = "月光 - 夢"
+        for (source in listOf(
+            "[00:00]$opening\n[00:02]词：夢\n[00:04]曲：甲",
+            "[00:00]$opening\n[00:02]词：夢\n[00:04]作詞：夢",
+            "[00:00]$opening\n[00:02]落下脚步\n[00:04]词：夢\n[00:05]曲：夢",
+            "[00:05]$opening\n[00:06]词：夢\n[00:07]曲：夢",
+        )) {
+            val timeline = lyrics("$source\n[00:10]灯还是亮着")
+            assertEquals(opening, LyricPresentation(timeline, enabled).lines.first().text)
+        }
+    }
+
     @Test fun qrcOpeningCreditsMatchTheTitleWithoutADuplicatedFeaturingSuffix() {
         val title = "ありふれたせかいせいふく feat.初音ミク (feat. 初音ミク)"
         val artist = "ピノキオP"
@@ -277,6 +325,44 @@ class LyricIntroCreditsTest {
             val timeline = checkNotNull(Timeline.parse("[00:08]First\n[00:10]Second", "", entries))
             assertEquals("第一句", LyricPresentation(timeline, enabled).frameAt(0, 15000L)?.rows?.second)
         }
+    }
+
+    @Test fun holderFirstCopyrightCannotOverwriteTimedTranslations() {
+        for (notice in listOf(
+            "示例工作室享有本翻译作品的著作权",
+            "【版權聲明：例子翻譯組 享有 本翻譯作品的著作權】。",
+        )) {
+            val payload = JSONObject()
+                .put("lyric", "[00:02]$notice\n[00:08]First\n[00:12]Second\n[00:16]Third")
+                .put("translationLyric", """
+                    [00:02]$notice
+                    [00:08]第一句
+                    [00:08]$notice
+                    [00:12]$notice
+                    [00:12.060]第二句
+                    [00:16]她问谁享有本翻译作品的著作权？
+                """.trimIndent())
+            val timeline = checkNotNull(LyricPayload.parse(payload.toString(), null, false))
+            val on = LyricPresentation(timeline, enabled)
+            assertEquals(notice, 8000L, on.introAt(7999L)?.endMs)
+            assertEquals(notice, listOf("第一句", "第二句", "她问谁享有本翻译作品的著作权？"),
+                on.lines.map { it.translation })
+            val off = LyricPresentation(timeline, enabled.copy(introDots = false))
+            assertEquals(notice, off.lines.first().text)
+            assertEquals(notice, off.lines[1].translation)
+        }
+    }
+
+    @Test fun aCopyrightRowInTheOriginalDoesNotStealANearbyFirstTranslation() {
+        val timeline = checkNotNull(Timeline.parse(
+            "[00:07.940]示例工作室享有本翻译作品的著作权\n[00:08]First\n[00:12]Second",
+            "",
+            "[00:07.960]第一句\n[00:12]第二句",
+        ))
+        val on = LyricPresentation(timeline, enabled)
+        assertEquals(8000L, on.nextBoundary(-1))
+        assertEquals(LyricRows("First", "第一句"), on.frameAt(on.indexAt(8000L), 16000L)?.rows)
+        assertEquals(LyricRows("Second", "第二句"), on.frameAt(on.indexAt(12000L), 16000L)?.rows)
     }
 
     @Test fun placeholdersUseTheExistingMissingTranslationMode() {

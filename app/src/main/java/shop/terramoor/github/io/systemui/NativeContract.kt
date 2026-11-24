@@ -151,7 +151,8 @@ internal object NativeContract {
 
     data class Slot(val frame: ViewGroup, val stock: View)
     data class Target(val capsule: ViewGroup, val title: Slot, val translation: Slot,
-                      val artwork: View, val waveform: View) {
+                      val artwork: View, val waveform: View,
+                      val leftSection: View? = null, val rightSection: View? = null) {
         fun isContentPage(view: ViewGroup): Boolean = view.isInside(capsule) &&
             artwork.isInside(view) && waveform.isInside(view)
     }
@@ -193,13 +194,58 @@ internal object NativeContract {
             capsule.method("getWidthChanging", Boolean::class.javaPrimitiveType!!) to
                 capsule.method("getCapsuleDrawableWidth", Int::class.javaPrimitiveType!!)
         }
+        val widthChange = optional("native width animation start", optionalMissing) {
+            capsule.method("setCapsuleWidthChanged", Void.TYPE, Boolean::class.javaPrimitiveType!!)
+        }
         val animation = optional("native content animation stabilizer", optionalMissing) { Animation(loader) }
         val closeAnimation = optional("native media close geometry", optionalMissing) {
             CloseAnimation(loader, container, capsule)
         }
+        val mediaCardScene = optional("media card viewport handoff", optionalMissing) {
+            MediaCardScene(loader, container)
+        }
+        val statusBarSpace = optional("status bar placeholder width", optionalMissing) {
+            StatusBarSpace(loader)
+        }
 
         init {
             if (keys.isEmpty()) throw Mismatch("no instance String fields on ${item.returnType.name}")
+        }
+
+        class MediaCardScene(loader: ClassLoader, container: Class<*>) {
+            private val base = "com.oplus.systemui.plugins.seedling"
+            private val controller = loader.requiredClass("$base.capsule.h")
+            private val sceneType = loader.requiredClass("$base.animatorscenes.AnimatorSceneType")
+            private val resolveContainer = controller.method("l", container)
+            val begin = controller.method("v", Void.TYPE, sceneType)
+            val end = controller.method("u", Void.TYPE, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!)
+
+            init {
+                val recognized = sceneType.enumConstants.orEmpty().mapNotNull { (it as? Enum<*>)?.name }
+                if ("CAPSULE_TO_CARD" !in recognized || "CARD_TO_CAPSULE" !in recognized) {
+                    throw Mismatch("media scene types ${sceneType.name}")
+                }
+            }
+
+            fun container(instance: Any): ViewGroup? = resolveContainer.invoke(instance) as? ViewGroup
+        }
+
+        class StatusBarSpace(loader: ClassLoader) {
+            private val type = loader.requiredClass("com.oplus.systemui.plugins.seedling.plugin.process.ChangeListenerManager")
+            private val companionType = loader.requiredClass(type.name + "\$Companion")
+            private val companion = type.field("Companion", companionType)
+            private val getInstance = companionType.method("getInstance", type)
+            private val integer = Int::class.javaPrimitiveType!!
+            private val currentWidth = type.method("getPlaceHolderRawWidth", integer, integer)
+            private val notifyWidth = type.method("notifyPlaceHolderWidth", Void.TYPE, integer, integer, String::class.java)
+            private val manager by lazy { getInstance.invoke(companion.get(null)) }
+
+            // Slot 0 is the regular status bar. The native API still combines other owners' widths.
+            fun width(): Int = currentWidth.invoke(manager, 0) as Int
+
+            fun publish(pixels: Int, reason: String) {
+                notifyWidth.invoke(manager, 0, pixels, reason)
+            }
         }
 
         class Animation(loader: ClassLoader) {
@@ -258,6 +304,11 @@ internal object NativeContract {
 
         fun isSingleLane(host: ViewGroup): Boolean = (showing?.invoke(host) as? List<*>)?.size?.let { it <= 1 } == true
 
+        fun supportsInterludeViewport(active: ViewGroup): Boolean {
+            val parent = active.parent as? ViewGroup ?: return false
+            return animatedWidth != null && container.isInstance(parent) && isSingleLane(parent)
+        }
+
         fun animatedDrawingWidth(active: ViewGroup): Int? = if (isAnimatingWidth(active)) {
             (animatedWidth?.second?.invoke(active) as? Int)?.takeIf { it > 0 }
         } else null
@@ -299,7 +350,7 @@ internal object NativeContract {
             val translation = slot(rightSection, contentFrameId, contentId)
                 ?: return missing("TRANSLATION_SLOT_NOT_VERIFIED")
             if (title.frame.parent !== translation.frame.parent) return missing("SLOTS_HAVE_DIFFERENT_PARENTS")
-            val target = Target(active, title, translation, artwork, waveform)
+            val target = Target(active, title, translation, artwork, waveform, leftSection, rightSection)
             if (listed == false && target != retained) return missing("RETAINED_CAPSULE_CHANGED")
             if (report != null) {
                 val route = if (active === direct) "DIRECT" else if (listed == false) "RETAINED" else "VIEW_TREE"

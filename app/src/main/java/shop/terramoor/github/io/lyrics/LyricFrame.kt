@@ -38,8 +38,8 @@ internal data class LyricFrame(
             LyricFrame(track ?: LyricRows(""), startMs = 0L, endMs = firstLyricMs,
                 countdown = LyricCountdown(0L, firstLyricMs))
 
-        fun interlude(startMs: Long, endMs: Long) =
-            LyricFrame(LyricRows(""), startMs, endMs, countdown = LyricCountdown(startMs, endMs))
+        fun interlude(startMs: Long, endMs: Long, priorRows: LyricRows?) =
+            LyricFrame(LyricRows(""), startMs, endMs, priorRows = priorRows, countdown = LyricCountdown(startMs, endMs))
 
         fun scrollFraction(start: Long, end: Long, position: Long): Float {
             if (end <= start) return 0f

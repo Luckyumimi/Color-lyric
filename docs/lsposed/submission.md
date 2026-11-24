@@ -12,11 +12,11 @@
 .\gradlew.bat :app:assemblePublicRelease
 ```
 
-产物为 `app/build/outputs/apk/public/release/app-public-release-unsigned.apk`。使用维护者选定的正式密钥签名。`apksigner` 默认提示输入密码，无需在命令或聊天中填写。已核对未签名产物的对齐，可直接签名。
+产物为 `app/build/outputs/apk/public/release/app-public-release-unsigned.apk`。正式包统一用签名脚本。密钥固定为 `D:\Onedrive\文档\androidkey\DebPlus-release.jks`（别名 `debplus`），凭据固定从同目录的 `DebPlus-release-credentials.txt` 读取。签名后直接比对该目录中的公开证书 `Color-lyric-DebPlus-release-signer.pem`。缺文件、签名失败或证书不符时停止，不交付 APK，也不改用其他密钥。
 
 ```powershell
-apksigner sign --ks '<正式密钥文件>' --ks-key-alias '<别名>' --out TerraMoor-1.0.apk app/build/outputs/apk/public/release/app-public-release-unsigned.apk
-apksigner verify --verbose --print-certs TerraMoor-1.0.apk
+.\scripts\Sign-ColorLyricRelease.ps1 -BuildTools 'E:\AndroidStudio\sdk\build-tools\37.0.0' -OutputApk '.\build\apk\Color-lyric-release.apk'
+.\scripts\Sign-ColorLyricRelease.ps1 -BuildTools 'E:\AndroidStudio\sdk\build-tools\37.0.0' -VerifyApk '.\build\apk\Color-lyric-release.apk'
 ```
 
-锁定首发签名后，后续版本持续用同一签名密钥更新。先在 PKX110 上安装签名包，用新作用域验证播放、实时设置和停用恢复。本地调试包沿用 `shop.terramoor.github.io`，可通过应用内 JSON 导出和导入迁移配置。同一时段只启用一个 TerraMoor 包。正式 APK 保留用户指定的日语示例，公开附件上传前确认封面和歌词示例的分发权限。
+GitHub 正式发布的 1.9.0 使用不同的证书，不能直接覆盖安装用 DebPlus 密钥签名的版本。需要迁移时，先通过应用内 JSON 导出设置，再卸载旧版、安装新版并导入。先在 PKX110 上验证播放、实时设置和停用恢复。本地调试包沿用 `shop.terramoor.github.io`，同一时段只启用一个模块包。正式 APK 保留用户指定的日语示例，公开附件上传前确认封面和歌词示例的分发权限。

@@ -105,7 +105,13 @@ class TerraMoorModule : XposedModule() {
                 (args.firstOrNull() as? Canvas)?.let { runtime.draw(receiver, it) }
             }
             diagnostics?.note("Required plugin hook installed: ${plugin.draw.declaringClass.name}#${plugin.draw.name}")
+            plugin.widthChange?.let { method -> installOptional(hooks, "Capsule width handoff hook") {
+                after(method) { receiver, args, _ ->
+                    if (args.firstOrNull() == true) runtime.nativeWidthAnimationStarted(receiver)
+                }.also { runtime.viewportHookInstalled() }
+            } }
             plugin.closeAnimation?.let { installMediaClose(hooks, it, runtime) }
+            plugin.mediaCardScene?.let { installMediaCardScene(hooks, it, runtime) }
             plugin.animation?.let { animation -> installOptional(hooks, "Content animation hook") {
                 hook(animation.contentFrame).setExceptionMode(ExceptionMode.PROTECTIVE).intercept { chain ->
                     val restore = try {
@@ -132,6 +138,26 @@ class TerraMoorModule : XposedModule() {
         } catch (failure: Throwable) {
             hooks.forEach { it.unhook() }
             throw failure
+        }
+    }
+
+    private fun installMediaCardScene(hooks: MutableList<HookHandle>, scene: NativeContract.Plugin.MediaCardScene,
+                                      runtime: CapsuleRuntime) {
+        val installed = mutableListOf<HookHandle>()
+        try {
+            installed += before(scene.begin, "Media card viewport begin") { receiver, args ->
+                val name = (args.firstOrNull() as? Enum<*>)?.name ?: return@before
+                scene.container(receiver)?.let { runtime.beginMediaCardScene(it, name) }
+            }
+            installed += before(scene.end, "Media card viewport end") { receiver, _ ->
+                scene.container(receiver)?.let(runtime::endMediaCardScene)
+            }
+            hooks += installed
+            diagnostics?.note("Optional media card viewport handoff hooks installed")
+        } catch (failure: Throwable) {
+            installed.forEach { it.unhook() }
+            if (!isExpectedFailure(failure)) throw failure
+            report("Optional media card viewport handoff hooks", failure)
         }
     }
 
@@ -185,6 +211,17 @@ class TerraMoorModule : XposedModule() {
         reportFailure(step, failure)
         diagnostics?.failure(step, failure)
     }
+
+    private fun before(method: Method, step: String, action: (Any, List<Any?>) -> Unit): HookHandle =
+        hook(method).setExceptionMode(ExceptionMode.PROTECTIVE).intercept { chain ->
+            try {
+                chain.thisObject?.let { action(it, chain.args) }
+            } catch (failure: Throwable) {
+                if (!isExpectedFailure(failure)) throw failure
+                report(step, failure)
+            }
+            chain.proceed()
+        }
 
     private fun after(method: Method, action: (Any, List<Any?>, Any?) -> Unit): HookHandle =
         hook(method).setExceptionMode(ExceptionMode.PROTECTIVE).intercept { chain ->

@@ -4,7 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.HardwareBufferRenderer
+import android.graphics.Outline
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RenderNode
 import android.graphics.RectF
 import android.graphics.drawable.Icon
@@ -17,6 +19,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +29,7 @@ import shop.terramoor.github.io.lyrics.LyricLine
 import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.LyricRows
 import shop.terramoor.github.io.lyrics.LyricWord
+import shop.terramoor.github.io.lyrics.PlaybackClock
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
@@ -135,6 +139,147 @@ class CapsuleLyricDrawingTest {
     }
 
     @Test
+    fun interludeViewportKeepsNativeLayoutAndYieldsToSystemTransitions() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val context = instrumentation.targetContext
+            val capsule = FrameLayout(context).apply {
+                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, 40)
+                minimumWidth = 24
+            }
+            fun slot(): NativeContract.Slot {
+                val frame = FrameLayout(context)
+                val stock = View(context)
+                frame.addView(stock)
+                capsule.addView(frame)
+                return NativeContract.Slot(frame, stock)
+            }
+            val contentPage = FrameLayout(context).also(capsule::addView)
+            val left = FrameLayout(context).also(contentPage::addView)
+            val right = FrameLayout(context).also(capsule::addView)
+            val cover = View(context).also(left::addView)
+            val waveform = View(context).also(right::addView)
+            val labels = CapsuleLabels(NativeContract.Target(capsule, slot(), slot(), cover, waveform, left, right))
+            val settings = CapsuleSettings(introDots = true, showCover = true, showWaveform = true)
+            val frame = LyricFrame.interlude(2000L, 9500L, LyricRows("Previous"))
+            val clock = PlaybackClock(2000L, 1000L, 1f, true, 15000L)
+            labels.render(frame, settings, artwork = null, clock = clock)
+            val normal = capsule.layoutParams.width
+            capsule.layout(0, 0, normal, 40)
+            contentPage.layout(0, 0, normal, 40)
+            left.layout(8, 0, 28, 40)
+            right.layout(normal - 28, 0, normal - 8, 40)
+            cover.layout(0, 0, 20, 40)
+            waveform.layout(0, 0, 20, 40)
+            val nativeOutline = capsule.outlineProvider
+            val nativeClip = capsule.clipToOutline
+
+            fun width(elapsed: Long, canCompact: Boolean = true, resumeInterlude: Boolean = false,
+                      animatedWidth: Int? = null): Int {
+                labels.prepareViewport(1000L + elapsed, canCompact, resumeInterlude, animatedWidth)
+                assertEquals(normal, capsule.layoutParams.width)
+                assertEquals(normal, capsule.minimumWidth)
+                if (capsule.outlineProvider === nativeOutline) return normal
+                assertTrue(capsule.clipToOutline)
+                val outline = Outline().also { capsule.outlineProvider.getOutline(capsule, it) }
+                val rect = Rect()
+                assertTrue(outline.getRect(rect))
+                assertEquals(rect.left, normal - rect.right)
+                assertEquals(rect.left.toFloat(), left.translationX + cover.translationX, 0f)
+                assertEquals(-rect.left.toFloat(), right.translationX + waveform.translationX, 0f)
+                return rect.width()
+            }
+            assertTrue(labels.hasInterludeViewport)
+            assertEquals(normal, width(0L))
+            assertEquals(normal, width(260L))
+            val compact = width(500L)
+            assertTrue(compact < normal)
+            labels.maintainNativeSizing()
+            assertEquals(normal, capsule.layoutParams.width)
+            assertTrue(width(3500L) > compact)
+            assertTrue(width(7300L) in (compact + 1) until normal)
+            assertEquals(normal, width(7490L))
+            labels.render(LyricFrame(LyricRows("Next"), 9500L, 12000L), settings, artwork = null)
+            assertFalse(labels.hasInterludeViewport)
+            assertSame(nativeOutline, capsule.outlineProvider)
+
+            labels.render(frame, settings, artwork = null, clock = clock)
+            assertEquals(normal, width(500L))
+            assertTrue(width(750L) < normal)
+            assertEquals(normal, width(800L, canCompact = false))
+            assertSame(nativeOutline, capsule.outlineProvider)
+            assertEquals(nativeClip, capsule.clipToOutline)
+            assertEquals(0f, left.translationX, 0f)
+            assertEquals(0f, right.translationX, 0f)
+            // A returning media card already animated the handoff. Its first visible frame
+            // must use the current interlude width and stay there when ordinary drawing resumes.
+            val resumed = width(900L, resumeInterlude = true)
+            assertTrue(resumed < normal)
+            assertTrue(width(916L) < normal)
+
+            // An OEM transition may animate both the clipping edge and the cover transform.
+            cover.translationX = -12f
+            left.translationX = -18f
+            val narrower = resumed - 20
+            assertEquals(narrower, width(940L, resumeInterlude = true, animatedWidth = narrower))
+            assertEquals(normal, width(950L, canCompact = false))
+            assertEquals(-18f, left.translationX, 0f)
+            assertEquals(-12f, cover.translationX, 0f)
+
+            // The content page moves independently of the cover slot during a native handoff.
+            contentPage.pivotX = normal / 2f
+            contentPage.scaleX = 0.8f
+            contentPage.translationX = -60f
+            cover.alpha = 0.4f
+            fun coverCenterInCapsule(): Float {
+                val center = floatArrayOf(cover.width / 2f, cover.height / 2f)
+                for (view in listOf(cover, left, contentPage)) {
+                    view.matrix.mapPoints(center)
+                    center[0] += view.left
+                    center[1] += view.top
+                }
+                return center[0]
+            }
+            for (animatedWidth in listOf(26, 80, narrower)) {
+                assertTrue(labels.prepareViewport(1952L, true, resumeInterlude = true, animatedWidth = animatedWidth))
+                val leftEdge = (normal - animatedWidth) / 2
+                assertEquals(minOf(normal / 2f, leftEdge + 18f), coverCenterInCapsule(), 0.001f)
+            }
+            // Some OEM frames already have camera-sized layout bounds with no extra clipping.
+            capsule.layout(0, 0, 26, 40)
+            assertTrue(labels.prepareViewport(1954L, true, resumeInterlude = true))
+            assertSame(nativeOutline, capsule.outlineProvider)
+            assertEquals(13f, coverCenterInCapsule(), 0.001f)
+            labels.suspendViewport()
+            assertEquals(-18f, left.translationX, 0f)
+            assertEquals(-60f, contentPage.translationX, 0f)
+            assertEquals(0.8f, contentPage.scaleX, 0f)
+            assertEquals(0.4f, cover.alpha, 0f)
+            capsule.layout(0, 0, normal, 40)
+            contentPage.translationX = 0f
+            contentPage.scaleX = 1f
+            left.translationX = 0f
+            cover.translationX = 0f
+            assertEquals(normal, width(960L))
+            assertTrue(width(1210L) < normal)
+
+            // If the OEM moves a section independently, do not overwrite its translation.
+            right.translationX = 28f
+            assertEquals(normal, width(1220L))
+            assertEquals(28f, right.translationX, 0f)
+            assertEquals(0f, left.translationX, 0f)
+            right.translationX = 0f
+            assertEquals(normal, width(1240L))
+            assertTrue(width(1490L) < normal)
+            labels.restoreForPause()
+            assertSame(nativeOutline, capsule.outlineProvider)
+            assertEquals(nativeClip, capsule.clipToOutline)
+            assertEquals(24, capsule.minimumWidth)
+            assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, capsule.layoutParams.width)
+        }
+    }
+
+    @Test
     fun introCountdownKeepsScrollingTrackInfoLeftAndTheThreeDotsRight() {
         val strip = CapsuleLyricStrip(1f)
         strip.update(LyricFrame.intro(3000L, LyricRows("ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(2), "Artist")),
@@ -205,6 +350,51 @@ class CapsuleLyricDrawingTest {
             draw(LineMotion.NONE, 9000L)
             assertEquals(0, image.ink(132 until 220, 0 until 40))
             assertTrue(image.ink(0 until 108, 0 until 40) > 0)
+        } finally {
+            image.recycle()
+        }
+    }
+
+    @Test
+    fun enteringInterludeUsesTheSelectedLineMotion() {
+        val start = 2500L
+        val timeline = Timeline.fromLines(listOf(LyricLine(0L, "First lyric", endMs = start), LyricLine(9500L, "Next")))
+        val strip = CapsuleLyricStrip(1f)
+        val image = Bitmap.createBitmap(220, 40, Bitmap.Config.ARGB_8888)
+        val leftSide = 0 until 108
+        val rightSide = 132 until 220
+        val height = 0 until 40
+        try {
+            fun draw(motion: LineMotion, elapsed: Long) {
+                val settings = CapsuleSettings(introDots = true, motion = motion, lyricAlignment = LyricAlignment.LEFT)
+                val presentation = LyricPresentation(timeline, settings)
+                val position = start + elapsed
+                image.eraseColor(Color.TRANSPARENT)
+                strip.update(presentation.frameAt(presentation.indexAt(position), 15000L), settings)
+                strip.draw(Canvas(image), 0f, 0f, 220f, 40f, CapsuleCamera(120f, 12f), position)
+            }
+
+            for (motion in listOf(LineMotion.UP, LineMotion.FADE)) {
+                draw(motion, 0L)
+                assertTrue(image.ink(leftSide, height) > 0)
+                assertEquals(0, image.ink(rightSide, height))
+
+                draw(motion, 130L)
+                if (motion == LineMotion.UP) {
+                    assertTrue(image.ink(rightSide, 27..33) > 0)
+                    assertEquals(0, image.ink(rightSide, 17..23))
+                } else {
+                    assertTrue(image.ink(rightSide, 17..23) > 0)
+                    assertTrue(image.ink(leftSide, height) > 0)
+                }
+
+                draw(motion, 260L)
+                assertEquals(0, image.ink(leftSide, height))
+                assertTrue(image.ink(rightSide, 17..23) > 0)
+            }
+            draw(LineMotion.NONE, 0L)
+            assertEquals(0, image.ink(leftSide, height))
+            assertTrue(image.ink(rightSide, 17..23) > 0)
         } finally {
             image.recycle()
         }

@@ -42,6 +42,9 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private var nativeWidth = 0
     private var nativeMinimumWidth = capsule.minimumWidth
     private var appliedWidth: Int? = null
+    private val viewport = CapsuleVisualViewport(target)
+    private var viewportStartedAt: Long? = null
+    private var viewportPosition: Long? = null
     private val artworkBackground = CapsuleArtworkBackground()
     private val area = RectF()
     private val artworkArea = RectF()
@@ -49,6 +52,15 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private val location = IntArray(2)
 
     val hasCustomContent: Boolean get() = displayLine != null || artwork != null
+    val hasInterludeViewport: Boolean get() = displayLine?.countdown?.isIntro == false
+    val viewportWidth: Int get() = (capsule.width - viewport.inset * 2).coerceAtLeast(0)
+    val coverAnchorX: Float? get() = viewport.coverAnchorX
+    val shouldReserveCompactStatusBarSpace: Boolean get() {
+        val countdown = displayLine?.countdown?.takeUnless { it.isIntro } ?: return false
+        val position = viewportPosition ?: return false
+        return viewport.inset > 0 && viewportWidth <= INTERLUDE_STATUS_BAR_WIDTH_PX &&
+            countdown.endMs - position > INTERLUDE_REOPEN_MS
+    }
     var nativeWhilePaused = false
         private set
 
@@ -86,6 +98,12 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         }
         val changed = displayLine != line || displaySettings != settings || this.artwork !== artwork ||
             this.clock != clock || this.ink != ink || trackInfoVisibilityChanged
+        if (displayLine?.countdown != line?.countdown || displayTrackIdentity !== trackIdentity ||
+                displaySettings?.showCover != settings.showCover || displaySettings?.showWaveform != settings.showWaveform ||
+                displaySettings?.get(CapsuleTuning.ISLAND_WIDTH) != settings[CapsuleTuning.ISLAND_WIDTH]) {
+            suspendViewport()
+        }
+        viewportPosition = null
         this.clock = clock
         displayLine = line
         displayTrackIdentity = trackIdentity
@@ -105,8 +123,51 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         val settings = displaySettings ?: return
         // Keep the verified slot measured across gaps and card transitions. A single invisible
         // child lets the native container measure its own width, including reserved icon space.
-        updateCapsuleWidth(capsuleWidthPixels(settings[CapsuleTuning.ISLAND_WIDTH], density))
+        val normalWidth = capsuleWidthPixels(settings[CapsuleTuning.ISLAND_WIDTH], density)
+        updateCapsuleWidth(normalWidth)
         setFillerWidth(capsuleWidthPixels(CapsuleTuning.ISLAND_WIDTH.range.last / 2, density))
+    }
+
+    fun prepareViewport(now: Long, canCompact: Boolean, resumeInterlude: Boolean = false,
+                        animatedWidth: Int? = null): Boolean {
+        val settings = displaySettings ?: return false
+        val line = displayLine ?: return false
+        val countdown = line.countdown?.takeUnless { it.isIntro } ?: return false
+        val width = capsule.width
+        val height = capsule.height.toFloat()
+        if (!canCompact || width <= 0 || height <= 0f ||
+            (settings.showCover && target.artwork.width <= 0) || (settings.showWaveform && target.waveform.width <= 0)) {
+            suspendViewport()
+            return false
+        }
+        val position = clock?.position(now) ?: line.startMs
+        val lens = resolveCamera(includeWindowFallback = true)
+        val leading = capsuleLyricsLeft(layoutLeft(target.artwork, 0f) + target.artwork.width, density, settings)
+        val trailing = if (settings.showWaveform) {
+            maxOf(target.waveform.width.toFloat(), width - layoutLeft(target.waveform, width.toFloat()))
+        } else 3f * density
+        val requested = interludeCapsuleWidth(countdown, position, width, height, density,
+            leading, trailing, lens?.let { it.x - width / 2f } ?: 0f, lens?.radiusX ?: 0f,
+            line.priorRows != null && settings.motion != LineMotion.NONE)
+        val startedAt = viewportStartedAt ?: if (resumeInterlude) now - VIEWPORT_HANDOFF_MS else now
+        viewportStartedAt = startedAt
+        val (interludeInset, settling) = interludeViewportInset(width, requested, now - startedAt)
+        val nativeInset = animatedWidth?.let { nativeCapsuleClipLeft(width, it) } ?: 0
+        val inset = maxOf(interludeInset, nativeInset).coerceAtMost((width - 1) / 2)
+        if (!viewport.apply(inset, settings.showCover, settings.showWaveform, followEdge = resumeInterlude)) {
+            suspendViewport()
+            return false
+        }
+        // The width envelope and the countdown paint use the same playback position.
+        viewportPosition = position
+        if (settling) capsule.postInvalidateOnAnimation()
+        return true
+    }
+
+    fun suspendViewport() {
+        viewport.restore()
+        viewportStartedAt = null
+        viewportPosition = null
     }
 
     fun paintDiagnostics() = strip.paintDiagnostics()
@@ -117,9 +178,12 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         val width = capsule.width
         val height = capsule.height.toFloat()
         if (width <= 0 || height <= 0) return "EMPTY_DRAWING_AREA"
-        val drawingWidth = animatedWidth ?: width
+        // During a media card handoff the outline still supplies the interlude viewport.
+        // The native animated clip can narrow it further without moving the lyric slots.
+        val inset = viewport.inset
+        val drawingWidth = animatedWidth ?: (width - 2 * inset)
         // Clip to the OEM drawable bounds without using the clip to resize the artwork or lyrics.
-        val shapeLeft = if (animatedWidth != null) nativeCapsuleClipLeft(capsule.measuredWidth, drawingWidth) else 0
+        val shapeLeft = if (animatedWidth != null) nativeCapsuleClipLeft(capsule.measuredWidth, drawingWidth) else inset
         area.set(shapeLeft.toFloat(), 0f, (shapeLeft + drawingWidth).toFloat(), height)
         artworkArea.set(0f, 0f, width.toFloat(), height)
         clip.rewind()
@@ -133,31 +197,14 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             }
             val line = displayLine ?: return "ARTWORK_ONLY"
             val settings = displaySettings ?: return "ARTWORK_ONLY"
-            // Display cutout and getLocationOnScreen share display coordinates. Insets
-            // delivered to the native capsule may already have consumed the cutout.
-            val displayCamera = capsule.topDisplayCutout()
-            val windowCamera = if (displayCamera == null &&
-                (line.countdown != null || line.priorCountdown != null || settings.cameraWordAvoidance)
-            ) {
-                capsule.rootWindowInsets?.displayCutout?.boundingRectTop?.takeUnless { it.isEmpty }
-            } else null
-            val camera = displayCamera ?: windowCamera
-            if (windowCamera != null) capsule.getLocationInWindow(location) else capsule.getLocationOnScreen(location)
-            val scaleX = capsule.scaleX.takeIf { it > 0f } ?: 1f
-            // Only the horizontal span of the display cutout defines the lyric gap.
-            val lens = camera?.let {
-                CapsuleCamera(
-                    (it.exactCenterX() - location[0]) / scaleX,
-                    it.width() / (2f * scaleX),
-                )
-            }
+            val lens = resolveCamera(line.countdown != null || line.priorCountdown != null || settings.cameraWordAvoidance)
             val iconStart = layoutLeft(target.artwork, 0f)
             val waveformLeft = layoutLeft(target.waveform, width.toFloat()).coerceIn(0f, width.toFloat())
-            val left = capsuleLyricsLeft(iconStart + target.artwork.width, density, settings)
-            val right = capsuleLyricsRight(width.toFloat(), waveformLeft, density, settings)
+            val left = capsuleLyricsLeft(iconStart + target.artwork.width, density, settings) + inset
+            val right = capsuleLyricsRight(width.toFloat(), waveformLeft, density, settings) - inset
             val timing = clock
             val now = SystemClock.elapsedRealtime()
-            val position = if (line.isTrackInfo) now else timing?.position(now) ?: line.startMs
+            val position = if (line.isTrackInfo) now else viewportPosition ?: timing?.position(now) ?: line.startMs
             val settled = animatedWidth == null && abs(width - capsule.measuredWidth) <= 1
             val redrawDelay = strip.draw(
                 canvas, left, area.top, right, area.bottom,
@@ -178,6 +225,19 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         } finally {
             canvas.restoreToCount(save)
         }
+    }
+
+    private fun resolveCamera(includeWindowFallback: Boolean): CapsuleCamera? {
+        // Display cutout and getLocationOnScreen share display coordinates. Insets
+        // delivered to the native capsule may already have consumed the cutout.
+        val displayCamera = capsule.topDisplayCutout()
+        val windowCamera = if (displayCamera == null && includeWindowFallback) {
+            capsule.rootWindowInsets?.displayCutout?.boundingRectTop?.takeUnless { it.isEmpty }
+        } else null
+        val camera = displayCamera ?: windowCamera ?: return null
+        if (windowCamera != null) capsule.getLocationInWindow(location) else capsule.getLocationOnScreen(location)
+        val scaleX = capsule.scaleX.takeIf { it > 0f } ?: 1f
+        return CapsuleCamera((camera.exactCenterX() - location[0]) / scaleX, camera.width() / (2f * scaleX))
     }
 
     private fun layoutLeft(view: View, fallback: Float): Float {
@@ -242,6 +302,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     }
 
     fun close() {
+        suspendViewport()
         if (displaySettings == null) return
         displaySettings = null
         capsule.removeCallbacks(redrawContent)

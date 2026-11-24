@@ -67,7 +67,9 @@ internal class LyricPresentation(source: Timeline, private val settings: Capsule
 
     fun frameAt(index: Int, durationMs: Long, track: () -> LyricRows? = { null }): LyricFrame? {
         val line = lines.getOrNull(index) ?: return null
-        if (line.isInstrumentalGap) return LyricFrame.interlude(line.startMs, checkNotNull(line.endMs))
+        if (line.isInstrumentalGap) {
+            return LyricFrame.interlude(line.startMs, checkNotNull(line.endMs), rowsAt(index - 1))
+        }
         val rows = rowsAt(index) ?: return null
         val previous = lines.getOrNull(index - 1)
         val intro = if (index == 0) introAt(0L, track) else null

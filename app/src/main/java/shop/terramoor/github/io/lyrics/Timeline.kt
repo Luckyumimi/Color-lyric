@@ -21,10 +21,11 @@ internal class Timeline private constructor(
         if (retained.isEmpty() || translationInput.isBlank()) {
             if (first == 0) this else Timeline(retained)
         } else {
-            // Keep the original timestamps as alignment anchors even when the intro hides some rows.
             val cleaned = parseLane(translationInput, readWords = false, introEndMs = retained.first().startMs)
-            val matched = matchTranslations(lines, cleaned)
-            Timeline(retained.mapIndexed { index, line -> line.withTranslation(matched[first + index]) })
+            // Keep other intro anchors, but a copyright notice cannot own a nearby translation.
+            val introAnchors = lines.subList(0, first).filterNot { IntroLyricCredits.isCopyrightNotice(it.text) }
+            val matched = matchTranslations(introAnchors + retained, cleaned)
+            Timeline(retained.mapIndexed { index, line -> line.withTranslation(matched[introAnchors.size + index]) })
         }
     }
 
