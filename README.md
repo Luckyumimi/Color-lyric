@@ -1,6 +1,6 @@
 # Color lyric
 
-Color lyric（原 TerraMoor）是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中显示歌词，支持实时调参、无歌词回退和模糊封面背景。
+Color lyric 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云中显示歌词，支持实时调参、无歌词回退和模糊封面背景。
 
 **仅支持 ColorOS 17**
 
@@ -63,7 +63,7 @@ Color lyric（原 TerraMoor）是一个 ColorOS 17 的 LSPosed 模块，在系�
 
 ## 模块结构
 
-源码在 `app/src/main/java/shop/terramoor/github/io/`。
+源码: `app/src/main/java/shop/terramoor/github/io/`。
 
 | 目录 | 职责 |
 | --- | --- |
