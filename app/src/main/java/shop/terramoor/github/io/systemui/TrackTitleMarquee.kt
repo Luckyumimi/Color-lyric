@@ -37,7 +37,8 @@ internal object TrackTitleMarquee {
 internal class TrackInfoDisplayMarquee {
     private var startTime: Long? = null
     private var elapsed = 0L
-    private var progress = 0f
+    var progress = 0f
+        private set
 
     fun sample(now: Long, settled: Boolean, overflowDp: Float, insetDp: Float): TrackTitleMarquee.Sample {
         if (!settled) {

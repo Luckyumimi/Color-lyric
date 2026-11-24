@@ -13,7 +13,7 @@ import shop.terramoor.github.io.lyrics.LyricWord
 import shop.terramoor.github.io.lyrics.Timeline
 
 internal const val PREVIEW_DURATION_MS = 9100L
-internal const val PREVIEW_INTRO_MS = 3000L
+internal const val PREVIEW_INTRO_MS = 5000L
 private val lineStarts = longArrayOf(0L, 3500L, 5400L)
 private val lineEnds = longArrayOf(3000L, 4900L, 8700L)
 

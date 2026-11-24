@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">แสดงภาพปกเบลอด้านหลังเนื้อเพลง</string>
     <string name="status_checking">กำลังตรวจสอบ LSPosed…</string>
     <string name="status_disconnected">ไม่ได้เชื่อมต่อกับ LSPosed</string>
-    <string name="status_disconnected_hint">เปิด TerraMoor ใน LSPosed แล้วเลือก UI ระบบ หลังเปิดใช้งานครั้งแรกให้รีสตาร์ตโทรศัพท์</string>
+    <string name="status_disconnected_hint">เปิด Color lyric ใน LSPosed แล้วเลือก UI ระบบ หลังเปิดใช้งานครั้งแรกให้รีสตาร์ตโทรศัพท์</string>
     <string name="status_no_scope">ยังไม่ได้เลือก UI ระบบ</string>
     <string name="status_no_scope_hint">เลือก UI ระบบ ใน LSPosed แล้วรีสตาร์ตโทรศัพท์</string>
     <string name="status_ready">เลือก UI ระบบแล้ว</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">รีสตาร์ต UI ระบบ</string>
     <string name="restart_system_ui_confirmation">จออาจดับชั่วครู่ก่อนกลับไปที่หน้าจอล็อก</string>
     <string name="restart_system_ui_confirm">รีสตาร์ต</string>
-    <string name="restart_system_ui_root_required">ให้สิทธิ์รูทแก่ TerraMoor ในแอปจัดการรูท แล้วลองอีกครั้ง</string>
+    <string name="restart_system_ui_root_required">ให้สิทธิ์รูทแก่ Color lyric ในแอปจัดการรูท แล้วลองอีกครั้ง</string>
     <string name="restart_system_ui_failed">รีสตาร์ต UI ระบบไม่ได้ โปรดลองอีกครั้งในภายหลัง</string>
     <string name="restart_system_ui_completed">รีสตาร์ต UI ระบบแล้ว</string>
     <string name="restart_system_ui_recommended">คุณเพิ่งเปลี่ยนการตั้งค่า แม้จะเห็นการเปลี่ยนแปลงแล้ว เราแนะนำให้รีสตาร์ต UI ระบบด้วยปุ่มด้านขวาบน</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">ไฮไลต์เนื้อเพลงทีละคำ</string>
     <string name="lyric_camera_word_avoidance">แสดงคำเต็มข้างกล้อง</string>
     <string name="lyric_intro_dots">นับถอยหลังช่วงเกริ่นด้วยจุดสามจุด</string>
+    <string name="lyric_intro_dots_summary">พยายามกรองข้อมูลเพลงในช่วงอินโทรโดยอัตโนมัติ</string>
     <string name="section_motion">การเปลี่ยนบรรทัด</string>
     <string name="motion_none">เปลี่ยนทันที</string>
     <string name="motion_up">เลื่อนขึ้น</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">ดาวน์โหลด</string>
     <string name="provider_not_checked">ยังไม่ได้ตรวจสอบ</string>
     <string name="provider_check_enable">ตรวจสอบผู้ให้บริการเนื้อเพลง</string>
-    <string name="provider_check_explanation">อนุญาตให้ TerraMoor ตรวจสอบว่าติดตั้ง Bridge และ Universal Player Provider แล้วหรือไม่ การตรวจสอบทำบนอุปกรณ์นี้เท่านั้น</string>
+    <string name="provider_check_explanation">อนุญาตให้ Color lyric ตรวจสอบว่าติดตั้ง Bridge และ Universal Player Provider แล้วหรือไม่ การตรวจสอบทำบนอุปกรณ์นี้เท่านั้น</string>
     <string name="provider_check_allow">อนุญาต</string>
     <string name="provider_check_later">ไว้ทีหลัง</string>
     <string name="lock_screen_lyrics_section">ก่อนตั้งค่า</string>

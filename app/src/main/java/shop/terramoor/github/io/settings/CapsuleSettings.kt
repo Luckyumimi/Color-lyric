@@ -6,13 +6,13 @@ import kotlin.math.roundToInt
 internal enum class CapsuleTuning(
     val key: String, val range: IntRange, val default: Int, val step: Int = 1, val since: Int = 1,
 ) {
-    FIRST_ROW_SIZE("title_size", 9..14, 11),
-    SECOND_ROW_SIZE("translation_size", 7..11, 9),
+    FIRST_ROW_SIZE("title_size", 9..14, 12),
+    SECOND_ROW_SIZE("translation_size", 7..11, 8),
     FIRST_ROW_OPACITY("title_opacity", 50..100, 100, 5),
     SECOND_ROW_OPACITY("translation_opacity", 40..100, 80, 5),
     ISLAND_WIDTH("island_width", 156..202, 170, 2),
-    BLUR("artwork_blur", 0..24, 14),
-    ARTWORK_DIM("artwork_dim", 0..80, 25, 5),
+    BLUR("artwork_blur", 0..24, 5),
+    ARTWORK_DIM("artwork_dim", 0..80, 0, 5),
     TINT_STRENGTH("tint_strength", 25..100, 100, 25, since = 8),
     TEXTURE_BRIGHTNESS("texture_brightness", 0..100, 70, since = 11),
     TEXTURE_CONTRAST("texture_contrast", 0..200, 100, since = 11),
@@ -58,14 +58,14 @@ internal data class CapsuleSettings(
     val doubleLine: Boolean = true,
     val secondRowContent: SecondRowContent = SecondRowContent.TRANSLATION,
     val swapTranslation: Boolean = false,
-    val wordLyrics: Boolean = false,
+    val wordLyrics: Boolean = true,
     val cameraWordAvoidance: Boolean = false,
-    val introDots: Boolean = false,
+    val introDots: Boolean = true,
     val missingTranslationMode: MissingTranslationMode = MissingTranslationMode.SINGLE_LINE,
     val fallbackSingleLineExpand: Boolean = true,
     val artwork: Boolean = true,
     val lyricTintEnabled: Boolean = true,
-    val lyricTintMode: LyricTintMode = LyricTintMode.OKLCH,
+    val lyricTintMode: LyricTintMode = LyricTintMode.GRADIENT,
     val showCover: Boolean = true,
     val showWaveform: Boolean = true,
     val lyricAlignment: LyricAlignment = LyricAlignment.LEFT,
@@ -75,6 +75,7 @@ internal data class CapsuleSettings(
     val pauseBehavior: PauseBehavior = PauseBehavior.KEEP_CURRENT,
     private val tuning: Map<CapsuleTuning, Int> = emptyMap(),
 ) {
+
     fun withTuning(values: Map<CapsuleTuning, Int>): CapsuleSettings = copy(tuning = tuning + values)
 
     operator fun get(option: CapsuleTuning): Int = tuning[option] ?: option.default
@@ -141,7 +142,8 @@ internal data class CapsuleSettings(
                 artwork = prefs.getBoolean(ARTWORK, defaults.artwork),
                 lyricTintEnabled = prefs.getBoolean(LYRIC_TINT_ENABLED,
                     defaults.lyricTintEnabled && storedTintMode != LEGACY_WHITE_TINT),
-                lyricTintMode = LyricTintMode.fromStored(storedTintMode) ?: defaults.lyricTintMode,
+                lyricTintMode = if (storedTintMode == LEGACY_WHITE_TINT) LyricTintMode.OKLCH
+                    else LyricTintMode.fromStored(storedTintMode) ?: defaults.lyricTintMode,
                 showCover = prefs.getBoolean(SHOW_COVER, defaults.showCover),
                 showWaveform = prefs.getBoolean(SHOW_WAVEFORM, defaults.showWaveform),
                 lyricAlignment = prefs.enumValue(LYRIC_ALIGNMENT, defaults.lyricAlignment),

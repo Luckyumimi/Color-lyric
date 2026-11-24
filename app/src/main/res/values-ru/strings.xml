@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Показывать размытую обложку под текстом</string>
     <string name="status_checking">Проверка LSPosed…</string>
     <string name="status_disconnected">Нет подключения к LSPosed</string>
-    <string name="status_disconnected_hint">Включите TerraMoor в LSPosed и выберите «Интерфейс системы». После первого включения перезагрузите телефон.</string>
+    <string name="status_disconnected_hint">Включите Color lyric в LSPosed и выберите «Интерфейс системы». После первого включения перезагрузите телефон.</string>
     <string name="status_no_scope">Интерфейс системы не выбран</string>
     <string name="status_no_scope_hint">Выберите «Интерфейс системы» в LSPosed и перезагрузите телефон.</string>
     <string name="status_ready">Интерфейс системы выбран</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Перезапустить интерфейс системы</string>
     <string name="restart_system_ui_confirmation">Экран может ненадолго погаснуть, после чего появится экран блокировки.</string>
     <string name="restart_system_ui_confirm">Перезапустить</string>
-    <string name="restart_system_ui_root_required">Разрешите TerraMoor root-доступ в диспетчере root и повторите попытку.</string>
+    <string name="restart_system_ui_root_required">Разрешите Color lyric root-доступ в диспетчере root и повторите попытку.</string>
     <string name="restart_system_ui_failed">Не удалось перезапустить интерфейс системы. Повторите попытку позже.</string>
     <string name="restart_system_ui_completed">Интерфейс системы перезапущен</string>
     <string name="restart_system_ui_recommended">Настройки изменены. Даже если изменения уже видны, рекомендуем перезапустить интерфейс системы кнопкой в правом верхнем углу.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Пословная подсветка текста</string>
     <string name="lyric_camera_word_avoidance">Целые слова рядом с камерой</string>
     <string name="lyric_intro_dots">Отсчёт вступления тремя точками</string>
+    <string name="lyric_intro_dots_summary">Пытается автоматически скрыть сведения о песне во время вступления</string>
     <string name="section_motion">Переход между строками</string>
     <string name="motion_none">Мгновенно</string>
     <string name="motion_up">Прокрутка вверх</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Скачать</string>
     <string name="provider_not_checked">Не проверено</string>
     <string name="provider_check_enable">Проверить источники текстов</string>
-    <string name="provider_check_explanation">Разрешить TerraMoor проверить, установлены ли Bridge и Universal Player Provider? Проверка выполняется только на этом устройстве.</string>
+    <string name="provider_check_explanation">Разрешить Color lyric проверить, установлены ли Bridge и Universal Player Provider? Проверка выполняется только на этом устройстве.</string>
     <string name="provider_check_allow">Разрешить</string>
     <string name="provider_check_later">Не сейчас</string>
     <string name="lock_screen_lyrics_section">Перед настройкой</string>

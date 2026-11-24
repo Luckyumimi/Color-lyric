@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">在膠囊內顯示目前歌曲的模糊封面</string>
     <string name="status_checking">正在檢查 LSPosed</string>
     <string name="status_disconnected">未連線至 LSPosed</string>
-    <string name="status_disconnected_hint">在 LSPosed 中啟用 TerraMoor，並勾選「系統介面」。首次啟用後請重新啟動手機。</string>
+    <string name="status_disconnected_hint">在 LSPosed 中啟用 Color lyric，並勾選「系統介面」。首次啟用後請重新啟動手機。</string>
     <string name="status_no_scope">未勾選系統介面</string>
     <string name="status_no_scope_hint">在 LSPosed 中勾選「系統介面」後重新啟動手機。</string>
     <string name="status_ready">已勾選系統介面</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">重新啟動系統介面</string>
     <string name="restart_system_ui_confirmation">重新啟動後可能會短暫黑畫面，手機會回到鎖定畫面。</string>
     <string name="restart_system_ui_confirm">確認重新啟動</string>
-    <string name="restart_system_ui_root_required">請在 Root 管理工具中授權 TerraMoor，然後重試。</string>
+    <string name="restart_system_ui_root_required">請在 Root 管理工具中授權 Color lyric，然後重試。</string>
     <string name="restart_system_ui_failed">無法重新啟動系統介面，請稍後重試。</string>
     <string name="restart_system_ui_completed">系統介面已重新啟動</string>
     <string name="restart_system_ui_recommended">你剛變更了設定。無論變更是否已即時生效，建議點選右上角的按鈕重新啟動系統介面。</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">逐字歌詞</string>
     <string name="lyric_camera_word_avoidance">歌詞整字避讓前置鏡頭（實驗）</string>
     <string name="lyric_intro_dots">前奏倒數動畫</string>
+    <string name="lyric_intro_dots_summary">會自動嘗試過濾前奏期間的歌曲資訊</string>
     <string name="section_motion">逐句切換動畫</string>
     <string name="motion_none">直接切換</string>
     <string name="motion_up">向上捲動</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">前往下載</string>
     <string name="provider_not_checked">未檢查</string>
     <string name="provider_check_enable">檢查歌詞提供者</string>
-    <string name="provider_check_explanation">允許 TerraMoor 檢查是否已安裝 Bridge 和通用播放器 Provider？檢查僅在本機進行。</string>
+    <string name="provider_check_explanation">允許 Color lyric 檢查是否已安裝 Bridge 和通用播放器 Provider？檢查僅在本機進行。</string>
     <string name="provider_check_allow">允許檢查</string>
     <string name="provider_check_later">暫不檢查</string>
     <string name="lock_screen_lyrics_section">設定前確認</string>

@@ -61,7 +61,7 @@ internal object CapsuleBackup {
                 ?: error("Invalid tuning")
         }
         val lyrics = if (version < 6) {
-            CapsuleSettings(doubleLine = flag(CapsuleSettings.LEGACY_TRANSLATION))
+            CapsuleSettings(doubleLine = flag(CapsuleSettings.LEGACY_TRANSLATION), wordLyrics = false, introDots = false)
         } else CapsuleSettings(
             doubleLine = flag(CapsuleSettings.DOUBLE_LINE),
             secondRowContent = SecondRowContent.valueOf(data.getString(CapsuleSettings.SECOND_ROW_CONTENT)),
@@ -79,7 +79,8 @@ internal object CapsuleBackup {
             enabled = flag(CapsuleSettings.ENABLED),
             artwork = flag(CapsuleSettings.ARTWORK),
             lyricTintEnabled = if (version >= 9) flag(CapsuleSettings.LYRIC_TINT_ENABLED) else !legacyTintDisabled,
-            lyricTintMode = if (legacyTintDisabled) lyrics.lyricTintMode else LyricTintMode.fromStored(storedTintMode) ?: error("Invalid lyric tint mode"),
+            lyricTintMode = if (legacyTintDisabled) LyricTintMode.OKLCH
+                else LyricTintMode.fromStored(storedTintMode) ?: error("Invalid lyric tint mode"),
             showCover = if (version < 5) true else flag(CapsuleSettings.SHOW_COVER),
             showWaveform = if (version < 5) true else flag(CapsuleSettings.SHOW_WAVEFORM),
             lyricAlignment = if (version < 3) LyricAlignment.CENTER

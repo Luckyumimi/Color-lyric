@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Hiển thị ảnh bìa làm mờ phía sau lời bài hát</string>
     <string name="status_checking">Đang kiểm tra LSPosed…</string>
     <string name="status_disconnected">Chưa kết nối với LSPosed</string>
-    <string name="status_disconnected_hint">Bật TerraMoor trong LSPosed rồi chọn Giao diện hệ thống. Khởi động lại điện thoại sau lần bật đầu tiên.</string>
+    <string name="status_disconnected_hint">Bật Color lyric trong LSPosed rồi chọn Giao diện hệ thống. Khởi động lại điện thoại sau lần bật đầu tiên.</string>
     <string name="status_no_scope">Chưa chọn Giao diện hệ thống</string>
     <string name="status_no_scope_hint">Chọn Giao diện hệ thống trong LSPosed rồi khởi động lại điện thoại.</string>
     <string name="status_ready">Đã chọn Giao diện hệ thống</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Khởi động lại Giao diện hệ thống</string>
     <string name="restart_system_ui_confirmation">Màn hình có thể tối trong chốc lát rồi quay về màn hình khoá.</string>
     <string name="restart_system_ui_confirm">Khởi động lại</string>
-    <string name="restart_system_ui_root_required">Cấp quyền root cho TerraMoor trong trình quản lý root rồi thử lại.</string>
+    <string name="restart_system_ui_root_required">Cấp quyền root cho Color lyric trong trình quản lý root rồi thử lại.</string>
     <string name="restart_system_ui_failed">Không thể khởi động lại Giao diện hệ thống. Hãy thử lại sau.</string>
     <string name="restart_system_ui_completed">Đã khởi động lại Giao diện hệ thống</string>
     <string name="restart_system_ui_recommended">Bạn vừa thay đổi cài đặt. Dù thay đổi đã có hiệu lực, bạn nên dùng nút ở góc trên bên phải để khởi động lại Giao diện hệ thống.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Lời bài hát theo từng từ</string>
     <string name="lyric_camera_word_avoidance">Giữ nguyên từ cạnh camera</string>
     <string name="lyric_intro_dots">Đếm ngược mở đầu bằng ba chấm</string>
+    <string name="lyric_intro_dots_summary">Tự động thử lọc thông tin bài hát trong phần mở đầu</string>
     <string name="section_motion">Hiệu ứng chuyển dòng</string>
     <string name="motion_none">Tức thì</string>
     <string name="motion_up">Cuộn lên</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Tải xuống</string>
     <string name="provider_not_checked">Chưa kiểm tra</string>
     <string name="provider_check_enable">Kiểm tra nhà cung cấp lời bài hát</string>
-    <string name="provider_check_explanation">Cho phép TerraMoor kiểm tra Bridge và Universal Player Provider đã được cài đặt chưa? Việc kiểm tra chỉ diễn ra trên thiết bị này.</string>
+    <string name="provider_check_explanation">Cho phép Color lyric kiểm tra Bridge và Universal Player Provider đã được cài đặt chưa? Việc kiểm tra chỉ diễn ra trên thiết bị này.</string>
     <string name="provider_check_allow">Cho phép</string>
     <string name="provider_check_later">Để sau</string>
     <string name="lock_screen_lyrics_section">Trước khi cài đặt</string>

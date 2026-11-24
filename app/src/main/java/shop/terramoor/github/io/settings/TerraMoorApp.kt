@@ -294,6 +294,10 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
                 confirmed = stored
                 restartReminder.settingsCommitted(before, stored)
                 diagnostics.note("Remote settings committed, $stored")
+                if (before != stored) {
+                    runCatching { CapsuleSettingsUpdate.publish(this@TerraMoorApp, stored) }
+                        .onFailure { diagnostics.failure("Publish committed capsule settings", it) }
+                }
                 // A newer optimistic value may already be visible. Keep it until it gets written.
                 if (writes.isEmpty() && pendingTuning.isEmpty()) showSettings(stored)
             } else if (stillConnected) {

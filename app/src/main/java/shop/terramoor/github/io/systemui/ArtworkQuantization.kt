@@ -41,16 +41,6 @@ internal object ArtworkQuantization {
     // Cluster in the Cartesian form of OKLCH so that hues near 0° and 360° stay adjacent.
     fun oklch(pixels: IntArray): LabColor? = choose(cluster(pixels))
 
-    fun gradientAccents(pixels: IntArray): Pair<LabColor?, LabColor?> {
-        val populated = representativeSwatches(cluster(pixels)).toList()
-        val first = populated.maxByOrNull { it.population }?.color ?: return null to null
-        // Area anchors the main color. Pick a second color by area and perceptual separation.
-        val second = populated.asSequence()
-            .filter { first.distanceSquared(it.color) >= 0.08 * 0.08 }
-            .maxByOrNull { it.population * first.distanceSquared(it.color) }
-        return first to second?.color
-    }
-
     private fun cluster(pixels: IntArray): List<Swatch> {
         if (pixels.isEmpty()) return emptyList()
         val histogram = pixels.asIterable().groupingBy { it }.eachCount()

@@ -2,74 +2,55 @@ package shop.terramoor.github.io.systemui
 
 import shop.terramoor.github.io.lyrics.LyricWord
 
-/** A monotone cubic scroll on the playback clock, with a shared speed at each join. */
-internal class WordLyricScroll private constructor(private val knots: List<Knot>, private val speeds: FloatArray) {
-    private data class Knot(val time: Long, val progress: Float)
-    data class Sample(val progress: Float, val redrawDelayMs: Long?)
-
-    fun sample(position: Long): Sample {
-        if (position < knots.first().time) return Sample(0f, knots.first().time - position)
-        if (position >= knots.last().time) return Sample(1f, null)
-        val match = knots.binarySearchBy(position, selector = Knot::time)
-        val index = if (match >= 0) match else -match - 2
-        val start = knots[index]
-        val end = knots[index + 1]
-        if (start.progress == end.progress) return Sample(start.progress, end.time - position)
-
-        val duration = (end.time - start.time).toFloat()
-        val t = (position - start.time) / duration
-        val remaining = 1f - t
-        val distance = end.progress - start.progress
-        val startControl = speeds[index] * duration / 3f
-        val endControl = distance - speeds[index + 1] * duration / 3f
-        val moved = 3f * remaining * t * (remaining * startControl + t * endControl) + t * t * t * distance
-        return Sample(start.progress + moved.coerceIn(0f, distance), 0L)
+/** The timing track mapped to the actual glyph advances of its row. */
+internal class WordLyricScroll private constructor(private val starts: FloatArray, private val ends: FloatArray) {
+    fun highlightAt(index: Int, fraction: Float): Float {
+        if (index !in starts.indices) return 0f
+        return starts[index] + (ends[index] - starts[index]) * fraction
     }
 
     companion object {
-        private const val SHORT_GAP_MS = 50L
-
-        fun fromLayout(words: List<LyricWord>, lineWidth: Float, wordEnd: (Int) -> Float): WordLyricScroll? {
-            if (words.isEmpty() || !lineWidth.isFinite() || lineWidth <= 0f) return null
-            val stops = FloatArray(words.size + 1)
-            for (index in 0 until words.lastIndex) {
-                val end = (wordEnd(index) / lineWidth).coerceIn(0f, 1f)
-                if (!end.isFinite() || end < stops[index]) return null
-                stops[index + 1] = end
-            }
-            stops[words.size] = 1f
-
-            val knots = ArrayList<Knot>()
+        fun fromLayout(words: List<LyricWord>, lineWidth: Float, advance: (Int) -> Float): WordLyricScroll? {
+            if (!lineWidth.isFinite() || lineWidth <= 0f || words.none { (it.endMs ?: it.startMs) > it.startMs }) return null
+            val starts = FloatArray(words.size)
+            val ends = FloatArray(words.size)
+            var previousEnd = 0f
             for ((index, word) in words.withIndex()) {
-                val start = word.startMs
-                val nextStart = words.getOrNull(index + 1)?.startMs ?: Long.MAX_VALUE
-                val end = minOf(word.endMs ?: start, nextStart)
-                // Instantaneous highlights share a neighboring timed interval instead of jumping.
-                if (end <= start) continue
-                val previous = knots.lastOrNull()
-                when {
-                    previous == null -> knots += Knot(start, 0f)
-                    start < previous.time -> return null
-                    start - previous.time in 1L..SHORT_GAP_MS -> knots[knots.lastIndex] = previous.copy(time = start)
-                    start > previous.time -> knots += Knot(start, previous.progress)
-                }
-                knots += Knot(end, stops[index + 1])
+                val start = advance(word.from).coerceIn(0f, lineWidth)
+                val end = advance(word.until).coerceIn(0f, lineWidth)
+                if (!start.isFinite() || !end.isFinite() || start < previousEnd || end < start) return null
+                starts[index] = start
+                ends[index] = end
+                previousEnd = end
             }
-            if (knots.isEmpty()) return null
-            knots[knots.lastIndex] = knots.last().copy(progress = 1f)
-
-            fun segmentSpeed(index: Int): Float = (knots[index + 1].progress - knots[index].progress) /
-                (knots[index + 1].time - knots[index].time)
-            val speeds = FloatArray(knots.size)
-            for (index in 1 until knots.lastIndex) {
-                val left = segmentSpeed(index - 1)
-                val right = segmentSpeed(index)
-                val slower = minOf(left, right)
-                // The harmonic mean keeps the join smooth and limits each tangent to twice
-                // the slower segment's speed. At a true hold the shared speed stays zero.
-                if (slower > 0f) speeds[index] = 2f * slower / (1f + slower / maxOf(left, right))
-            }
-            return WordLyricScroll(knots, speeds)
+            return WordLyricScroll(starts, ends)
         }
     }
+}
+
+/** Camera gap has already been removed from these coordinates. */
+internal fun wordFollowAnchor(viewWidth: Float, seam: Float, trailingInset: Float): Float {
+    val start = seam.takeIf { it > 0f && it < viewWidth } ?: 0f
+    return ((start + viewWidth) / 2f).coerceAtMost((viewWidth - trailingInset).coerceAtLeast(start))
+}
+
+internal inline fun wordFollowProgress(
+    highlight: Float, anchor: Float, head: Float, tail: Float, rightShiftAt: (Float) -> Float = { 0f },
+): Float {
+    val travel = head - tail
+    if (travel <= 0f) return 0f
+    val target = (anchor - highlight).coerceIn(tail, head)
+    if (target == tail) return 1f
+    val shift = rightShiftAt(target)
+    if (shift <= 0f || target + highlight + shift <= anchor) return (head - target) / travel
+
+    // The rightward camera shift eases out as the text moves left from the head.
+    // Solve with the shift at the resulting position to avoid overshoot at the follow point.
+    var left = tail
+    var right = target
+    repeat(12) {
+        val middle = (left + right) / 2f
+        if (middle + highlight + rightShiftAt(middle) > anchor) right = middle else left = middle
+    }
+    return (head - left) / travel
 }

@@ -6,15 +6,24 @@ import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.SecondRowContent
 
 /** Resolves the same rows and playback boundaries for SystemUI and the settings preview. */
-internal class LyricPresentation(private val timeline: Timeline, private val settings: CapsuleSettings) {
+internal class LyricPresentation(source: Timeline, private val settings: CapsuleSettings) {
+    private val timeline = if (settings.introDots) source.withoutIntroCredits.withInstrumentalGaps else source
+    val lines: List<LyricLine> get() = timeline.lines
+
     private fun translation(index: Int): String? = timeline.lines[index].translation?.takeIf(String::isNotBlank)
 
     private fun fallsBackToSingleLine(index: Int): Boolean = settings.doubleLine &&
         settings.secondRowContent == SecondRowContent.TRANSLATION &&
         settings.missingTranslationMode == MissingTranslationMode.SINGLE_LINE && translation(index) == null
 
-    private fun nextLyric(index: Int): LyricLine? = (index + 1 until timeline.lines.size)
-        .firstOrNull { timeline.lines[it].text.isNotBlank() }?.let { timeline.lines[it] }
+    private fun nextLyric(index: Int): LyricLine? {
+        for (i in index + 1 until lines.size) {
+            val line = lines[i]
+            if (line.isInstrumentalGap) return null
+            if (line.text.isNotBlank()) return line
+        }
+        return null
+    }
 
     fun switchMode(index: Int): LyricSwitchMode {
         if (!settings.doubleLine || fallsBackToSingleLine(index)) return LyricSwitchMode.AFTER_END
@@ -33,8 +42,8 @@ internal class LyricPresentation(private val timeline: Timeline, private val set
 
     fun introAt(positionMs: Long, track: () -> LyricRows? = { null }): LyricFrame? {
         if (!settings.introDots) return null
-        val first = timeline.lines.firstOrNull { it.text.isNotBlank() } ?: return null
-        if (positionMs !in 0L until first.startMs) return null
+        val first = lines.firstOrNull() ?: return null
+        if (first.startMs < 3000L || positionMs !in 0L until first.startMs) return null
         return LyricFrame.intro(first.startMs, track())
     }
 
@@ -56,14 +65,21 @@ internal class LyricPresentation(private val timeline: Timeline, private val set
             firstWords = words, secondWords = next?.words?.takeIf { settings.wordLyrics }.orEmpty())
     }
 
-    fun frameAt(index: Int, durationMs: Long): LyricFrame? {
+    fun frameAt(index: Int, durationMs: Long, track: () -> LyricRows? = { null }): LyricFrame? {
+        val line = lines.getOrNull(index) ?: return null
+        if (line.isInstrumentalGap) return LyricFrame.interlude(line.startMs, checkNotNull(line.endMs))
         val rows = rowsAt(index) ?: return null
+        val previous = lines.getOrNull(index - 1)
+        val intro = if (index == 0) introAt(0L, track) else null
+        val priorCountdown = intro?.countdown ?: previous?.takeIf { it.isInstrumentalGap }
+            ?.let { LyricCountdown(it.startMs, line.startMs) }
         return LyricFrame(
             rows = rows,
-            startMs = timeline.lines[index].startMs,
+            startMs = line.startMs,
             endMs = timeline.scrollEnd(index, durationMs, switchMode(index)),
-            priorRows = rowsAt(index - 1),
+            priorRows = intro?.rows?.takeIf { it.first.isNotBlank() || !it.second.isNullOrBlank() } ?: rowsAt(index - 1),
             displayStartMs = displayStart(index),
+            priorCountdown = priorCountdown,
         )
     }
 }

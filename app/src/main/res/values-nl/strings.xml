@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Toont een vervaagde hoes achter de tekst</string>
     <string name="status_checking">LSPosed controleren…</string>
     <string name="status_disconnected">Niet verbonden met LSPosed</string>
-    <string name="status_disconnected_hint">Schakel TerraMoor in LSPosed in en selecteer Systeeminterface. Start de telefoon opnieuw op na de eerste activering.</string>
+    <string name="status_disconnected_hint">Schakel Color lyric in LSPosed in en selecteer Systeeminterface. Start de telefoon opnieuw op na de eerste activering.</string>
     <string name="status_no_scope">Systeeminterface niet geselecteerd</string>
     <string name="status_no_scope_hint">Selecteer Systeeminterface in LSPosed en start de telefoon opnieuw op.</string>
     <string name="status_ready">Systeeminterface geselecteerd</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Systeeminterface opnieuw starten</string>
     <string name="restart_system_ui_confirmation">Het scherm kan even zwart worden voordat het vergrendelscherm terugkeert.</string>
     <string name="restart_system_ui_confirm">Opnieuw starten</string>
-    <string name="restart_system_ui_root_required">Geef TerraMoor roottoegang in de rootbeheerder en probeer het opnieuw.</string>
+    <string name="restart_system_ui_root_required">Geef Color lyric roottoegang in de rootbeheerder en probeer het opnieuw.</string>
     <string name="restart_system_ui_failed">Kon de systeeminterface niet opnieuw starten. Probeer het later opnieuw.</string>
     <string name="restart_system_ui_completed">Systeeminterface opnieuw gestart</string>
     <string name="restart_system_ui_recommended">Je hebt de instellingen gewijzigd. Zelfs als de wijzigingen al zichtbaar zijn, raden we aan de systeeminterface opnieuw te starten met de knop rechtsboven.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Songtekst woord voor woord</string>
     <string name="lyric_camera_word_avoidance">Hele woorden naast de camera</string>
     <string name="lyric_intro_dots">Aftellen bij intro met drie stippen</string>
+    <string name="lyric_intro_dots_summary">Probeert nummerinformatie tijdens de intro automatisch weg te filteren</string>
     <string name="section_motion">Regelovergang</string>
     <string name="motion_none">Direct</string>
     <string name="motion_up">Omhoog schuiven</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Downloaden</string>
     <string name="provider_not_checked">Niet gecontroleerd</string>
     <string name="provider_check_enable">Songtekstaanbieders controleren</string>
-    <string name="provider_check_explanation">Mag TerraMoor controleren of Bridge en Universal Player Provider zijn geïnstalleerd? Dit gebeurt alleen op dit apparaat.</string>
+    <string name="provider_check_explanation">Mag Color lyric controleren of Bridge en Universal Player Provider zijn geïnstalleerd? Dit gebeurt alleen op dit apparaat.</string>
     <string name="provider_check_allow">Toestaan</string>
     <string name="provider_check_later">Niet nu</string>
     <string name="lock_screen_lyrics_section">Voor de configuratie</string>

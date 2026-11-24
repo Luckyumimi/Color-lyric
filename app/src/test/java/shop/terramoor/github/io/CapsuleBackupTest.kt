@@ -21,17 +21,19 @@ class CapsuleBackupTest {
         assertTrue(fresh.doubleLine)
         assertEquals(SecondRowContent.TRANSLATION, fresh.secondRowContent)
         assertFalse(fresh.swapTranslation)
-        assertFalse(fresh.wordLyrics)
+        assertTrue(fresh.wordLyrics)
         assertFalse(fresh.cameraWordAvoidance)
-        assertFalse(fresh.introDots)
+        assertTrue(fresh.introDots)
         assertEquals(MissingTranslationMode.SINGLE_LINE, fresh.missingTranslationMode)
         assertTrue(fresh.fallbackSingleLineExpand)
-        assertEquals(11, fresh[CapsuleTuning.FIRST_ROW_SIZE])
-        assertEquals(9, fresh[CapsuleTuning.SECOND_ROW_SIZE])
+        assertEquals(12, fresh[CapsuleTuning.FIRST_ROW_SIZE])
+        assertEquals(8, fresh[CapsuleTuning.SECOND_ROW_SIZE])
         assertEquals(100, fresh[CapsuleTuning.FIRST_ROW_OPACITY])
         assertEquals(80, fresh[CapsuleTuning.SECOND_ROW_OPACITY])
+        assertEquals(5, fresh[CapsuleTuning.BLUR])
+        assertEquals(0, fresh[CapsuleTuning.ARTWORK_DIM])
         assertTrue(fresh.lyricTintEnabled)
-        assertEquals(LyricTintMode.OKLCH, fresh.lyricTintMode)
+        assertEquals(LyricTintMode.GRADIENT, fresh.lyricTintMode)
         assertEquals(100, fresh[CapsuleTuning.TINT_STRENGTH])
     }
 
@@ -50,11 +52,14 @@ class CapsuleBackupTest {
             assertEquals(translation, settings.doubleLine)
             assertEquals(SecondRowContent.TRANSLATION, settings.secondRowContent)
             assertEquals(MissingTranslationMode.SINGLE_LINE, settings.missingTranslationMode)
+            assertFalse(settings.wordLyrics)
+            assertFalse(settings.introDots)
             assertTrue(settings.fallbackSingleLineExpand)
             assertEquals(12, settings[CapsuleTuning.FIRST_ROW_SIZE])
             assertEquals(8, settings[CapsuleTuning.SECOND_ROW_SIZE])
             assertEquals(95, settings[CapsuleTuning.FIRST_ROW_OPACITY])
             assertEquals(70, settings[CapsuleTuning.SECOND_ROW_OPACITY])
+            assertEquals(14, settings[CapsuleTuning.BLUR])
             assertEquals(25, settings[CapsuleTuning.ARTWORK_DIM])
             val exported = JSONObject(CapsuleBackup.encode(settings)).getJSONObject("settings")
             assertFalse(exported.has("translation"))
@@ -70,10 +75,15 @@ class CapsuleBackupTest {
         assertFalse(restored.swapTranslation)
     }
 
-    @Test fun coverGradientModeSurvivesBackupImport() {
-        val settings = CapsuleSettings(lyricTintMode = LyricTintMode.GRADIENT)
+    @Test fun backupRetainsSavedSettingsInsteadOfApplyingNewDefaults() {
+        val settings = CapsuleSettings(wordLyrics = false, introDots = false, lyricTintMode = LyricTintMode.OKLCH)
+            .withTuning(mapOf(CapsuleTuning.FIRST_ROW_SIZE to 11, CapsuleTuning.SECOND_ROW_SIZE to 9))
         val restored = CapsuleBackup.decode(CapsuleBackup.encode(settings).byteInputStream())
-        assertEquals(LyricTintMode.GRADIENT, restored.lyricTintMode)
+        assertEquals(LyricTintMode.OKLCH, restored.lyricTintMode)
+        assertEquals(11, restored[CapsuleTuning.FIRST_ROW_SIZE])
+        assertEquals(9, restored[CapsuleTuning.SECOND_ROW_SIZE])
+        assertFalse(restored.wordLyrics)
+        assertFalse(restored.introDots)
     }
 
     @Test fun v12BackupLeavesOptionalEffectsDisabled() {
@@ -118,6 +128,7 @@ class CapsuleBackupTest {
             swapTranslation = true,
             wordLyrics = true,
             cameraWordAvoidance = true,
+            cameraFade = true,
             introDots = true,
             missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS,
             fallbackSingleLineExpand = false,
@@ -135,6 +146,18 @@ class CapsuleBackupTest {
         assertFalse(data.has("translation"))
         assertTrue(CapsuleSettings.retiredTintKeys.none(data::has))
         assertEquals(expected, CapsuleBackup.decode(encoded.byteInputStream()))
+    }
+
+    @Test fun oldBackupRestoresBothCameraPreferencesIndependently() {
+        for (fade in listOf(true, false)) {
+            val root = JSONObject(CapsuleBackup.encode(CapsuleSettings(cameraWordAvoidance = true, cameraFade = fade)))
+                .put("version", 13)
+            assertEquals(fade, root.getJSONObject("settings").getBoolean(CapsuleSettings.CAMERA_FADE))
+
+            val restored = CapsuleBackup.decode(root.toString().byteInputStream())
+            assertTrue(restored.cameraWordAvoidance)
+            assertEquals(fade, restored.cameraFade)
+        }
     }
 
     @Test fun legacyTintModesImportAsOklch() {
@@ -168,7 +191,7 @@ class CapsuleBackupTest {
         val v9 = JSONObject(encoded).put("version", 9)
         v9.remove("app_preferences")
         val old = CapsuleBackup.decodeSnapshot(v9.toString().byteInputStream())
-        assertEquals(CapsuleBackup.Snapshot(settings, null), old)
+        assertEquals(CapsuleBackup.Snapshot(settings.copy(wordLyrics = false, introDots = false), null), old)
     }
 
     @Test fun v8TintModesMigrateToAnExplicitSwitchWithoutChangingStrength() {

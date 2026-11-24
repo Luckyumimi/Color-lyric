@@ -39,7 +39,8 @@ class TerraMoorModule : XposedModule() {
             Log.i(TAG, "TerraMoor module entered SystemUI, pid=${android.os.Process.myPid()}")
             val host = NativeContract.Host(param.classLoader, ::optionalMissing)
             journal.note("Required host contract resolved: classes=${NativeContract.HOST},${NativeContract.MEDIA}; media fields and methods verified")
-            val runtime = CapsuleRuntime(host, journal, { getRemotePreferences(CapsuleSettings.GROUP) }, ::installPlugin)
+            val runtime = CapsuleRuntime(host, journal, moduleApplicationInfo.packageName,
+                { getRemotePreferences(CapsuleSettings.GROUP) }, ::installPlugin)
             hooks += after(host.attach) { instance, _, _ -> runtime.hostChanged(instance) }
             journal.note("Required hook installed: ${host.attach.declaringClass.name}#${host.attach.name}")
             hooks += after(host.detach) { instance, _, _ -> runtime.hostDetached(instance) }

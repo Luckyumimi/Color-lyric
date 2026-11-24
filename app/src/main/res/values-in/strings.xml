@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Tampilkan sampul buram di belakang lirik</string>
     <string name="status_checking">Memeriksa LSPosed…</string>
     <string name="status_disconnected">Belum terhubung ke LSPosed</string>
-    <string name="status_disconnected_hint">Aktifkan TerraMoor di LSPosed, lalu pilih UI Sistem. Setelah pertama kali mengaktifkannya, mulai ulang ponsel.</string>
+    <string name="status_disconnected_hint">Aktifkan Color lyric di LSPosed, lalu pilih UI Sistem. Setelah pertama kali mengaktifkannya, mulai ulang ponsel.</string>
     <string name="status_no_scope">UI Sistem belum dipilih</string>
     <string name="status_no_scope_hint">Pilih UI Sistem di LSPosed, lalu mulai ulang ponsel.</string>
     <string name="status_ready">UI Sistem dipilih</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Mulai ulang UI Sistem</string>
     <string name="restart_system_ui_confirmation">Layar mungkin menjadi gelap sebentar sebelum layar kunci muncul.</string>
     <string name="restart_system_ui_confirm">Mulai ulang</string>
-    <string name="restart_system_ui_root_required">Berikan akses root ke TerraMoor di pengelola root, lalu coba lagi.</string>
+    <string name="restart_system_ui_root_required">Berikan akses root ke Color lyric di pengelola root, lalu coba lagi.</string>
     <string name="restart_system_ui_failed">UI Sistem tidak dapat dimulai ulang. Coba lagi nanti.</string>
     <string name="restart_system_ui_completed">UI Sistem dimulai ulang</string>
     <string name="restart_system_ui_recommended">Anda baru saja mengubah pengaturan. Walaupun perubahan sudah terlihat, kami menyarankan Anda memulai ulang UI Sistem dengan tombol di kanan atas.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Lirik per kata</string>
     <string name="lyric_camera_word_avoidance">Kata utuh di samping kamera</string>
     <string name="lyric_intro_dots">Hitung mundur intro dengan tiga titik</string>
+    <string name="lyric_intro_dots_summary">Mencoba menyaring informasi lagu secara otomatis selama intro</string>
     <string name="section_motion">Transisi antarbaris</string>
     <string name="motion_none">Langsung</string>
     <string name="motion_up">Gulir ke atas</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Unduh</string>
     <string name="provider_not_checked">Belum diperiksa</string>
     <string name="provider_check_enable">Periksa penyedia lirik</string>
-    <string name="provider_check_explanation">Izinkan TerraMoor memeriksa apakah Bridge dan Universal Player Provider sudah terpasang? Pemeriksaan hanya dilakukan di perangkat ini.</string>
+    <string name="provider_check_explanation">Izinkan Color lyric memeriksa apakah Bridge dan Universal Player Provider sudah terpasang? Pemeriksaan hanya dilakukan di perangkat ini.</string>
     <string name="provider_check_allow">Izinkan</string>
     <string name="provider_check_later">Nanti</string>
     <string name="lock_screen_lyrics_section">Sebelum mengatur</string>

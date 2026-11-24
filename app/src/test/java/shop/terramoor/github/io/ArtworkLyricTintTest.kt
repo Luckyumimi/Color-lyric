@@ -1,5 +1,7 @@
 package shop.terramoor.github.io
 
+import com.juren233.hyperlyricsenhanced.common.color.CoverTextGradientPaletteOptimizer
+import com.juren233.hyperlyricsenhanced.common.color.PerceptualGradient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -8,78 +10,76 @@ import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.systemui.ArtworkQuantization
 import shop.terramoor.github.io.systemui.LabColor
+import shop.terramoor.github.io.systemui.LyricGradient
 import shop.terramoor.github.io.systemui.LyricInk
 import shop.terramoor.github.io.systemui.channel
+import shop.terramoor.github.io.systemui.hyperCoverLyricInk
 import shop.terramoor.github.io.systemui.lyricInk
-import shop.terramoor.github.io.systemui.lyricGradientInk
+import shop.terramoor.github.io.systemui.withCoverTintStrength
 
 class ArtworkLyricTintTest {
     private val red = 0xFFE84F62.toInt()
     private val black = 0xFF000000.toInt()
     private val white = -1
 
-    @Test fun gradientKeepsTwoRepresentativeColorsAndIgnoresSparsePixels() {
-        val blue = 0xFF386BD4.toInt()
-        val detail = 0xFF00FF00.toInt()
-        val cover = IntArray(256) { if (it < 180) red else if (it < 255) blue else detail }
-        val (dominant, other) = ArtworkQuantization.gradientAccents(cover)
-        assertEquals(red, dominant?.toRgb())
-        assertEquals(blue, other?.toRgb())
-        val first = requireNotNull(dominant)
-        val second = requireNotNull(other)
-        val strong = requireNotNull(lyricGradientInk(first, second, CapsuleSettings()).gradient)
-        val weakSettings = CapsuleSettings().withTuning(mapOf(CapsuleTuning.TINT_STRENGTH to 25))
-        val weak = requireNotNull(lyricGradientInk(first, second, weakSettings).gradient)
-        assertTrue(strong.start != strong.center && strong.center != strong.end)
-        val strongDistance = LabColor.fromRgb(strong.start).distanceSquared(LabColor.fromRgb(strong.end))
-        val weakDistance = LabColor.fromRgb(weak.start).distanceSquared(LabColor.fromRgb(weak.end))
-        assertTrue(weakDistance < strongDistance)
+    @Test fun gradientChoosesTheFirstDistinctUpstreamColorInPaletteOrder() {
+        val blue = 0xFF729AFF.toInt()
+        val similar = 0xFF749BFC.toInt()
+        val neutral = 0xFFD4D4D4.toInt()
+        assertEquals(upstreamGradient(blue, neutral), hyperCoverLyricInk(intArrayOf(blue, blue, similar, neutral, red)))
     }
 
-    @Test fun uniformCoverExposesOnlyASingleGradientAccent() {
-        val (dominant, other) = ArtworkQuantization.gradientAccents(IntArray(64) { red })
-        assertEquals(red, dominant?.toRgb())
-        assertNull(other)
+    @Test fun gradientFallsBackToTheFarthestColorWhenTheCandidatesAreClose() {
+        val first = 0xFFB3B3B3.toInt()
+        val middle = 0xFFB9B9B9.toInt()
+        val last = 0xFFBEBEBE.toInt()
+        assertEquals(upstreamGradient(first, last), hyperCoverLyricInk(intArrayOf(first, middle, last)))
     }
 
-    @Test fun blueCoverKeepsItsPaleAreasInTheLyricGradient() {
-        val blue = 0xFF386BD4.toInt()
-        val darkBlue = 0xFF0D2969.toInt()
-        val offWhite = 0xFFF4F1EA.toInt()
-        val cover = IntArray(256) { i ->
-            when {
-                i < 136 -> blue
-                i < 220 -> darkBlue
-                else -> offWhite
-            }
-        }
-        val (first, second) = ArtworkQuantization.gradientAccents(cover)
-        assertEquals(blue, first?.toRgb())
-        assertEquals(offWhite, second?.toRgb())
-        val gradient = requireNotNull(lyricGradientInk(requireNotNull(first), requireNotNull(second), CapsuleSettings()).gradient)
-        val start = LabColor.fromRgb(gradient.start)
-        val end = LabColor.fromRgb(gradient.end)
-        assertTrue(start.chroma - end.chroma > 0.05)
-        assertTrue(end.lightness >= 0.94 && end.chroma < 0.025)
-        assertTrue(LabColor.fromRgb(gradient.center).chroma in end.chroma..start.chroma)
+    @Test fun gradientKeepsBothColorsWhenUpstreamOnlyFindsTwo() {
+        val first = 0xFFB3B3B3.toInt()
+        val second = 0xFFB9B9B9.toInt()
+        assertEquals(upstreamGradient(first, second), hyperCoverLyricInk(intArrayOf(first, first, second)))
     }
 
-    @Test fun sparsePixelsDoNotBecomeASeparateGradientColor() {
-        val blue = 0xFF386BD4.toInt()
-        val cover = IntArray(256) { if (it < 254) blue else if (it == 254) black else white }
-        val (first, second) = ArtworkQuantization.gradientAccents(cover)
-        assertEquals(blue, first?.toRgb())
-        assertNull(second)
+    @Test fun uniformUpstreamPaletteUsesTheOriginalSolidLyricColor() {
+        val color = CoverTextGradientPaletteOptimizer.optimizeColor(red)
+        assertEquals(LyricInk(color, color), hyperCoverLyricInk(intArrayOf(red, red)))
     }
 
-    @Test fun gradientsAcceptNeutralColorsAsEitherEndpoint() {
-        val gray = 0xFF777777.toInt()
-        val cover = IntArray(256) { if (it < 170) white else gray }
-        val (first, second) = ArtworkQuantization.gradientAccents(cover)
-        assertEquals(white, first?.toRgb())
-        assertEquals(gray, second?.toRgb())
-        val gradient = requireNotNull(lyricGradientInk(requireNotNull(first), requireNotNull(second), CapsuleSettings()).gradient)
-        assertTrue(LabColor.fromRgb(gradient.start).lightness - LabColor.fromRgb(gradient.end).lightness > 0.10)
+    @Test fun missingUpstreamPaletteDoesNotInventAColor() {
+        assertNull(hyperCoverLyricInk(intArrayOf()))
+    }
+
+    @Test fun gradientStrengthFadesEveryStopAndKeepsTheFullPaletteAt100Percent() {
+        val start = 0xFFFF0000.toInt()
+        val center = 0xFF800080.toInt()
+        val end = 0xFF0000FF.toInt()
+        val ink = LyricInk(center, center, gradient = LyricGradient(start, center, end))
+        assertEquals(ink, ink.withCoverTintStrength(100))
+        val half = ink.withCoverTintStrength(50)
+        val fadedCenter = 0xFFC080C0.toInt()
+        assertEquals(
+            LyricInk(fadedCenter, fadedCenter, gradient = LyricGradient(0xFFFF8080.toInt(), fadedCenter, 0xFF8080FF.toInt())),
+            half,
+        )
+        assertEquals(listOf(191, 128, 64, 0), listOf(25, 50, 75, 100).map { strength ->
+            channel(requireNotNull(ink.withCoverTintStrength(strength).gradient).start, 8)
+        })
+    }
+
+    @Test fun gradientStrengthAlsoFadesASolidPaletteWithoutInventingStops() {
+        val color = 0xFF0000FF.toInt()
+        val expected = 0xFFBFBFFF.toInt()
+        assertEquals(LyricInk(expected, expected), LyricInk(color, color).withCoverTintStrength(25))
+        assertEquals(LyricInk.WHITE, LyricInk.WHITE.withCoverTintStrength(25))
+    }
+
+    private fun upstreamGradient(first: Int, second: Int): LyricInk {
+        val (start, middle, end) = CoverTextGradientPaletteOptimizer.optimize(
+            PerceptualGradient.threeColorAnchors(first, second),
+        )
+        return LyricInk(middle, middle, gradient = LyricGradient(start, middle, end))
     }
 
     @Test fun quantizersPickAColorAccentAndRejectGrayscale() {

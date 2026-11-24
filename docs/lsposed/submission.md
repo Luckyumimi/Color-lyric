@@ -3,7 +3,7 @@
 已核对 [官方提交说明](https://github.com/Xposed-Modules-Repo/submission) 和 [审核机器人源码](https://github.com/Xposed-Modules-Repo/submission/blob/master/src/index.ts)。
 
 - 正式包 `io.github.luckyumimi.terramoor` 使用登录账号 `Luckyumimi` 对应的前缀。新 Issue 的标题为 `[submission] io.github.luckyumimi.terramoor`。机器人审批后会创建同名仓库并发送维护邀请。
-- 在网页中将新仓库的描述设为 `TerraMoor`。上传同目录的 `SUMMARY` 与 `README.md`，不必上传源码。支持链接可在确定后填入仓库主页字段。
+- 发布仓库的描述为 `Color lyric · 流体云歌词`，仓库名仍是 `io.github.luckyumimi.terramoor`。上传同目录的 `SUMMARY` 与 `README.md`，不必上传源码。仓库主页指向 `Luckyumimi/Color-lyric`。
 - 创建 Release 时同时上传已签名 APK。标题 `1.0`，标签 `1-1.0`，更新说明使用 `release-1.0.md`。仅替换已发布的附件不会触发标签更新。官方建议在全部要求满足三个工作日后仍未收录时反馈。
 
 ## 构建和签名

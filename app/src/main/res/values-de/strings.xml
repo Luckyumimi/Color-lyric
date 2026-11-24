@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Zeigt das weichgezeichnete Cover hinter dem Text</string>
     <string name="status_checking">LSPosed wird geprüft…</string>
     <string name="status_disconnected">Nicht mit LSPosed verbunden</string>
-    <string name="status_disconnected_hint">Aktiviere TerraMoor in LSPosed und wähle System-UI aus. Starte das Gerät nach der ersten Aktivierung neu.</string>
+    <string name="status_disconnected_hint">Aktiviere Color lyric in LSPosed und wähle System-UI aus. Starte das Gerät nach der ersten Aktivierung neu.</string>
     <string name="status_no_scope">System-UI nicht ausgewählt</string>
     <string name="status_no_scope_hint">Wähle System-UI in LSPosed aus und starte das Gerät neu.</string>
     <string name="status_ready">System-UI ausgewählt</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">System-UI neu starten</string>
     <string name="restart_system_ui_confirmation">Der Bildschirm kann kurz schwarz werden und kehrt dann zum Sperrbildschirm zurück.</string>
     <string name="restart_system_ui_confirm">Neu starten</string>
-    <string name="restart_system_ui_root_required">Erlaube TerraMoor Root-Zugriff im Root-Manager und versuche es erneut.</string>
+    <string name="restart_system_ui_root_required">Erlaube Color lyric Root-Zugriff im Root-Manager und versuche es erneut.</string>
     <string name="restart_system_ui_failed">System-UI konnte nicht neu gestartet werden. Versuche es später erneut.</string>
     <string name="restart_system_ui_completed">System-UI wurde neu gestartet</string>
     <string name="restart_system_ui_recommended">Die Einstellungen wurden geändert. Auch wenn die Änderungen schon sichtbar sind, empfehlen wir, die System-UI über die Schaltfläche oben rechts neu zu starten.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Wortgenauer Liedtext</string>
     <string name="lyric_camera_word_avoidance">Ganze Wörter neben der Kamera</string>
     <string name="lyric_intro_dots">Intro-Countdown mit drei Punkten</string>
+    <string name="lyric_intro_dots_summary">Versucht automatisch, Titelinformationen während des Intros auszublenden</string>
     <string name="section_motion">Zeilenübergang</string>
     <string name="motion_none">Sofort</string>
     <string name="motion_up">Nach oben scrollen</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Herunterladen</string>
     <string name="provider_not_checked">Nicht geprüft</string>
     <string name="provider_check_enable">Liedtextanbieter prüfen</string>
-    <string name="provider_check_explanation">Darf TerraMoor prüfen, ob Bridge und Universal Player Provider installiert sind? Die Prüfung erfolgt nur auf diesem Gerät.</string>
+    <string name="provider_check_explanation">Darf Color lyric prüfen, ob Bridge und Universal Player Provider installiert sind? Die Prüfung erfolgt nur auf diesem Gerät.</string>
     <string name="provider_check_allow">Erlauben</string>
     <string name="provider_check_later">Nicht jetzt</string>
     <string name="lock_screen_lyrics_section">Vor der Einrichtung</string>

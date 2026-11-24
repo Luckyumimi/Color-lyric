@@ -110,10 +110,10 @@ internal class CapsulePreviewView(context: Context) : View(context) {
             val frame = if (lyrics == null) {
                 language.trackInfo(resources).takeIf { settings.noLyricsMode == NoLyricsMode.TRACK }
             } else {
-                val timed = lyrics.introAt(position) { language.sampleTrack(resources) } ?: lyrics.frameAt(index, duration)
-                val lastIndex = timeline?.lines?.lastIndex
-                if (index == 0 && elapsed >= PREVIEW_DURATION_MS && lastIndex != null) {
-                    timed?.copy(priorRows = lyrics.frameAt(lastIndex, PREVIEW_DURATION_MS)?.rows)
+                val trackRows = { language.sampleTrack(resources) }
+                val timed = lyrics.introAt(position, trackRows) ?: lyrics.frameAt(index, duration, trackRows)
+                if (index == 0 && timed?.priorCountdown == null && elapsed >= PREVIEW_DURATION_MS) {
+                    timed?.copy(priorRows = lyrics.frameAt(lyrics.lines.lastIndex, PREVIEW_DURATION_MS)?.rows)
                 } else timed
             }
             strip.update(frame, settings, ink)

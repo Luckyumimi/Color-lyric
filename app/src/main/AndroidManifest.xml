@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <permission android:name="${applicationId}.permission.CAPSULE_SETTINGS" android:protectionLevel="signature" />
+    <uses-permission android:name="${applicationId}.permission.CAPSULE_SETTINGS" />
     <queries>
         <package android:name="com.android.systemui" />
         <package android:name="com.oplus.systemui.plugins" />

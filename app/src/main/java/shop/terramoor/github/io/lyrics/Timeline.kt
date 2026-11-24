@@ -8,9 +8,60 @@ internal data class LyricLine(
     val translation: String? = null,
     val endMs: Long? = null,
     val words: List<LyricWord> = emptyList(),
+    val isInstrumentalGap: Boolean = false,
 )
 
-internal class Timeline private constructor(internal val lines: List<LyricLine>) {
+internal class Timeline private constructor(
+    internal val lines: List<LyricLine>, titles: List<String> = emptyList(), artist: String? = null,
+    translationInput: String = "",
+) {
+    internal val withoutIntroCredits: Timeline by lazy(LazyThreadSafetyMode.NONE) {
+        val first = IntroLyricCredits.prefixSize(lines, titles, artist)
+        val retained = lines.subList(first, lines.size)
+        if (retained.isEmpty() || translationInput.isBlank()) {
+            if (first == 0) this else Timeline(retained)
+        } else {
+            // Keep the original timestamps as alignment anchors even when the intro hides some rows.
+            val cleaned = parseLane(translationInput, readWords = false, introEndMs = retained.first().startMs)
+            val matched = matchTranslations(lines, cleaned)
+            Timeline(retained.mapIndexed { index, line -> line.withTranslation(matched[first + index]) })
+        }
+    }
+
+    internal val withInstrumentalGaps: Timeline by lazy(LazyThreadSafetyMode.NONE) {
+        var inserted = false
+        var latestVocalEnd = 0L
+        var previousHasEnd = false
+        var firstBlank: LyricLine? = null
+        var blankIndex = 0
+        val expanded = buildList {
+            for (line in lines) {
+                if (line.text.isBlank()) {
+                    if (firstBlank == null) {
+                        firstBlank = line
+                        blankIndex = size
+                    }
+                    add(line)
+                    continue
+                }
+                val blank = firstBlank
+                val gapStart = if (previousHasEnd) latestVocalEnd else blank?.let { maxOf(it.startMs, latestVocalEnd) }
+                if (gapStart != null && line.startMs - gapStart >= 7_000L) {
+                    if (blank != null) while (size > blankIndex) removeAt(lastIndex)
+                    add(LyricLine(gapStart, "", endMs = line.startMs, isInstrumentalGap = true))
+                    inserted = true
+                }
+                add(line)
+                firstBlank = null
+                val wordEnd = line.words.lastOrNull()?.takeIf { it.until == line.text.length }?.endMs
+                val end = maxOf(line.endMs ?: 0L, wordEnd ?: 0L)
+                previousHasEnd = end > line.startMs
+                latestVocalEnd = maxOf(latestVocalEnd, end)
+            }
+        }
+        if (inserted) Timeline(expanded) else this
+    }
+
     internal fun indexAt(positionMs: Long): Int {
         var low = 0
         var high = lines.size
@@ -59,6 +110,7 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
         fun parse(
             lyric: String, rawLyric: String, translation: String, ends: Map<Long, Long> = emptyMap(),
             ttmlWords: Map<Long, LyricWordLine> = emptyMap(),
+            titles: List<String> = emptyList(), artist: String? = null,
         ): Timeline? {
             val timedRaw = if (rawLyric != lyric) parseLane(rawLyric) else emptyList()
             val rawByTime = timedRaw.associateBy { it.startMs }
@@ -66,8 +118,22 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
                 ?: timedRaw.takeIf(::hasTimedText).orEmpty()
             if (originals.isEmpty()) return null
             val translations = parseLane(translation, readWords = false)
+            val matched = matchTranslations(originals, translations)
+            return Timeline(originals.mapIndexed { i, line ->
+                val raw = rawByTime[line.startMs]
+                val rawEnd = raw?.takeIf { it.text == line.text }?.endMs
+                val end = (line.endMs ?: rawEnd ?: ends[line.startMs])?.takeIf { it > line.startMs }
+                val words = ttmlWords[line.startMs]?.match(line.text, line.startMs, end).orEmpty()
+                    .ifEmpty { raw?.wordTimingFor(line, end).orEmpty() }
+                    .ifEmpty { line.wordTimingFor(line, end) }
+                line.withTranslation(matched[i]).copy(endMs = end, words = words)
+            }, titles, artist, translation)
+        }
+
+        private fun matchTranslations(originals: List<LyricLine>, translations: List<LyricLine>): Array<String?> {
             // Each translation belongs to at most one source line. Exact timestamps win.
             val matched = arrayOfNulls<String>(originals.size)
+            if (translations.isEmpty()) return matched
             val translatedByTime = translations.associateBy { it.startMs }
             val used = HashSet<Long>()
             for ((i, line) in originals.withIndex()) {
@@ -100,15 +166,12 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
                     used += it.startMs
                 }
             }
-            return Timeline(originals.mapIndexed { i, line ->
-                val raw = rawByTime[line.startMs]
-                val rawEnd = raw?.takeIf { it.text == line.text }?.endMs
-                val end = (line.endMs ?: rawEnd ?: ends[line.startMs])?.takeIf { it > line.startMs }
-                val words = ttmlWords[line.startMs]?.match(line.text, line.startMs, end).orEmpty()
-                    .ifEmpty { raw?.wordTimingFor(line, end).orEmpty() }
-                    .ifEmpty { line.wordTimingFor(line, end) }
-                line.copy(translation = matched[i]?.takeUnless { it == line.text }, endMs = end, words = words)
-            })
+            return matched
+        }
+
+        private fun LyricLine.withTranslation(value: String?): LyricLine {
+            val translated = value?.takeUnless { it == text }
+            return if (translation == translated) this else copy(translation = translated)
         }
 
         private fun LyricLine.wordTimingFor(line: LyricLine, endMs: Long?): List<LyricWord> =
@@ -118,8 +181,10 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
         private fun hasTimedText(lines: List<LyricLine>): Boolean =
             lines.any { it.text.isNotBlank() } && lines.any { it.startMs > 0L }
 
-        private fun parseLane(input: String, readWords: Boolean = true): List<LyricLine> {
+        private fun parseLane(input: String, readWords: Boolean = true, introEndMs: Long? = null): List<LyricLine> {
             val lines = sortedMapOf<Long, LyricLine>()
+            // Keep candidates until the leading credits have been excluded, then collapse duplicate timestamps.
+            val candidates = introEndMs?.let { ArrayList<LyricLine>() }
             for (inputLine in input.lineSequence().take(4000)) {
                 if (inputLine.length > 8192) continue
                 val line = inputLine.trim()
@@ -136,16 +201,29 @@ internal class Timeline private constructor(internal val lines: List<LyricLine>)
                 }
                 val plain = time.replace(line.substring(prefixEnd), "")
                 val text = plain.trim().take(512)
+                if (candidates != null && IntroLyricCredits.skipTranslationRow(text)) continue
                 val explicitEnd = marks.lastOrNull()?.takeIf {
                     it.range.first >= prefixEnd && it.range.last == line.lastIndex && it.value.startsWith('<')
                 }?.toMillis()
                 val words = if (readWords) parseWords(line, marks, plain, text) else emptyList()
                 // Keep timestamp-only lines as explicit gaps.
                 for (start in starts) {
-                    if (lines.size >= 4000) break
-                    if (text.isNotEmpty() || !lines.containsKey(start)) {
+                    if (candidates != null) {
+                        if (candidates.size >= 4000) break
+                        candidates += LyricLine(start, text)
+                    } else if (lines.size >= 4000) break
+                    else if (text.isNotEmpty() || !lines.containsKey(start)) {
                         lines[start] = LyricLine(start, text, endMs = explicitEnd?.takeIf { it > start }, words = words)
                     }
+                }
+            }
+            if (candidates != null) {
+                val firstText = candidates.asSequence().filterNot { IntroLyricCredits.isOpeningTranslationCredit(it.text) }
+                    .minOfOrNull { it.startMs } ?: return emptyList()
+                val openingEnd = maxOf(firstText, introEndMs)
+                for (line in candidates) {
+                    if (line.startMs <= openingEnd && IntroLyricCredits.isOpeningTranslationCredit(line.text)) continue
+                    lines[line.startMs] = line
                 }
             }
             if (lines.values.none { it.text.isNotEmpty() }) return emptyList()

@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">बोल के पीछे धुंधला कवर दिखाएं</string>
     <string name="status_checking">LSPosed की जांच हो रही है…</string>
     <string name="status_disconnected">LSPosed से कनेक्ट नहीं है</string>
-    <string name="status_disconnected_hint">LSPosed में TerraMoor चालू करें और सिस्टम UI चुनें। पहली बार चालू करने के बाद फ़ोन रीस्टार्ट करें।</string>
+    <string name="status_disconnected_hint">LSPosed में Color lyric चालू करें और सिस्टम UI चुनें। पहली बार चालू करने के बाद फ़ोन रीस्टार्ट करें।</string>
     <string name="status_no_scope">सिस्टम UI नहीं चुना गया</string>
     <string name="status_no_scope_hint">LSPosed में सिस्टम UI चुनें और फ़ोन रीस्टार्ट करें।</string>
     <string name="status_ready">सिस्टम UI चुना गया</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">सिस्टम UI रीस्टार्ट करें</string>
     <string name="restart_system_ui_confirmation">लॉक स्क्रीन पर लौटने से पहले स्क्रीन कुछ देर के लिए काली हो सकती है।</string>
     <string name="restart_system_ui_confirm">रीस्टार्ट करें</string>
-    <string name="restart_system_ui_root_required">रूट मैनेजर में TerraMoor को रूट की अनुमति दें और फिर कोशिश करें।</string>
+    <string name="restart_system_ui_root_required">रूट मैनेजर में Color lyric को रूट की अनुमति दें और फिर कोशिश करें।</string>
     <string name="restart_system_ui_failed">सिस्टम UI रीस्टार्ट नहीं हो सका। बाद में फिर कोशिश करें।</string>
     <string name="restart_system_ui_completed">सिस्टम UI रीस्टार्ट हो गया</string>
     <string name="restart_system_ui_recommended">आपने सेटिंग बदली हैं। बदलाव दिखने लगे हों, तब भी हम ऊपर दाईं ओर के बटन से सिस्टम UI रीस्टार्ट करने की सलाह देते हैं।</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">शब्द-दर-शब्द गीत के बोल</string>
     <string name="lyric_camera_word_avoidance">कैमरे के पास पूरे शब्द दिखाएँ</string>
     <string name="lyric_intro_dots">शुरुआत में तीन बिंदुओं की उलटी गिनती</string>
+    <string name="lyric_intro_dots_summary">शुरुआती हिस्से में गाने की जानकारी अपने आप हटाने की कोशिश करता है</string>
     <string name="section_motion">पंक्तियों के बदलने का इफ़ेक्ट</string>
     <string name="motion_none">तुरंत</string>
     <string name="motion_up">ऊपर स्क्रोल करें</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">डाउनलोड करें</string>
     <string name="provider_not_checked">जांच नहीं की गई</string>
     <string name="provider_check_enable">बोल के प्रोवाइडर की जांच करें</string>
-    <string name="provider_check_explanation">TerraMoor को जांचने दें कि Bridge और Universal Player Provider इंस्टॉल हैं या नहीं? यह जांच सिर्फ़ इस डिवाइस पर होगी।</string>
+    <string name="provider_check_explanation">Color lyric को जांचने दें कि Bridge और Universal Player Provider इंस्टॉल हैं या नहीं? यह जांच सिर्फ़ इस डिवाइस पर होगी।</string>
     <string name="provider_check_allow">अनुमति दें</string>
     <string name="provider_check_later">अभी नहीं</string>
     <string name="lock_screen_lyrics_section">सेटअप से पहले</string>

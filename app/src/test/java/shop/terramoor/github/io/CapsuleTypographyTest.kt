@@ -8,9 +8,9 @@ import shop.terramoor.github.io.settings.CapsuleTuning
 class CapsuleTypographyTest {
     @Test fun singleLineGainsTwoDpUnlessCapped() {
         val settings = CapsuleSettings()
-        assertEquals(13, settings.effectiveFirstRowSize(true))
-        assertEquals(11, settings.effectiveFirstRowSize(false))
-        assertEquals(11, settings.copy(fallbackSingleLineExpand = false).effectiveFirstRowSize(true))
+        assertEquals(14, settings.effectiveFirstRowSize(true))
+        assertEquals(12, settings.effectiveFirstRowSize(false))
+        assertEquals(12, settings.copy(fallbackSingleLineExpand = false).effectiveFirstRowSize(true))
         assertEquals(14, settings.withTuning(mapOf(CapsuleTuning.FIRST_ROW_SIZE to 13)).effectiveFirstRowSize(true))
     }
 

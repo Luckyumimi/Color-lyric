@@ -28,6 +28,7 @@ import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.PlaybackClock
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
+import shop.terramoor.github.io.settings.CapsuleSettingsUpdate
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.NoLyricsMode
 import shop.terramoor.github.io.settings.PauseBehavior
@@ -40,12 +41,15 @@ import kotlin.math.roundToInt
 internal class CapsuleRuntime(
     private val host: NativeContract.Host,
     private val diagnostics: DiagnosticLog,
+    private val modulePackage: String,
     private val remotePreferences: () -> SharedPreferences,
     private val installPlugin: (NativeContract.Plugin, CapsuleRuntime) -> List<HookHandle>,
 ) {
     private val main = Handler(Looper.getMainLooper())
     private var preferences: SharedPreferences? = null
     private var preferenceAttempts = 0
+    private var settingsUpdateRegistered = false
+    private var receivedCommittedSettings = false
     private var settings = CapsuleSettings(enabled = false)
     private var tintDrawFrame: String? = null
     private var hostView: ViewGroup? = null
@@ -94,22 +98,29 @@ internal class CapsuleRuntime(
         }
         true
     }
-    private val applyPreferences = Runnable { protect("Preferences", ::applySettings) }
+    private val applyPreferences = Runnable {
+        if (!receivedCommittedSettings) protect("Preferences", ::readPreferences)
+    }
     private val onPreferences = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
         trace("preferences", "CHANGE_RECEIVED")
         main.removeCallbacks(applyPreferences)
         main.post(applyPreferences)
     }
 
-    private fun applySettings() {
+    private fun readPreferences() = applySettings(
+        preferences?.let(CapsuleSettings::read) ?: CapsuleSettings(enabled = false),
+    )
+
+    private fun applySettings(next: CapsuleSettings) {
         val previous = settings
-        settings = preferences?.let(CapsuleSettings::read) ?: CapsuleSettings(enabled = false)
+        settings = next
         diagnostics.note("Settings read, changed=${settings != previous}, $settings")
         trace("tint/settings", "module=${settings.enabled}, enabled=${settings.lyricTintEnabled}, " +
             "algorithm=${settings.lyricTintMode}, strength=${settings[CapsuleTuning.TINT_STRENGTH]}, " +
             "background=${settings.artwork}, firstOpacity=${settings[CapsuleTuning.FIRST_ROW_OPACITY]}, " +
             "secondOpacity=${settings[CapsuleTuning.SECOND_ROW_OPACITY]}")
         if (settings == previous) return
+        if (settings.introDots != previous.introDots) session?.lastLoggedLine = null
         if (!settings.enabled) {
             stopObservation()
             setStatus("Lyrics disabled")
@@ -323,20 +334,36 @@ internal class CapsuleRuntime(
     }
 
     private fun loadPreferences() {
-        if (preferences != null || hostView == null) return
+        val view = hostView ?: return
+        if (!settingsUpdateRegistered) {
+            try {
+                CapsuleSettingsUpdate.register(view.context.applicationContext, modulePackage, main) { next ->
+                    receivedCommittedSettings = true
+                    main.removeCallbacks(applyPreferences)
+                    trace("preferences", "COMMIT_RECEIVED")
+                    protect("Committed capsule settings") { applySettings(next) }
+                }
+                settingsUpdateRegistered = true
+            } catch (failure: Exception) {
+                report("Register committed capsule settings", failure)
+            }
+        }
+        if (preferences != null) return
         main.removeCallbacks(connect)
         try {
             val prefs = remotePreferences()
             prefs.registerOnSharedPreferenceChangeListener(onPreferences)
             preferences = prefs
             diagnostics.note("Remote preferences connected")
-            applySettings()
+            if (!receivedCommittedSettings) readPreferences()
         } catch (failure: Throwable) {
             if (!isExpectedFailure(failure)) throw failure
             preferences?.unregisterOnSharedPreferenceChangeListener(onPreferences)
             preferences = null
-            stopObservation()
-            settings = CapsuleSettings(enabled = false)
+            if (!receivedCommittedSettings) {
+                stopObservation()
+                settings = CapsuleSettings(enabled = false)
+            }
             diagnostics.failure("Remote preferences attempt ${preferenceAttempts + 1}", failure)
             setStatus("Remote preferences unavailable")
             if (++preferenceAttempts <= 3) main.postDelayed(connect, 1200)
@@ -540,8 +567,8 @@ internal class CapsuleRuntime(
         trace("tint/palette", "enabled=$tintEnabled, algorithm=${settings.lyricTintMode}, " +
             "$correlation, strength=${settings[CapsuleTuning.TINT_STRENGTH]}, source=${watch.tintArtwork.origin}, backgroundSource=${watch.artworkOrigin}, " +
             "background=${background != null}, extraction=${watch.tint.extraction}, result=${watch.tint.outcome}, ${ink.diagnosticColors()}")
-        val timeline = watch.timeline
-        if (timeline == null) {
+        val presentation = watch.timeline?.let { LyricPresentation(it, settings) }
+        if (presentation == null || presentation.lines.isEmpty()) {
             setLyricTick(null)
             val trackInfo = if (settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
             renderFrame(binding, trackInfo, "NO_TIMELINE", background, ink)
@@ -554,21 +581,26 @@ internal class CapsuleRuntime(
         val now = SystemClock.elapsedRealtime()
         val uptime = SystemClock.uptimeMillis()
         val position = clock.position(now)
-        val presentation = LyricPresentation(timeline, settings)
         val index = if (watch.hasPlaybackPosition) presentation.indexAt(position) else -1
-        val line = timeline.lines.getOrNull(index)?.takeIf { it.text.isNotBlank() }
+        val line = presentation.lines.getOrNull(index)?.takeIf { it.text.isNotBlank() }
         val next = presentation.nextBoundary(index)
         val frame = if (watch.hasPlaybackPosition) {
-            presentation.introAt(position) { watch.trackInfo()?.rows } ?: presentation.frameAt(index, watch.duration)
+            val trackRows = { watch.trackInfo()?.rows }
+            presentation.introAt(position, trackRows) ?: presentation.frameAt(index, watch.duration, trackRows)
         } else null
         if (watch.lastLoggedLine != index) {
             watch.lastLoggedLine = index
             val mode = index.takeIf { it >= 0 }?.let(presentation::switchMode)
-            diagnostics.note("[lyric schedule] index=$index/${timeline.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, scrollEnd=${frame?.endMs}, displayStart=${frame?.displayStartMs}, next=$next, mode=$mode, secondRow=${frame?.rows?.second != null}, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
+            diagnostics.note("[lyric schedule] index=$index/${presentation.lines.size}, positionMs=$position, range=${line?.startMs}..${line?.endMs}, scrollEnd=${frame?.endMs}, displayStart=${frame?.displayStartMs}, next=$next, mode=$mode, secondRow=${frame?.rows?.second != null}, translated=${!line?.translation.isNullOrBlank()}, shown=${binding.target.capsule.isShown}")
         }
         if (frame != null) {
-            renderFrame(binding, frame, if (frame.isIntro) "INTRO_DOTS" else "SYNCED", background, ink, clock)
-            setStatus(if (frame.isIntro) "Rendering intro countdown" else "Rendering lyrics in native media capsule")
+            val phase = when {
+                frame.isIntro -> "INTRO_DOTS"
+                frame.countdown != null -> "INTERLUDE_DOTS"
+                else -> "SYNCED"
+            }
+            renderFrame(binding, frame, phase, background, ink, clock)
+            setStatus(if (frame.countdown != null) "Rendering lyric countdown" else "Rendering lyrics in native media capsule")
         } else {
             val introInfo = if (index < 0 && settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
             renderFrame(binding, introInfo, "INTRO_OR_GAP", background, ink)
@@ -598,12 +630,13 @@ internal class CapsuleRuntime(
         binding: CapsuleLabels, frame: LyricFrame?, phase: String, background: Bitmap?, ink: LyricInk,
         clock: PlaybackClock? = null,
     ) {
-        binding.render(frame, settings, background, clock, ink)
+        binding.render(frame, settings, background, clock, ink, trackIdentity = session?.trackIdentity)
         updatePauseOwner(binding)
         val kind = when {
             frame == null -> "NO_TEXT"
             frame.isTrackInfo -> "TRACK_INFO"
             frame.isIntro -> "INTRO_DOTS"
+            frame.countdown != null -> "INTERLUDE_DOTS"
             else -> "LYRICS"
         }
         val detail = "${session?.tintCorrelation()}, phase=$phase, kind=$kind, secondRow=${frame?.rows?.second != null}, opacity=${settings[CapsuleTuning.FIRST_ROW_OPACITY]}/${settings[CapsuleTuning.SECOND_ROW_OPACITY]}, ${ink.diagnosticColors()}"
@@ -679,6 +712,8 @@ internal class CapsuleRuntime(
     private inner class Session(val token: MediaSession.Token, val controller: MediaController) : MediaController.Callback() {
         private val playback = CapsulePlayback()
         private var trackSequence = 0L
+        var trackIdentity = Any()
+            private set
         fun tintCorrelation() = "pid=${android.os.Process.myPid()}, session=${System.identityHashCode(this)}, track=$trackSequence, calculation=${tint.calculationId}"
         val hasPlaybackPosition: Boolean get() = playback.hasPosition
         var timeline: Timeline? = null
@@ -802,6 +837,7 @@ internal class CapsuleRuntime(
             if (changed) {
                 tintArtworkSelection.onTrack(token to nextTrack)
                 trackSequence++
+                trackIdentity = Any()
                 lyricStatus = null
                 lastLoggedLine = null
                 diagnostics.note("Track metadata changed, previous track present=${track != null}")

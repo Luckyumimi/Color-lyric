@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Affiche la pochette floutée derrière les paroles</string>
     <string name="status_checking">Vérification de LSPosed…</string>
     <string name="status_disconnected">Non connecté à LSPosed</string>
-    <string name="status_disconnected_hint">Activez TerraMoor dans LSPosed et sélectionnez Interface système. Redémarrez le téléphone après la première activation.</string>
+    <string name="status_disconnected_hint">Activez Color lyric dans LSPosed et sélectionnez Interface système. Redémarrez le téléphone après la première activation.</string>
     <string name="status_no_scope">Interface système non sélectionnée</string>
     <string name="status_no_scope_hint">Sélectionnez Interface système dans LSPosed, puis redémarrez le téléphone.</string>
     <string name="status_ready">Interface système sélectionnée</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Redémarrer l’interface système</string>
     <string name="restart_system_ui_confirmation">L’écran peut brièvement devenir noir, puis revenir à l’écran de verrouillage.</string>
     <string name="restart_system_ui_confirm">Redémarrer</string>
-    <string name="restart_system_ui_root_required">Accordez à TerraMoor l’accès root dans votre gestionnaire root, puis réessayez.</string>
+    <string name="restart_system_ui_root_required">Accordez à Color lyric l’accès root dans votre gestionnaire root, puis réessayez.</string>
     <string name="restart_system_ui_failed">Impossible de redémarrer l’interface système. Réessayez plus tard.</string>
     <string name="restart_system_ui_completed">Interface système redémarrée</string>
     <string name="restart_system_ui_recommended">Vous avez modifié les réglages. Même si les changements sont déjà visibles, nous vous recommandons de redémarrer l’interface système à l’aide du bouton en haut à droite.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Paroles mot à mot</string>
     <string name="lyric_camera_word_avoidance">Mots entiers près de la caméra</string>
     <string name="lyric_intro_dots">Compte à rebours à trois points avant les paroles</string>
+    <string name="lyric_intro_dots_summary">Tente de masquer automatiquement les informations du morceau pendant l’intro</string>
     <string name="section_motion">Transition entre les lignes</string>
     <string name="motion_none">Instantanée</string>
     <string name="motion_up">Défilement vers le haut</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Télécharger</string>
     <string name="provider_not_checked">Non vérifié</string>
     <string name="provider_check_enable">Vérifier les fournisseurs de paroles</string>
-    <string name="provider_check_explanation">Autoriser TerraMoor à vérifier si Bridge et Universal Player Provider sont installés ? La vérification se fait uniquement sur cet appareil.</string>
+    <string name="provider_check_explanation">Autoriser Color lyric à vérifier si Bridge et Universal Player Provider sont installés ? La vérification se fait uniquement sur cet appareil.</string>
     <string name="provider_check_allow">Autoriser</string>
     <string name="provider_check_later">Pas maintenant</string>
     <string name="lock_screen_lyrics_section">Avant la configuration</string>

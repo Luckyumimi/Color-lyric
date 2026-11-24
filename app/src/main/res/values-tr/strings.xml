@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Şarkı sözlerinin arkasında bulanık kapak gösterir</string>
     <string name="status_checking">LSPosed denetleniyor…</string>
     <string name="status_disconnected">LSPosed bağlantısı yok</string>
-    <string name="status_disconnected_hint">LSPosed’da TerraMoor’u etkinleştirip Sistem Arayüzü’nü seçin. İlk etkinleştirmeden sonra telefonu yeniden başlatın.</string>
+    <string name="status_disconnected_hint">LSPosed’da Color lyric’i etkinleştirip Sistem Arayüzü’nü seçin. İlk etkinleştirmeden sonra telefonu yeniden başlatın.</string>
     <string name="status_no_scope">Sistem Arayüzü seçilmedi</string>
     <string name="status_no_scope_hint">LSPosed’da Sistem Arayüzü’nü seçip telefonu yeniden başlatın.</string>
     <string name="status_ready">Sistem Arayüzü seçildi</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Sistem Arayüzü’nü yeniden başlat</string>
     <string name="restart_system_ui_confirmation">Ekran bir an kararıp kilit ekranına dönebilir.</string>
     <string name="restart_system_ui_confirm">Yeniden başlat</string>
-    <string name="restart_system_ui_root_required">Root yöneticisinde TerraMoor’a root yetkisi verip tekrar deneyin.</string>
+    <string name="restart_system_ui_root_required">Root yöneticisinde Color lyric’e root yetkisi verip tekrar deneyin.</string>
     <string name="restart_system_ui_failed">Sistem Arayüzü yeniden başlatılamadı. Daha sonra tekrar deneyin.</string>
     <string name="restart_system_ui_completed">Sistem Arayüzü yeniden başlatıldı</string>
     <string name="restart_system_ui_recommended">Ayarları değiştirdiniz. Değişiklikler görünür olsa bile sağ üstteki düğmeyle Sistem Arayüzü’nü yeniden başlatmanızı öneririz.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Kelime kelime şarkı sözü</string>
     <string name="lyric_camera_word_avoidance">Kamera yanında tam kelimeler</string>
     <string name="lyric_intro_dots">Üç noktalı giriş geri sayımı</string>
+    <string name="lyric_intro_dots_summary">Giriş sırasında şarkı bilgilerini otomatik olarak gizlemeye çalışır</string>
     <string name="section_motion">Satır geçişi</string>
     <string name="motion_none">Anında</string>
     <string name="motion_up">Yukarı kaydır</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">İndir</string>
     <string name="provider_not_checked">Kontrol edilmedi</string>
     <string name="provider_check_enable">Şarkı sözü sağlayıcılarını kontrol et</string>
-    <string name="provider_check_explanation">TerraMoor’un Bridge ve Universal Player Provider’ın yüklü olup olmadığını kontrol etmesine izin verilsin mi? Kontrol yalnızca bu cihazda yapılır.</string>
+    <string name="provider_check_explanation">Color lyric’in Bridge ve Universal Player Provider’ın yüklü olup olmadığını kontrol etmesine izin verilsin mi? Kontrol yalnızca bu cihazda yapılır.</string>
     <string name="provider_check_allow">İzin ver</string>
     <string name="provider_check_later">Şimdi değil</string>
     <string name="lock_screen_lyrics_section">Kurulum öncesi</string>

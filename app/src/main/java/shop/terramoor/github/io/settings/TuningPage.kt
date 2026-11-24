@@ -229,6 +229,13 @@ internal fun TuningPage(
             }
             SettingsGroup(stringResource(R.string.section_camera)) {
                 TactileSwitchPreference(
+                    checked = settings.cameraWordAvoidance,
+                    onCheckedChange = { app.set(CapsuleSettings.CAMERA_WORD_AVOIDANCE, it) },
+                    title = stringResource(R.string.lyric_camera_word_avoidance),
+                    enabled = ready,
+                )
+                HorizontalDivider(divider)
+                TactileSwitchPreference(
                     title = stringResource(R.string.camera_fade),
                     checked = settings.cameraFade,
                     enabled = ready,
@@ -289,17 +296,11 @@ internal fun TuningPage(
                 )
                 HorizontalDivider(divider)
                 TactileSwitchPreference(
-                    checked = settings.cameraWordAvoidance,
-                    onCheckedChange = { app.set(CapsuleSettings.CAMERA_WORD_AVOIDANCE, it) },
-                    title = stringResource(R.string.lyric_camera_word_avoidance),
-                    enabled = ready,
-                )
-                HorizontalDivider(divider)
-                TactileSwitchPreference(
                     checked = settings.introDots,
                     onCheckedChange = { app.set(CapsuleSettings.INTRO_DOTS, it) },
                     title = stringResource(R.string.lyric_intro_dots),
                     enabled = ready,
+                    summary = stringResource(R.string.lyric_intro_dots_summary),
                 )
                 HorizontalDivider(divider)
                 val motionOptions = listOf(

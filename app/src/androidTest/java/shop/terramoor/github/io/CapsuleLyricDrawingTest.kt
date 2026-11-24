@@ -21,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import shop.terramoor.github.io.lyrics.LyricFrame
+import shop.terramoor.github.io.lyrics.LyricCountdown
 import shop.terramoor.github.io.lyrics.LyricLine
 import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.LyricRows
@@ -29,6 +30,7 @@ import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LyricAlignment
+import shop.terramoor.github.io.settings.LineMotion
 import shop.terramoor.github.io.settings.LyricTintMode
 import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.PreviewLanguage
@@ -48,12 +50,38 @@ import shop.terramoor.github.io.systemui.OuterLyricFeather
 import shop.terramoor.github.io.systemui.OuterLyricMask
 import shop.terramoor.github.io.systemui.TrackInfoDisplayMarquee
 import shop.terramoor.github.io.systemui.artworkBitmap
+import shop.terramoor.github.io.systemui.hyperCoverLyricInk
+import shop.terramoor.github.io.systemui.withCoverTintStrength
 import java.time.Duration
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class CapsuleLyricDrawingTest {
+    @Test
+    fun gradientStrengthAdjustsTheCachedCoverPaletteWithoutChangingItsExtraction() {
+        val cover = Bitmap.createBitmap(128, 96, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(cover)
+            canvas.drawColor(Color.BLUE)
+            canvas.drawRect(72f, 0f, 128f, 96f, Paint().apply { color = Color.GREEN })
+            val settings = CapsuleSettings(lyricTintEnabled = true, lyricTintMode = LyricTintMode.GRADIENT)
+            val reference = requireNotNull(hyperCoverLyricInk(cover))
+            requireNotNull(reference.gradient)
+            val tint = ArtworkLyricTint()
+            assertEquals(reference, tint.resolve(cover, null, settings))
+            val weak = settings.withTuning(mapOf(CapsuleTuning.TINT_STRENGTH to 25))
+            val adjusted = tint.resolve(cover, cover, weak, baseColor = Color.WHITE)
+            assertEquals(reference.withCoverTintStrength(25), adjusted)
+            assertTrue(reference != adjusted)
+            assertTrue(tint.cacheDetail.contains("seed=HIT"))
+            assertEquals(reference, tint.resolve(cover, cover, settings, baseColor = Color.WHITE))
+            assertEquals(LyricInk.WHITE, tint.resolve(null, cover, weak))
+        } finally {
+            cover.recycle()
+        }
+    }
+
     @Test
     fun pausedNativePresentationReleasesWidthAndSlotsAndAllowsResuming() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -155,6 +183,34 @@ class CapsuleLyricDrawingTest {
     }
 
     @Test
+    fun countdownDrawsAsTheOutgoingFrameForUpAndFadeButNotWhenDisabled() {
+        val strip = CapsuleLyricStrip(1f)
+        val image = Bitmap.createBitmap(220, 40, Bitmap.Config.ARGB_8888)
+        val frame = LyricFrame(LyricRows("First lyric"), 9000L, 11000L,
+            priorCountdown = LyricCountdown(2000L, 9000L))
+        try {
+            fun draw(motion: LineMotion, position: Long) {
+                image.eraseColor(Color.TRANSPARENT)
+                strip.update(frame, CapsuleSettings(introDots = true, motion = motion, lyricAlignment = LyricAlignment.LEFT))
+                strip.draw(Canvas(image), 0f, 0f, 220f, 40f, CapsuleCamera(120f, 12f), position)
+            }
+            for (motion in listOf(LineMotion.UP, LineMotion.FADE)) {
+                draw(motion, 9000L)
+                assertTrue(image.ink(132 until 220, 0 until 40) > 0)
+                assertEquals(0, image.ink(0 until 108, 0 until 40))
+                draw(motion, 9260L)
+                assertEquals(0, image.ink(132 until 220, 0 until 40))
+                assertTrue(image.ink(0 until 108, 0 until 40) > 0)
+            }
+            draw(LineMotion.NONE, 9000L)
+            assertEquals(0, image.ink(132 until 220, 0 until 40))
+            assertTrue(image.ink(0 until 108, 0 until 40) > 0)
+        } finally {
+            image.recycle()
+        }
+    }
+
+    @Test
     fun wordHighlightStartsBelowAndSettlesOntoTheOrdinaryBaseline() {
         val strip = CapsuleLyricStrip(2f)
         val bitmap = Bitmap.createBitmap(320, 80, Bitmap.Config.ARGB_8888)
@@ -178,6 +234,38 @@ class CapsuleLyricDrawingTest {
             assertEquals(firstGlyphTop(plain), firstGlyphTop(active))
             assertEquals(plain, completed)
             assertTrue(active.sum() < completed.sum())
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test
+    fun sustainedWordLiftsAndGlowsOnlyInTheFirstRow() {
+        val strip = CapsuleLyricStrip(2f)
+        val width = 160
+        val height = 80
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val words = listOf(LyricWord(0, 1, 1000L, 3000L))
+        val rows = LyricRows("H", "H", firstWords = words, secondWords = words)
+        strip.update(LyricFrame(rows, 1000L, 4000L), CapsuleSettings(wordLyrics = true))
+        fun draw(position: Long): IntArray {
+            bitmap.eraseColor(Color.TRANSPARENT)
+            strip.draw(Canvas(bitmap), 0f, 0f, width.toFloat(), height.toFloat(), null, position)
+            return IntArray(width * height).also { bitmap.getPixels(it, 0, width, 0, 0, width, height) }
+        }
+        fun inkTop(pixels: IntArray, ys: IntRange) = ys.first { y ->
+            (0 until 32).any { x -> Color.alpha(pixels[y * width + x]) > 100 }
+        }
+        try {
+            val settled = draw(3000L)
+            val sustained = draw(2400L)
+            assertTrue(inkTop(sustained, 0 until 40) < inkTop(settled, 0 until 40))
+            assertEquals(inkTop(settled, 41 until height), inkTop(sustained, 41 until height))
+            // After compensating for the 2 px lift, the halo reaches pixels outside the settled glyph.
+            assertTrue((2 until 37).any { y -> (0 until 32).any { x ->
+                Color.alpha(sustained[y * width + x]) > 3 && Color.alpha(settled[(y + 2) * width + x]) == 0
+            } })
+            assertArrayEquals(settled, draw(3300L))
         } finally {
             bitmap.recycle()
         }
@@ -263,17 +351,23 @@ class CapsuleLyricDrawingTest {
         }
         try {
             strip.update(frame, CapsuleSettings(wordLyrics = true))
+            val (_, atStart) = draw(1000L)
+            val (openingDelay, beforeFollowPoint) = draw(1100L)
             val (nextWordDelay, atFirstWordEnd) = draw(1400L)
             val (remainingDelay, duringGap) = draw(1750L)
             val (activeDelay, duringSecondWord) = draw(2400L)
-            val (shortGapDelay, _) = draw(2810L)
+            val (_, atSecondWordEnd) = draw(2800L)
+            val (shortGapDelay, duringShortGap) = draw(2810L)
             val (afterLastDelay, _) = draw(3200L)
+            assertEquals(0L, openingDelay)
             assertEquals(600L, nextWordDelay)
             assertEquals(250L, remainingDelay)
             assertEquals(0L, activeDelay)
-            assertEquals(0L, shortGapDelay)
+            assertEquals(30L, shortGapDelay)
             assertNull(afterLastDelay)
+            assertArrayEquals(atStart, beforeFollowPoint)
             assertArrayEquals(atFirstWordEnd, duringGap)
+            assertArrayEquals(atSecondWordEnd, duringShortGap)
             assertFalse(duringGap.contentEquals(duringSecondWord))
         } finally {
             image.recycle()
@@ -496,6 +590,45 @@ class CapsuleLyricDrawingTest {
                 assertEquals("Text under the camera", 0, image.ink(310 until 349, 38 until 71))
                 image.recycle()
             }
+        }
+    }
+
+    @Test
+    fun wholeWordAvoidanceClearsTheRightFadeAtRestButCanScrollIntoIt() {
+        val strip = CapsuleLyricStrip(3f)
+        val frame = LyricFrame(LyricRows("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHH"), 0, 4000)
+        val settings = CapsuleSettings(cameraWordAvoidance = true, lyricAlignment = LyricAlignment.LEFT)
+        val camera = CapsuleCamera(180f, 10f)
+        val buffer = 190 until 196
+        val ys = 0 until 60
+        val faded = Bitmap.createBitmap(360, 60, Bitmap.Config.ARGB_8888)
+        val sharp = Bitmap.createBitmap(360, 60, Bitmap.Config.ARGB_8888)
+        fun draw(image: Bitmap, fade: Boolean, position: Long) {
+            image.eraseColor(Color.TRANSPARENT)
+            strip.update(frame, settings.copy(cameraFade = fade))
+            strip.draw(Canvas(image), 20f, 0f, 340f, 60f, camera, position)
+        }
+        try {
+            draw(faded, true, 0)
+            draw(sharp, false, 0)
+            assertEquals(0, faded.ink(buffer, ys))
+            assertEquals(0, sharp.ink(buffer, ys))
+            assertTrue(faded.ink(196 until 245, ys) > 10)
+            for (x in 190 until 245) for (y in ys) {
+                assertEquals(sharp.pixelAlpha(x, y), faded.pixelAlpha(x, y))
+            }
+            assertTrue((400L..1200L step 20).any { position ->
+                draw(faded, true, position)
+                draw(sharp, false, position)
+                buffer.any { x -> ys.any { y ->
+                    val clear = sharp.pixelAlpha(x, y)
+                    val soft = faded.pixelAlpha(x, y)
+                    soft in 1 until clear
+                } }
+            })
+        } finally {
+            faded.recycle()
+            sharp.recycle()
         }
     }
 

@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Paparkan kulit album yang dikaburkan di belakang lirik</string>
     <string name="status_checking">Menyemak LSPosed…</string>
     <string name="status_disconnected">Tidak bersambung ke LSPosed</string>
-    <string name="status_disconnected_hint">Dayakan TerraMoor dalam LSPosed dan pilih UI Sistem. Mulakan semula telefon selepas mendayakannya buat kali pertama.</string>
+    <string name="status_disconnected_hint">Dayakan Color lyric dalam LSPosed dan pilih UI Sistem. Mulakan semula telefon selepas mendayakannya buat kali pertama.</string>
     <string name="status_no_scope">UI Sistem belum dipilih</string>
     <string name="status_no_scope_hint">Pilih UI Sistem dalam LSPosed, kemudian mulakan semula telefon.</string>
     <string name="status_ready">UI Sistem dipilih</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Mulakan semula UI Sistem</string>
     <string name="restart_system_ui_confirmation">Skrin mungkin gelap seketika sebelum skrin kunci dipaparkan.</string>
     <string name="restart_system_ui_confirm">Mulakan semula</string>
-    <string name="restart_system_ui_root_required">Benarkan akses root untuk TerraMoor dalam pengurus root anda, kemudian cuba lagi.</string>
+    <string name="restart_system_ui_root_required">Benarkan akses root untuk Color lyric dalam pengurus root anda, kemudian cuba lagi.</string>
     <string name="restart_system_ui_failed">UI Sistem tidak dapat dimulakan semula. Cuba lagi nanti.</string>
     <string name="restart_system_ui_completed">UI Sistem dimulakan semula</string>
     <string name="restart_system_ui_recommended">Anda baru sahaja mengubah tetapan. Walaupun perubahan sudah kelihatan, kami mengesyorkan anda memulakan semula UI Sistem dengan butang di bahagian atas kanan.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Lirik perkataan demi perkataan</string>
     <string name="lyric_camera_word_avoidance">Perkataan penuh di sebelah kamera</string>
     <string name="lyric_intro_dots">Kiraan detik intro tiga titik</string>
+    <string name="lyric_intro_dots_summary">Cuba menapis maklumat lagu secara automatik semasa intro</string>
     <string name="section_motion">Peralihan baris</string>
     <string name="motion_none">Serta-merta</string>
     <string name="motion_up">Tatal ke atas</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Muat turun</string>
     <string name="provider_not_checked">Belum disemak</string>
     <string name="provider_check_enable">Semak penyedia lirik</string>
-    <string name="provider_check_explanation">Benarkan TerraMoor menyemak sama ada Bridge dan Universal Player Provider telah dipasang? Semakan hanya dilakukan pada peranti ini.</string>
+    <string name="provider_check_explanation">Benarkan Color lyric menyemak sama ada Bridge dan Universal Player Provider telah dipasang? Semakan hanya dilakukan pada peranti ini.</string>
     <string name="provider_check_allow">Benarkan</string>
     <string name="provider_check_later">Bukan sekarang</string>
     <string name="lock_screen_lyrics_section">Sebelum persediaan</string>

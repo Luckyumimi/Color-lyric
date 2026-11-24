@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import shop.terramoor.github.io.settings.CapsuleBackup
@@ -40,8 +41,14 @@ class CapsuleCameraSettingsTest {
             assertEquals(true, settings.artwork)
             assertEquals(PauseBehavior.KEEP_CURRENT, settings.pauseBehavior)
             assertEquals(LyricAlignment.LEFT, settings.lyricAlignment)
+            assertTrue(settings.wordLyrics)
+            assertTrue(settings.introDots)
+            assertEquals(LyricTintMode.GRADIENT, settings.lyricTintMode)
+            assertEquals(12, settings[CapsuleTuning.FIRST_ROW_SIZE])
+            assertEquals(8, settings[CapsuleTuning.SECOND_ROW_SIZE])
             assertEquals(170, settings[CapsuleTuning.ISLAND_WIDTH])
-            assertEquals(25, settings[CapsuleTuning.ARTWORK_DIM])
+            assertEquals(5, settings[CapsuleTuning.BLUR])
+            assertEquals(0, settings[CapsuleTuning.ARTWORK_DIM])
             assertEquals(CapsuleSettings().withTuning(CapsuleTuning.entries.associateWith { it.default }), settings)
         } finally {
             context.deleteSharedPreferences(name)
@@ -165,6 +172,67 @@ class CapsuleCameraSettingsTest {
             prefs.edit().apply { writeSettings(CapsuleBackup.decode(CapsuleBackup.encode(v6).byteInputStream())) }.commit()
             assertFalse(prefs.contains(CapsuleSettings.LEGACY_TRANSLATION))
             assertEquals(v6, CapsuleSettings.read(prefs))
+        } finally {
+            context.deleteSharedPreferences(name)
+        }
+    }
+
+    @Test
+    fun wordAvoidanceAndCameraFadeCanBeChangedIndependently() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.context
+        val name = "capsule-camera-effects-independent"
+        context.deleteSharedPreferences(name)
+        val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+        val app = Instrumentation.newApplication(TerraMoorApp::class.java, context) as TerraMoorApp
+        fun snapshot() = runBlocking { withTimeout(5000) { withContext(Dispatchers.Main) { app.snapshotForBackup() } } }
+
+        try {
+            instrumentation.runOnMainSync {
+                app.attachPreferences(prefs, inScope = true, initial = CapsuleSettings.read(prefs))
+            }
+            for (fade in listOf(true, false)) {
+                instrumentation.runOnMainSync {
+                    app.set(CapsuleSettings.CAMERA_FADE, fade)
+                    app.set(CapsuleSettings.CAMERA_WORD_AVOIDANCE, true)
+                }
+                val avoiding = checkNotNull(snapshot())
+                assertTrue(avoiding.cameraWordAvoidance)
+                assertEquals(fade, avoiding.cameraFade)
+                assertEquals(fade, prefs.getBoolean(CapsuleSettings.CAMERA_FADE, !fade))
+
+                instrumentation.runOnMainSync { app.set(CapsuleSettings.CAMERA_FADE, !fade) }
+                val changed = checkNotNull(snapshot())
+                assertTrue(changed.cameraWordAvoidance)
+                assertEquals(!fade, changed.cameraFade)
+                assertEquals(!fade, prefs.getBoolean(CapsuleSettings.CAMERA_FADE, fade))
+
+                instrumentation.runOnMainSync { app.set(CapsuleSettings.CAMERA_WORD_AVOIDANCE, false) }
+                val restored = checkNotNull(snapshot())
+                assertFalse(restored.cameraWordAvoidance)
+                assertEquals(!fade, restored.cameraFade)
+            }
+        } finally {
+            context.deleteSharedPreferences(name)
+        }
+    }
+
+    @Test
+    fun oldPreferencesCanKeepBothCameraEffectsEnabled() {
+        val context = InstrumentationRegistry.getInstrumentation().context
+        val name = "capsule-camera-effect-legacy"
+        context.deleteSharedPreferences(name)
+        val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+        try {
+            assertFalse(CapsuleSettings.read(prefs).cameraWordAvoidance)
+            assertTrue(CapsuleSettings.read(prefs).cameraFade)
+            prefs.edit()
+                .putBoolean(CapsuleSettings.CAMERA_WORD_AVOIDANCE, true)
+                .putBoolean(CapsuleSettings.CAMERA_FADE, true)
+                .apply()
+            val settings = CapsuleSettings.read(prefs)
+            assertTrue(settings.cameraWordAvoidance)
+            assertTrue(settings.cameraFade)
         } finally {
             context.deleteSharedPreferences(name)
         }

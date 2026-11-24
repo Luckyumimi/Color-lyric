@@ -1,5 +1,9 @@
 package shop.terramoor.github.io.lyrics
 
+private const val WORD_BASELINE_SETTLE_MS = 170L
+private const val LONG_WORD_MIN_MS = 1200L
+private const val LONG_WORD_EASE_MS = 320f
+
 /** Text offsets address the original row in UTF-16. Times address the song playback clock. */
 internal data class LyricWord(val from: Int, val until: Int, val startMs: Long, val endMs: Long? = null) {
     fun fraction(positionMs: Long): Float {
@@ -11,10 +15,19 @@ internal data class LyricWord(val from: Int, val until: Int, val startMs: Long, 
 
     fun baselineOffset(positionMs: Long): Float {
         if (positionMs < startMs) return 1f
-        val duration = ((endMs ?: startMs) - startMs).coerceIn(0L, 170L)
+        val duration = ((endMs ?: startMs) - startMs).coerceIn(0L, WORD_BASELINE_SETTLE_MS)
         if (duration == 0L || positionMs - startMs >= duration) return 0f
         val fraction = (positionMs - startMs).toFloat() / duration
         return 1f - fraction * fraction * (3f - 2f * fraction)
+    }
+
+    fun sustainEmphasis(positionMs: Long): Float {
+        val end = endMs ?: return 0f
+        if (end - startMs < LONG_WORD_MIN_MS || positionMs <= startMs || positionMs >= end) return 0f
+        val rise = (positionMs - startMs - WORD_BASELINE_SETTLE_MS) / LONG_WORD_EASE_MS
+        val fall = (end - positionMs) / LONG_WORD_EASE_MS
+        val level = minOf(rise, fall).coerceIn(0f, 1f)
+        return level * level * (3f - 2f * level)
     }
 }
 

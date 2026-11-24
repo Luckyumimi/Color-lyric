@@ -9,7 +9,7 @@ import org.json.JSONException
 import org.json.JSONObject
 
 internal object GitHubUpdates {
-    const val REPOSITORY = "Luckyumimi/TerraMoor"
+    const val REPOSITORY = "Luckyumimi/Color-lyric"
     const val REPOSITORY_URL = "https://github.com/$REPOSITORY"
     const val RELEASES_URL = "$REPOSITORY_URL/releases"
     private const val API_URL = "https://api.github.com/repos/$REPOSITORY"
@@ -54,7 +54,7 @@ internal object GitHubUpdates {
             connection.instanceFollowRedirects = false
             connection.useCaches = false
             connection.setRequestProperty("Accept", "application/vnd.github+json")
-            connection.setRequestProperty("User-Agent", "TerraMoor")
+            connection.setRequestProperty("User-Agent", "Color-lyric")
             val status = connection.responseCode
             val body = if (status == HttpURLConnection.HTTP_OK && path.isNotEmpty()) {
                 connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }

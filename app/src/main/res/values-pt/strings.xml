@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Mostra a capa desfocada atrás da letra</string>
     <string name="status_checking">Verificando o LSPosed…</string>
     <string name="status_disconnected">Sem conexão com o LSPosed</string>
-    <string name="status_disconnected_hint">Ative o TerraMoor no LSPosed e selecione Interface do sistema. Reinicie o celular após a primeira ativação.</string>
+    <string name="status_disconnected_hint">Ative o Color lyric no LSPosed e selecione Interface do sistema. Reinicie o celular após a primeira ativação.</string>
     <string name="status_no_scope">Interface do sistema não selecionada</string>
     <string name="status_no_scope_hint">Selecione Interface do sistema no LSPosed e reinicie o celular.</string>
     <string name="status_ready">Interface do sistema selecionada</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Reiniciar a interface do sistema</string>
     <string name="restart_system_ui_confirmation">A tela pode ficar preta por um instante antes de voltar à tela de bloqueio.</string>
     <string name="restart_system_ui_confirm">Reiniciar</string>
-    <string name="restart_system_ui_root_required">Conceda acesso root ao TerraMoor no gerenciador de root e tente novamente.</string>
+    <string name="restart_system_ui_root_required">Conceda acesso root ao Color lyric no gerenciador de root e tente novamente.</string>
     <string name="restart_system_ui_failed">Não foi possível reiniciar a interface do sistema. Tente mais tarde.</string>
     <string name="restart_system_ui_completed">Interface do sistema reiniciada</string>
     <string name="restart_system_ui_recommended">Você alterou as configurações. Mesmo que as mudanças já apareçam, recomendamos reiniciar a interface do sistema pelo botão no canto superior direito.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Letra palavra por palavra</string>
     <string name="lyric_camera_word_avoidance">Palavras inteiras ao lado da câmara</string>
     <string name="lyric_intro_dots">Contagem da introdução com três pontos</string>
+    <string name="lyric_intro_dots_summary">Tenta filtrar automaticamente as informações da música durante a introdução</string>
     <string name="section_motion">Transição entre linhas</string>
     <string name="motion_none">Instantânea</string>
     <string name="motion_up">Rolar para cima</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Baixar</string>
     <string name="provider_not_checked">Não verificado</string>
     <string name="provider_check_enable">Verificar provedores de letras</string>
-    <string name="provider_check_explanation">Permitir que o TerraMoor verifique se o Bridge e o Universal Player Provider estão instalados? A verificação é feita apenas neste dispositivo.</string>
+    <string name="provider_check_explanation">Permitir que o Color lyric verifique se o Bridge e o Universal Player Provider estão instalados? A verificação é feita apenas neste dispositivo.</string>
     <string name="provider_check_allow">Permitir</string>
     <string name="provider_check_later">Agora não</string>
     <string name="lock_screen_lyrics_section">Antes de configurar</string>

@@ -33,21 +33,7 @@ internal data class LabColor(val lightness: Double, val a: Double, val b: Double
         return opaqueRgb(srgb(rgb.red), srgb(rgb.green), srgb(rgb.blue))
     }
 
-    /** Map into sRGB by reducing chroma at fixed lightness and hue. */
-    fun toMappedRgb(): Int {
-        if (linearRgb().inGamut()) return toRgb()
-        var low = 0.0
-        var high = 1.0
-        repeat(10) {
-            val middle = (low + high) / 2.0
-            if (copy(a = a * middle, b = b * middle).linearRgb().inGamut()) low = middle else high = middle
-        }
-        return copy(a = a * low, b = b * low).toRgb()
-    }
-
-    private data class LinearRgb(val red: Double, val green: Double, val blue: Double) {
-        fun inGamut() = red in 0.0..1.0 && green in 0.0..1.0 && blue in 0.0..1.0
-    }
+    private data class LinearRgb(val red: Double, val green: Double, val blue: Double)
 
     private fun linearRgb(): LinearRgb {
         val l = cube(lightness + 0.3963377774 * a + 0.2158037573 * b)
@@ -118,19 +104,3 @@ internal fun lyricInk(seed: LabColor?, background: IntArray, settings: CapsuleSe
 }
 
 private const val TINT_LIGHTNESS = 0.95
-
-internal fun lyricGradientInk(
-    first: LabColor, second: LabColor, settings: CapsuleSettings,
-): LyricInk {
-    val strength = settings[CapsuleTuning.TINT_STRENGTH] / 100.0
-    fun anchor(seed: LabColor): LabColor {
-        // Preserve lightness differences on a brighter scale suitable for status bar text.
-        val target = 0.78 + 0.20 * seed.lightness * seed.lightness
-        return LabColor(1.0 - (1.0 - target) * strength, seed.a * strength, seed.b * strength)
-    }
-    val start = anchor(first)
-    val end = anchor(second)
-    val center = LabColor((start.lightness + end.lightness) / 2.0, (start.a + end.a) / 2.0, (start.b + end.b) / 2.0)
-    val gradient = LyricGradient(start.toMappedRgb(), center.toMappedRgb(), end.toMappedRgb())
-    return LyricInk(gradient.center, gradient.center, gradient = gradient)
-}

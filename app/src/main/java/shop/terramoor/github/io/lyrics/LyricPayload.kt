@@ -26,7 +26,8 @@ internal object LyricPayload {
         val json = try { JSONObject(payload) } catch (_: org.json.JSONException) { return Result(Outcome.INVALID_JSON) }
         if (json.optBoolean("noLyric", false)) return Result(Outcome.PROVIDER_NO_LYRIC)
         val payloadTitle = json.text("songName").ifBlank { json.text("title") }
-        if (!titlesMatch(title, payloadTitle, titleChanged, artist, json.text("artist"))) return Result(Outcome.TRACK_MISMATCH)
+        val payloadArtist = json.text("artist")
+        if (!titlesMatch(title, payloadTitle, titleChanged, artist, payloadArtist)) return Result(Outcome.TRACK_MISMATCH)
         val lyric = json.text("lyric")
         val raw = json.text("rawLyric")
         val ttml = json.text("ttml")
@@ -34,6 +35,8 @@ internal object LyricPayload {
             translationKeys.firstNotNullOfOrNull { json.text(it).takeIf(String::isNotBlank) }.orEmpty(),
             TtmlEnds.parse(ttml),
             TtmlWords.parse(ttml),
+            titles = listOfNotNull(title, payloadTitle.takeIf(String::isNotBlank)),
+            artist = artist?.takeIf(String::isNotBlank) ?: payloadArtist,
         )
         return Result(if (timeline == null) Outcome.NO_TIMED_LINES else Outcome.PARSED,
             timeline, lyric.isNotBlank() || raw.isNotBlank(), ttml.isNotBlank())

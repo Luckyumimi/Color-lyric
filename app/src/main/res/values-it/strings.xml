@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">Mostra la copertina sfocata dietro al testo</string>
     <string name="status_checking">Controllo di LSPosed…</string>
     <string name="status_disconnected">Non connesso a LSPosed</string>
-    <string name="status_disconnected_hint">Attiva TerraMoor in LSPosed e seleziona Interfaccia di sistema. Riavvia il telefono dopo la prima attivazione.</string>
+    <string name="status_disconnected_hint">Attiva Color lyric in LSPosed e seleziona Interfaccia di sistema. Riavvia il telefono dopo la prima attivazione.</string>
     <string name="status_no_scope">Interfaccia di sistema non selezionata</string>
     <string name="status_no_scope_hint">Seleziona Interfaccia di sistema in LSPosed e riavvia il telefono.</string>
     <string name="status_ready">Interfaccia di sistema selezionata</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">Riavvia l’interfaccia di sistema</string>
     <string name="restart_system_ui_confirmation">Lo schermo potrebbe oscurarsi brevemente per poi tornare alla schermata di blocco.</string>
     <string name="restart_system_ui_confirm">Riavvia</string>
-    <string name="restart_system_ui_root_required">Concedi a TerraMoor l’accesso root nel gestore root e riprova.</string>
+    <string name="restart_system_ui_root_required">Concedi a Color lyric l’accesso root nel gestore root e riprova.</string>
     <string name="restart_system_ui_failed">Impossibile riavviare l’interfaccia di sistema. Riprova più tardi.</string>
     <string name="restart_system_ui_completed">Interfaccia di sistema riavviata</string>
     <string name="restart_system_ui_recommended">Hai modificato le impostazioni. Anche se le modifiche sono già visibili, ti consigliamo di riavviare l’interfaccia di sistema con il pulsante in alto a destra.</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">Testo parola per parola</string>
     <string name="lyric_camera_word_avoidance">Parole intere accanto alla fotocamera</string>
     <string name="lyric_intro_dots">Conto alla rovescia a tre punti</string>
+    <string name="lyric_intro_dots_summary">Tenta di filtrare automaticamente le informazioni sul brano durante l’intro</string>
     <string name="section_motion">Transizione tra righe</string>
     <string name="motion_none">Istantanea</string>
     <string name="motion_up">Scorri verso l’alto</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">Scarica</string>
     <string name="provider_not_checked">Non verificato</string>
     <string name="provider_check_enable">Verifica i fornitori di testi</string>
-    <string name="provider_check_explanation">Consenti a TerraMoor di verificare se Bridge e Universal Player Provider sono installati? La verifica avviene solo su questo dispositivo.</string>
+    <string name="provider_check_explanation">Consenti a Color lyric di verificare se Bridge e Universal Player Provider sono installati? La verifica avviene solo su questo dispositivo.</string>
     <string name="provider_check_allow">Consenti</string>
     <string name="provider_check_later">Non ora</string>
     <string name="lock_screen_lyrics_section">Prima della configurazione</string>

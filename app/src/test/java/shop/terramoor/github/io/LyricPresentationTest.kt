@@ -65,8 +65,8 @@ class LyricPresentationTest {
         val frame = checkNotNull(single.frameAt(1, 10000))
         assertEquals(LyricRows("Second", missingTranslationSingleLine = true), frame.rows)
         assertEquals(LyricRows("First", "Translation"), frame.priorRows)
-        assertEquals(13, defaults.effectiveFirstRowSize(frame.rows.missingTranslationSingleLine))
-        assertEquals(11, defaults.copy(fallbackSingleLineExpand = false).effectiveFirstRowSize(frame.rows.missingTranslationSingleLine))
+        assertEquals(14, defaults.effectiveFirstRowSize(frame.rows.missingTranslationSingleLine))
+        assertEquals(12, defaults.copy(fallbackSingleLineExpand = false).effectiveFirstRowSize(frame.rows.missingTranslationSingleLine))
 
         val double = LyricPresentation(timeline, defaults.copy(missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS))
         assertEquals(LyricRows("Second", "Third", nextLyricStartMs = 5000), double.frameAt(1, 10000)?.rows)

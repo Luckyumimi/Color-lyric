@@ -12,6 +12,10 @@ internal data class CameraLyricTravel(val head: Float, val tail: Float)
 
 internal data class CameraWordFade(val unit: CameraWordBounds, val majorityOnRight: Boolean, val opacity: Float)
 
+/** Clears the right feather at the head, without reducing the scrolling viewport. */
+internal fun cameraHeadInset(inset: Float, head: Float, origin: Float): Float =
+    (inset - (head - origin).coerceAtLeast(0f)).coerceAtLeast(0f)
+
 /** Gives a tightly packed line room to scroll when a whole group will not fit at rest. */
 internal fun cameraLyricTravel(
     units: List<CameraWordBounds>, width: Float, viewWidth: Float, seam: Float, origin: Float,

@@ -70,11 +70,10 @@ internal class ArtworkLyricTint {
         ink = if (mode == LyricTintMode.TEXTURE) {
             val texture = textureBitmap(source, settings)
             if (texture == null) LyricInk.WHITE else LyricInk(-1, -1, texture)
+        } else if (mode == LyricTintMode.GRADIENT) {
+            contrastDetail = "contrastPolicy=hyper_cover_palette"
+            result.coverInk?.withCoverTintStrength(settings[CapsuleTuning.TINT_STRENGTH]) ?: LyricInk.WHITE
         } else if (seed == null) LyricInk.WHITE
-        else if (mode == LyricTintMode.GRADIENT && result.secondSeed != null) {
-            contrastDetail = "contrastPolicy=light_gradient"
-            lyricGradientInk(seed, result.secondSeed, settings)
-        }
         else {
             val samples = sampleBackground(background, aspect, baseColor, settings[CapsuleTuning.ARTWORK_DIM])
             val backgroundKind = if (background == null || background.isRecycled || background.config == Bitmap.Config.HARDWARE) "BASE" else "BITMAP"
@@ -83,8 +82,8 @@ internal class ArtworkLyricTint {
         outcome = when {
             mode == LyricTintMode.TEXTURE && ink.texture != null -> "TEXTURE"
             ink.gradient != null -> "GRADIENT"
-            seed == null -> "NO_USABLE_ACCENT"
             ink != LyricInk.WHITE -> "TINTED"
+            seed == null && result.coverInk == null -> "NO_USABLE_ACCENT"
             else -> "WHITE_INK"
         }
         this.settings = settings
@@ -95,11 +94,12 @@ internal class ArtworkLyricTint {
     }
 
     private data class Extraction(
-        val seed: LabColor?, val status: String, val detail: String = "unavailable", val secondSeed: LabColor? = null,
+        val seed: LabColor?, val status: String, val detail: String = "unavailable", val coverInk: LyricInk? = null,
     )
 
     private fun extract(source: Bitmap, mode: LyricTintMode): Extraction {
         return try {
+            if (mode == LyricTintMode.GRADIENT) return extractCoverPalette(source)
             val scale = minOf(1f, 32f / maxOf(source.width, source.height))
             val width = (source.width * scale).roundToInt().coerceAtLeast(1)
             val height = (source.height * scale).roundToInt().coerceAtLeast(1)
@@ -113,17 +113,11 @@ internal class ArtworkLyricTint {
             val sampleDetail = "sample=${width}x$height, opaque=${colors.size}/${pixels.size}, config=${sample.config}, generation=${source.generationId}"
             if (colors.isEmpty()) return Extraction(null, "NO_OPAQUE_PIXELS", sampleDetail)
             var candidates = "algorithm=$mode"
-            var secondSeed: LabColor? = null
             val seed = when (mode) {
                 LyricTintMode.TEXTURE -> ArtworkQuantization.medianCut(colors)
                 LyricTintMode.MEDIAN_CUT -> ArtworkQuantization.medianCut(colors)
                 LyricTintMode.OKLCH -> ArtworkQuantization.oklch(colors)
-                LyricTintMode.GRADIENT -> {
-                    val (first, second) = ArtworkQuantization.gradientAccents(colors)
-                    secondSeed = second
-                    candidates += ", endpoints=${if (second != null) 2 else if (first != null) 1 else 0}"
-                    first
-                }
+                LyricTintMode.GRADIENT -> error("Cover palette is resolved separately")
                 LyricTintMode.WALLPAPER -> {
                     // WallpaperColors uses the OS's Material quantizer and ranked candidates.
                     val palette = WallpaperColors.fromBitmap(sample)
@@ -141,12 +135,29 @@ internal class ArtworkLyricTint {
                 LabColor.fromRgb(opaqueRgb(average(16), average(8), average(0)))
             } else null
             Extraction(seed ?: fallback, if (seed == null) "AVERAGE_FALLBACK" else "CANDIDATE_FOUND",
-                "$sampleDetail, $candidates", secondSeed)
+                "$sampleDetail, $candidates")
         } catch (error: IllegalArgumentException) {
             Extraction(null, error.javaClass.simpleName)
         } catch (error: IllegalStateException) {
             Extraction(null, error.javaClass.simpleName)
         }
+    }
+
+    private fun extractCoverPalette(source: Bitmap): Extraction {
+        val readable = if (source.config == Bitmap.Config.HARDWARE) {
+            source.copy(Bitmap.Config.ARGB_8888, false) ?: return Extraction(null, "HARDWARE_COPY_FAILED")
+        } else source
+        val palette = try {
+            hyperCoverLyricInk(readable)
+        } finally {
+            if (readable !== source) readable.recycle()
+        }
+        val endpoints = if (palette?.gradient != null) 2 else if (palette != null) 1 else 0
+        return Extraction(
+            null, if (palette == null) "NO_PALETTE" else "CANDIDATE_FOUND",
+            "algorithm=HYPER_COVER_PALETTE, cover=${source.width}x${source.height}, endpoints=$endpoints",
+            coverInk = palette,
+        )
     }
 
     private fun textureBitmap(source: Bitmap, settings: CapsuleSettings): Bitmap? {

@@ -13,6 +13,7 @@ import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.PlaybackClock
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
+import shop.terramoor.github.io.settings.LineMotion
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -31,6 +32,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     private var ink = LyricInk.WHITE
     private var dimAlpha = 0
     private var displayLine: LyricFrame? = null
+    private var displayTrackIdentity: Any? = null
     private var clock: PlaybackClock? = null
     private var trackInfoShown = false
     private val trackInfoMarquee = TrackInfoDisplayMarquee()
@@ -51,11 +53,30 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         private set
 
     fun render(
-        line: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?,
-        clock: PlaybackClock? = null, ink: LyricInk = LyricInk.WHITE,
+        frame: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?,
+        clock: PlaybackClock? = null, ink: LyricInk = LyricInk.WHITE, trackIdentity: Any? = null,
     ) {
         if (displaySettings == null) nativeMinimumWidth = capsule.minimumWidth
         nativeWhilePaused = false
+        val line = if (frame != null && !frame.isTrackInfo && frame.countdown == null &&
+            trackIdentity != null && trackIdentity === displayTrackIdentity &&
+            clock?.moving == true && settings.motion != LineMotion.NONE
+        ) {
+            val position = clock.position(SystemClock.elapsedRealtime())
+            val outgoing = displayLine
+            when {
+                outgoing?.isTrackInfo == true && trackInfoShown -> frame.copy(
+                    priorRows = outgoing.rows, priorCountdown = null,
+                    priorTrackProgress = trackInfoMarquee.progress, motionStartMs = position,
+                )
+                outgoing?.priorTrackProgress != null && outgoing.displayStartMs == frame.displayStartMs &&
+                    position in outgoing.motionStartMs until (outgoing.motionStartMs + LYRIC_MOTION_DURATION_MS) -> frame.copy(
+                        priorRows = outgoing.priorRows, priorCountdown = null,
+                        priorTrackProgress = outgoing.priorTrackProgress, motionStartMs = outgoing.motionStartMs,
+                    )
+                else -> frame
+            }
+        } else frame
         val showingTrackInfo = line?.isTrackInfo == true && capsule.isShown
         val trackInfoVisibilityChanged = trackInfoShown != showingTrackInfo
         trackInfoShown = showingTrackInfo
@@ -67,6 +88,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             this.clock != clock || this.ink != ink || trackInfoVisibilityChanged
         this.clock = clock
         displayLine = line
+        displayTrackIdentity = trackIdentity
         displaySettings = settings
         enforceNativeVisibility()
         this.artwork = artwork
@@ -114,7 +136,9 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
             // Display cutout and getLocationOnScreen share display coordinates. Insets
             // delivered to the native capsule may already have consumed the cutout.
             val displayCamera = capsule.topDisplayCutout()
-            val windowCamera = if (displayCamera == null && (line.isIntro || settings.cameraWordAvoidance)) {
+            val windowCamera = if (displayCamera == null &&
+                (line.countdown != null || line.priorCountdown != null || settings.cameraWordAvoidance)
+            ) {
                 capsule.rootWindowInsets?.displayCutout?.boundingRectTop?.takeUnless { it.isEmpty }
             } else null
             val camera = displayCamera ?: windowCamera
@@ -226,6 +250,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         updateCapsuleWidth(null)
         clearFiller()
         displayLine = null
+        displayTrackIdentity = null
         artwork = null
         clock = null
         trackInfoShown = false

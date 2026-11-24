@@ -9,6 +9,10 @@ internal data class LyricRows(
     val secondWords: List<LyricWord> = emptyList(),
 )
 
+internal data class LyricCountdown(val startMs: Long, val endMs: Long) {
+    val isIntro: Boolean get() = startMs == 0L
+}
+
 internal data class LyricFrame(
     val rows: LyricRows,
     val startMs: Long,
@@ -16,8 +20,12 @@ internal data class LyricFrame(
     val priorRows: LyricRows? = null,
     val displayStartMs: Long = startMs,
     val isTrackInfo: Boolean = false,
-    val isIntro: Boolean = false,
+    val countdown: LyricCountdown? = null,
+    val priorCountdown: LyricCountdown? = null,
+    val priorTrackProgress: Float? = null,
+    val motionStartMs: Long = displayStartMs,
 ) {
+    val isIntro: Boolean get() = countdown?.isIntro == true
     val promotesPreviousLyric: Boolean get() = priorRows?.nextLyricStartMs == startMs
 
     fun scrollFraction(position: Long): Float = scrollFraction(startMs, endMs, position)
@@ -27,7 +35,11 @@ internal data class LyricFrame(
             LyricFrame(LyricRows(title, artist), startMs = 0L, endMs = 0L, isTrackInfo = true)
 
         fun intro(firstLyricMs: Long, track: LyricRows? = null) =
-            LyricFrame(track ?: LyricRows(""), startMs = 0L, endMs = firstLyricMs, isIntro = true)
+            LyricFrame(track ?: LyricRows(""), startMs = 0L, endMs = firstLyricMs,
+                countdown = LyricCountdown(0L, firstLyricMs))
+
+        fun interlude(startMs: Long, endMs: Long) =
+            LyricFrame(LyricRows(""), startMs, endMs, countdown = LyricCountdown(startMs, endMs))
 
         fun scrollFraction(start: Long, end: Long, position: Long): Float {
             if (end <= start) return 0f

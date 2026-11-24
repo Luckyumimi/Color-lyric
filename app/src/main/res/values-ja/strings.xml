@@ -10,7 +10,7 @@
     <string name="artwork_background_summary">カプセルの背景にぼかしたジャケットを表示</string>
     <string name="status_checking">LSPosed を確認中…</string>
     <string name="status_disconnected">LSPosed に未接続</string>
-    <string name="status_disconnected_hint">LSPosed で TerraMoor を有効にし、「システム UI」を選択してください。初回は端末を再起動してください。</string>
+    <string name="status_disconnected_hint">LSPosed で Color lyric を有効にし、「システム UI」を選択してください。初回は端末を再起動してください。</string>
     <string name="status_no_scope">システム UI が未選択</string>
     <string name="status_no_scope_hint">LSPosed で「システム UI」を選択し、端末を再起動してください。</string>
     <string name="status_ready">システム UI を選択済み</string>
@@ -56,7 +56,7 @@
     <string name="restart_system_ui">システム UI を再起動</string>
     <string name="restart_system_ui_confirmation">再起動後、一時的に画面が暗くなり、ロック画面に戻ることがあります。</string>
     <string name="restart_system_ui_confirm">再起動する</string>
-    <string name="restart_system_ui_root_required">Root 管理アプリで TerraMoor に権限を付与してから再試行してください。</string>
+    <string name="restart_system_ui_root_required">Root 管理アプリで Color lyric に権限を付与してから再試行してください。</string>
     <string name="restart_system_ui_failed">システム UI を再起動できませんでした。しばらくしてから再試行してください。</string>
     <string name="restart_system_ui_completed">システム UI を再起動しました</string>
     <string name="restart_system_ui_recommended">設定が変更されました。変更がすでに反映されていても、右上のボタンでシステム UI を再起動することをおすすめします。</string>
@@ -82,6 +82,7 @@
     <string name="lyric_word_highlight">歌詞の単語ごとの強調</string>
     <string name="lyric_camera_word_avoidance">カメラ横で文字を分割しない</string>
     <string name="lyric_intro_dots">イントロの3点カウントダウン</string>
+    <string name="lyric_intro_dots_summary">イントロ中の楽曲情報を自動で除外します（判別できる場合）</string>
     <string name="section_motion">行の切替効果</string>
     <string name="motion_none">効果なし</string>
     <string name="motion_up">上にスクロール</string>
@@ -100,7 +101,7 @@
     <string name="provider_download">ダウンロード</string>
     <string name="provider_not_checked">未確認</string>
     <string name="provider_check_enable">歌詞プロバイダーを確認</string>
-    <string name="provider_check_explanation">TerraMoor が Bridge と汎用プレーヤー Provider のインストール状況を確認することを許可しますか？確認はこの端末内で行われます。</string>
+    <string name="provider_check_explanation">Color lyric が Bridge と汎用プレーヤー Provider のインストール状況を確認することを許可しますか？確認はこの端末内で行われます。</string>
     <string name="provider_check_allow">許可する</string>
     <string name="provider_check_later">今はしない</string>
     <string name="lock_screen_lyrics_section">設定前の確認</string>
