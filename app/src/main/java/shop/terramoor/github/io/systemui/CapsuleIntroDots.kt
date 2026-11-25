@@ -54,8 +54,10 @@ internal fun interludeCapsuleWidth(
     val phase = minOf(shrink, reopen)
     if (phase <= 0f) return normalWidth
 
-    val pulse = countdownDotScale(elapsed, countdown.endMs - countdown.startMs, isIntro = false)
-    val dots = dotSpan(dotRadius(density, height) * pulse) + 2f * DOT_SIDE_PADDING_DP * density
+    // The dots keep breathing visually, but the short-island envelope stays fixed.
+    // Letting the width follow the pulse makes the OEM foreground recalculate its
+    // bounds repeatedly and is the source of the edge flash during handoffs.
+    val dots = dotSpan(dotRadius(density, height) * DOT_MAX_SCALE) + 2f * DOT_SIDE_PADDING_DP * density
     val contentWidth = if (cameraRadius > 0f) {
         // Keep the island centered while reserving the dots entirely to the right of the camera.
         2f * maxOf(leading + cameraRadius - cameraOffset, trailing + cameraRadius + cameraOffset + dots)

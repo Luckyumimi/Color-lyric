@@ -10,6 +10,7 @@ import shop.terramoor.github.io.lyrics.LyricLine
 import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.LyricRows
 import shop.terramoor.github.io.lyrics.Timeline
+import shop.terramoor.github.io.lyrics.TranslationRow
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.MissingTranslationMode
 import shop.terramoor.github.io.settings.SecondRowContent
@@ -33,8 +34,8 @@ class LyricPresentationTest {
     @Test fun swappingTranslationUsesRowPositionsAndPreservesFallbacks() {
         val settings = CapsuleSettings(swapTranslation = true)
         val presentation = LyricPresentation(timeline, settings)
-        assertEquals(LyricRows("Translation", "First"), presentation.frameAt(0, 10000)?.rows)
-        assertEquals(LyricRows("Translation", "First"), presentation.frameAt(1, 10000)?.priorRows)
+        assertEquals(LyricRows("Translation", "First", translationRow = TranslationRow.FIRST), presentation.frameAt(0, 10000)?.rows)
+        assertEquals(LyricRows("Translation", "First", translationRow = TranslationRow.FIRST), presentation.frameAt(1, 10000)?.priorRows)
         assertEquals(LyricRows("Second", missingTranslationSingleLine = true), presentation.frameAt(1, 10000)?.rows)
         val fallback = LyricPresentation(timeline, settings.copy(missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS))
         assertEquals(LyricRows("Second", "Third", nextLyricStartMs = 5000), fallback.frameAt(1, 10000)?.rows)
@@ -64,13 +65,13 @@ class LyricPresentationTest {
         val single = LyricPresentation(timeline, defaults)
         val frame = checkNotNull(single.frameAt(1, 10000))
         assertEquals(LyricRows("Second", missingTranslationSingleLine = true), frame.rows)
-        assertEquals(LyricRows("First", "Translation"), frame.priorRows)
+        assertEquals(LyricRows("First", "Translation", translationRow = TranslationRow.SECOND), frame.priorRows)
         assertEquals(14, defaults.effectiveFirstRowSize(frame.rows.missingTranslationSingleLine))
         assertEquals(12, defaults.copy(fallbackSingleLineExpand = false).effectiveFirstRowSize(frame.rows.missingTranslationSingleLine))
 
         val double = LyricPresentation(timeline, defaults.copy(missingTranslationMode = MissingTranslationMode.DOUBLE_LYRICS))
         assertEquals(LyricRows("Second", "Third", nextLyricStartMs = 5000), double.frameAt(1, 10000)?.rows)
-        assertEquals(LyricRows("Third", "Other translation"), double.frameAt(2, 10000)?.rows)
+        assertEquals(LyricRows("Third", "Other translation", translationRow = TranslationRow.SECOND), double.frameAt(2, 10000)?.rows)
         assertEquals(LyricRows("Second", "Third", nextLyricStartMs = 5000), double.frameAt(2, 10000)?.priorRows)
         assertTrue(checkNotNull(double.frameAt(2, 10000)).promotesPreviousLyric)
     }
@@ -90,7 +91,7 @@ class LyricPresentationTest {
         assertEquals(1, mixed.indexAt(3000))
         assertEquals(3000L, mixed.nextBoundary(0))
         assertEquals(3000L, mixed.frameAt(0, 10000)?.endMs)
-        assertEquals(LyricRows("First", "Translation"), mixed.frameAt(0, 10000)?.rows)
+        assertEquals(LyricRows("First", "Translation", translationRow = TranslationRow.SECOND), mixed.frameAt(0, 10000)?.rows)
         assertEquals(3000L, mixed.frameAt(1, 10000)?.displayStartMs)
         assertEquals(1, mixed.indexAt(3999))
         assertEquals(4000L, mixed.nextBoundary(1))

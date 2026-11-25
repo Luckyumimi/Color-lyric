@@ -6,7 +6,7 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 14
+    private const val VERSION = 16
     private const val MAX_BYTES = 16 * 1024
     const val TRANSLATION_HELP_HIDDEN = "translation_help_hidden"
 
@@ -19,6 +19,8 @@ internal object CapsuleBackup {
             .put(CapsuleSettings.SECOND_ROW_CONTENT, settings.secondRowContent.name)
             .put(CapsuleSettings.SWAP_TRANSLATION, settings.swapTranslation)
             .put(CapsuleSettings.WORD_LYRICS, settings.wordLyrics)
+            .put(CapsuleSettings.LYRIC_BOLD, settings.lyricBold)
+            .put(CapsuleSettings.JAPANESE_LYRIC_FONT, settings.japaneseLyricFont)
             .put(CapsuleSettings.CAMERA_WORD_AVOIDANCE, settings.cameraWordAvoidance)
             .put(CapsuleSettings.INTRO_DOTS, settings.introDots)
             .put(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)
@@ -67,6 +69,8 @@ internal object CapsuleBackup {
             secondRowContent = SecondRowContent.valueOf(data.getString(CapsuleSettings.SECOND_ROW_CONTENT)),
             swapTranslation = if (version >= 12) flag(CapsuleSettings.SWAP_TRANSLATION) else false,
             wordLyrics = version >= 13 && flag(CapsuleSettings.WORD_LYRICS),
+            lyricBold = version < 16 || flag(CapsuleSettings.LYRIC_BOLD),
+            japaneseLyricFont = version >= 15 && flag(CapsuleSettings.JAPANESE_LYRIC_FONT),
             cameraWordAvoidance = version >= 13 && flag(CapsuleSettings.CAMERA_WORD_AVOIDANCE),
             introDots = version >= 13 && flag(CapsuleSettings.INTRO_DOTS),
             missingTranslationMode = MissingTranslationMode.valueOf(data.getString(CapsuleSettings.MISSING_TRANSLATION_MODE)),
@@ -105,6 +109,8 @@ internal fun SharedPreferences.Editor.writeLyricSettings(settings: CapsuleSettin
     putString(CapsuleSettings.SECOND_ROW_CONTENT, settings.secondRowContent.name)
     putBoolean(CapsuleSettings.SWAP_TRANSLATION, settings.swapTranslation)
     putBoolean(CapsuleSettings.WORD_LYRICS, settings.wordLyrics)
+    putBoolean(CapsuleSettings.LYRIC_BOLD, settings.lyricBold)
+    putBoolean(CapsuleSettings.JAPANESE_LYRIC_FONT, settings.japaneseLyricFont)
     putBoolean(CapsuleSettings.CAMERA_WORD_AVOIDANCE, settings.cameraWordAvoidance)
     putBoolean(CapsuleSettings.INTRO_DOTS, settings.introDots)
     putString(CapsuleSettings.MISSING_TRANSLATION_MODE, settings.missingTranslationMode.name)

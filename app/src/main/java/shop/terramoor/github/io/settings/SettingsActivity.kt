@@ -113,6 +113,7 @@ import io.github.suqi8.coui.kmp.utils.CouiHapticEffect
 import io.github.suqi8.coui.kmp.utils.rememberCouiHaptic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -130,6 +131,7 @@ class SettingsActivity : ComponentActivity() {
     private var providerStatuses by mutableStateOf<Map<LyricsProvider, Boolean>>(emptyMap())
     private var lockScreenLyricsConfirmed by mutableStateOf(false)
     private var translationHelpHidden by mutableStateOf(false)
+    private var customFontBusy by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,6 +150,9 @@ class SettingsActivity : ComponentActivity() {
             val exportDiagnostics = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
                 if (uri != null) saveDiagnostics(uri)
             }
+            val customFont = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) importCustomFont(uri)
+            }
             COUITheme(colors = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
                 SettingsPage(
                     state = state,
@@ -161,6 +166,15 @@ class SettingsActivity : ComponentActivity() {
                     confirmLockScreenLyrics = ::confirmLockScreenLyrics,
                     translationHelpHidden = translationHelpHidden,
                     onHideTranslationHelp = { saveTranslationHelpHidden(true) },
+                    customFontBusy = customFontBusy,
+                    onChooseCustomFont = {
+                        try {
+                            customFont.launch(arrayOf("*/*"))
+                        } catch (_: ActivityNotFoundException) {
+                            notify(R.string.custom_lyric_font_failed)
+                        }
+                    },
+                    onClearCustomFont = ::clearCustomFont,
                     restartBusy = restartBusy,
                     onRestartSystemUi = ::restartSystemUi,
                     openRepository = { openWeb(GitHubUpdates.REPOSITORY_URL) },
@@ -202,6 +216,50 @@ class SettingsActivity : ComponentActivity() {
     private fun refreshProviderStatuses() {
         if (onboarding.getBoolean(PROVIDER_CHECK, false)) {
             providerStatuses = LyricsProvider.entries.associateWith { it.isInstalled(packageManager) }
+        }
+    }
+
+    private fun importCustomFont(uri: Uri) {
+        if (customFontBusy || app.state.value.connection != Connection.READY) return
+        customFontBusy = true
+        lifecycleScope.launch {
+            try {
+                val id = withContext(Dispatchers.IO) { CustomLyricFontStore.import(app, uri) }
+                withContext(NonCancellable) {
+                    val previous = app.state.value.settings.customLyricFontId
+                    if (app.selectCustomFont(id)) {
+                        withContext(Dispatchers.IO) { CustomLyricFontStore.delete(app, previous) }
+                        notify(R.string.custom_lyric_font_imported)
+                    } else {
+                        withContext(Dispatchers.IO) { CustomLyricFontStore.delete(app, id) }
+                        notify(R.string.custom_lyric_font_failed)
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                app.diagnostics.failure("Import custom lyric font", error)
+                notify(R.string.custom_lyric_font_failed)
+            } finally {
+                customFontBusy = false
+            }
+        }
+    }
+
+    private fun clearCustomFont() {
+        if (customFontBusy || app.state.value.connection != Connection.READY) return
+        customFontBusy = true
+        lifecycleScope.launch {
+            try {
+                withContext(NonCancellable) {
+                    val previous = app.state.value.settings.customLyricFontId
+                    if (app.clearCustomFont()) {
+                        withContext(Dispatchers.IO) { CustomLyricFontStore.delete(app, previous) }
+                    } else notify(R.string.custom_lyric_font_failed)
+                }
+            } finally {
+                customFontBusy = false
+            }
         }
     }
 
@@ -358,6 +416,9 @@ private fun SettingsPage(
     confirmLockScreenLyrics: () -> Unit,
     translationHelpHidden: Boolean,
     onHideTranslationHelp: () -> Unit,
+    customFontBusy: Boolean,
+    onChooseCustomFont: () -> Unit,
+    onClearCustomFont: () -> Unit,
     openRepository: () -> Unit,
     updateResult: GitHubUpdates.Result,
     checkForUpdates: () -> Unit,
@@ -482,7 +543,8 @@ private fun SettingsPage(
                                 derivedStateOf { abs(pager.currentPage - page + pager.currentPageOffsetFraction) < 1f }
                             }
                             TuningPage(Modifier.fillMaxSize(), bottomClearance, background, state, app, visible,
-                                translationHelpHidden, onHideTranslationHelp)
+                                translationHelpHidden, onHideTranslationHelp, customFontBusy,
+                                onChooseCustomFont, onClearCustomFont)
                         }
                         SettingsTab.ABOUT -> AboutPage(
                             Modifier.fillMaxSize(), bottomClearance, version, canUseBackup, onExport, onImport,

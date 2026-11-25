@@ -53,8 +53,9 @@ internal class LyricPresentation(source: Timeline, private val settings: Capsule
         if (!settings.doubleLine) return LyricRows(line.text, firstWords = words)
         if (settings.secondRowContent == SecondRowContent.TRANSLATION) {
             translation(index)?.let {
-                return if (settings.swapTranslation) LyricRows(it, line.text, secondWords = words)
-                else LyricRows(line.text, it, firstWords = words)
+                return if (settings.swapTranslation) LyricRows(it, line.text, secondWords = words,
+                    translationRow = TranslationRow.FIRST)
+                else LyricRows(line.text, it, firstWords = words, translationRow = TranslationRow.SECOND)
             }
             if (fallsBackToSingleLine(index)) {
                 return LyricRows(line.text, missingTranslationSingleLine = true, firstWords = words)

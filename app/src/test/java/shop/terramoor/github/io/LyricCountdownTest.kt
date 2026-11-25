@@ -50,8 +50,8 @@ class LyricCountdownTest {
         assertTrue(shrink.zipWithNext().all { (a, b) -> a - b in 0..2 })
         val compact = shrink.last()
         assertTrue(width(2380L) in (compact + 1) until 170)
-        assertTrue(width(4000L) > compact)
-        assertTrue(width(5500L) > width(4000L))
+        assertEquals(compact, width(4000L))
+        assertEquals(width(4000L), width(5500L))
         assertEquals(compact, width(8500L))
 
         val reopen = (9080L..9500L step 5L).map { width(it) }

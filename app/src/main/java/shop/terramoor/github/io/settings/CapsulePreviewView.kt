@@ -18,6 +18,7 @@ import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.systemui.ArtworkLyricTint
 import shop.terramoor.github.io.systemui.CapsuleCamera
 import shop.terramoor.github.io.systemui.CapsuleLyricStrip
+import shop.terramoor.github.io.systemui.JapaneseLyricFont
 import shop.terramoor.github.io.systemui.LyricInk
 import shop.terramoor.github.io.systemui.MediaCapsulePreviewGeometry
 import shop.terramoor.github.io.systemui.capsuleLyricsLeft
@@ -30,7 +31,13 @@ import kotlin.math.sin
 /** Uses the same text, blur and timing renderer as the native capsule, with local sample lyrics. */
 internal class CapsulePreviewView(context: Context) : View(context) {
     private val density = resources.displayMetrics.density
-    private val strip = CapsuleLyricStrip(density)
+    private val japaneseFont: JapaneseLyricFont = JapaneseLyricFont(context, onCustomFontReady = {
+        activeFrame = Int.MIN_VALUE
+        invalidate()
+    })
+    private val strip: CapsuleLyricStrip = CapsuleLyricStrip(density, japaneseFont::typeface).apply {
+        customTypeface = japaneseFont::customTypeface
+    }
     private val tint = ArtworkLyricTint()
     private var ink = LyricInk.WHITE
     private val baseColor = Color.rgb(15, 16, 19)
@@ -89,6 +96,7 @@ internal class CapsulePreviewView(context: Context) : View(context) {
             geometry = MediaCapsulePreviewGeometry(density, newSettings[CapsuleTuning.ISLAND_WIDTH])
         }
         settings = newSettings
+        japaneseFont.requestCustom(settings.customLyricFontId.takeIf { settings.japaneseLyricFont })
         val cover = previewCover()
         ink = tint.resolve(cover, previewBackground(cover), settings,
             aspect = geometry.width / geometry.height, baseColor = baseColor)

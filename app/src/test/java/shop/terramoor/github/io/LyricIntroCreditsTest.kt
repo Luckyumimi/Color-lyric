@@ -9,6 +9,7 @@ import org.junit.Test
 import shop.terramoor.github.io.lyrics.LyricPayload
 import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.LyricRows
+import shop.terramoor.github.io.lyrics.TranslationRow
 import shop.terramoor.github.io.lyrics.LyricWord
 import shop.terramoor.github.io.lyrics.Timeline
 import shop.terramoor.github.io.settings.CapsuleSettings
@@ -60,7 +61,7 @@ class LyricIntroCreditsTest {
         val timeline = checkNotNull(LyricPayload.parse(payload.toString(), "Night", true))
         val translation = LyricPresentation(timeline, enabled)
         assertEquals(15000L, translation.nextBoundary(-1))
-        assertEquals(LyricRows("Turn the light on", "打开灯"), translation.frameAt(0, 25000L)?.rows)
+        assertEquals(LyricRows("Turn the light on", "打开灯", translationRow = TranslationRow.SECOND), translation.frameAt(0, 25000L)?.rows)
 
         val double = LyricPresentation(timeline, enabled.copy(secondRowContent = SecondRowContent.LYRIC))
         assertEquals(18000L, double.nextBoundary(0))
@@ -361,8 +362,8 @@ class LyricIntroCreditsTest {
         ))
         val on = LyricPresentation(timeline, enabled)
         assertEquals(8000L, on.nextBoundary(-1))
-        assertEquals(LyricRows("First", "第一句"), on.frameAt(on.indexAt(8000L), 16000L)?.rows)
-        assertEquals(LyricRows("Second", "第二句"), on.frameAt(on.indexAt(12000L), 16000L)?.rows)
+        assertEquals(LyricRows("First", "第一句", translationRow = TranslationRow.SECOND), on.frameAt(on.indexAt(8000L), 16000L)?.rows)
+        assertEquals(LyricRows("Second", "第二句", translationRow = TranslationRow.SECOND), on.frameAt(on.indexAt(12000L), 16000L)?.rows)
     }
 
     @Test fun placeholdersUseTheExistingMissingTranslationMode() {

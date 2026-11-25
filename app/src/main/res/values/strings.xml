@@ -85,6 +85,15 @@
     <string name="section_lyric_behavior">Lyric behavior</string>
     <string name="lyric_word_highlight">Word-by-word lyrics</string>
     <string name="lyric_camera_word_avoidance">Keep lyrics whole beside the front camera (experimental)</string>
+    <string name="lyric_japanese_font">Use Japanese glyphs for Japanese lyrics</string>
+    <string name="custom_lyric_font_hint">Long press to choose a custom font</string>
+    <string name="custom_lyric_font_active">Currently using a custom font</string>
+    <string name="custom_lyric_font">Custom lyric font</string>
+    <string name="custom_lyric_font_restore">Restore built-in font</string>
+    <string name="custom_lyric_font_change">Choose another font</string>
+    <string name="custom_lyric_font_imported">Custom font selected</string>
+    <string name="custom_lyric_font_failed">Could not use this font. Choose a valid TTF or OTF file.</string>
+    <string name="lyric_bold">Bold text</string>
     <string name="lyric_intro_dots">Intro countdown animation</string>
     <string name="lyric_intro_dots_summary">Automatically tries to filter out song information during the intro</string>
     <string name="section_motion">Line transition</string>

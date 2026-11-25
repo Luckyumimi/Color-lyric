@@ -31,6 +31,11 @@
             android:authorities="${applicationId}.TerraMoorDiagnostics"
             android:directBootAware="true"
             android:exported="true" />
+        <provider
+            android:name=".settings.CustomLyricFontProvider"
+            android:authorities="${applicationId}.CustomLyricFont"
+            android:directBootAware="true"
+            android:exported="true" />
         <!-- A language change can also report a screenLayout change. -->
         <activity
             android:name=".settings.SettingsActivity"

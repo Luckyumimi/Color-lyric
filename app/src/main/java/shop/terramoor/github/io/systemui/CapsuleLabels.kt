@@ -18,10 +18,19 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** Draws lyrics over the OEM capsule surface and leaves the OEM controls in their own views. */
-internal class CapsuleLabels(val target: NativeContract.Target) {
+internal class CapsuleLabels(
+    val target: NativeContract.Target,
+    modulePackage: String = target.capsule.context.packageName,
+    onFontFailure: (Throwable) -> Unit = {},
+) {
     private val capsule = target.capsule
     private val density = capsule.resources.displayMetrics.density
-    private val strip = CapsuleLyricStrip(density)
+    private val japaneseFont: JapaneseLyricFont = JapaneseLyricFont(capsule.context, modulePackage, onFontFailure) {
+        displaySettings?.let { strip.update(displayLine, it, ink); capsule.invalidate() }
+    }
+    private val strip: CapsuleLyricStrip = CapsuleLyricStrip(density, japaneseFont::typeface).apply {
+        customTypeface = japaneseFont::customTypeface
+    }
     private val coverVisibility = NativeSlotVisibility(target.artwork)
     private val waveformVisibility = NativeSlotVisibility(target.waveform)
     private val filler = View(capsule.context).apply {
@@ -54,12 +63,12 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
     val hasCustomContent: Boolean get() = displayLine != null || artwork != null
     val hasInterludeViewport: Boolean get() = displayLine?.countdown?.isIntro == false
     val viewportWidth: Int get() = (capsule.width - viewport.inset * 2).coerceAtLeast(0)
+    val hasCompactViewport: Boolean get() = viewport.inset > 0
     val coverAnchorX: Float? get() = viewport.coverAnchorX
     val shouldReserveCompactStatusBarSpace: Boolean get() {
         val countdown = displayLine?.countdown?.takeUnless { it.isIntro } ?: return false
         val position = viewportPosition ?: return false
-        return viewport.inset > 0 && viewportWidth <= INTERLUDE_STATUS_BAR_WIDTH_PX &&
-            countdown.endMs - position > INTERLUDE_REOPEN_MS
+        return viewport.inset > 0 && countdown.endMs - position > INTERLUDE_REOPEN_MS
     }
     var nativeWhilePaused = false
         private set
@@ -108,6 +117,7 @@ internal class CapsuleLabels(val target: NativeContract.Target) {
         displayLine = line
         displayTrackIdentity = trackIdentity
         displaySettings = settings
+        japaneseFont.requestCustom(settings.customLyricFontId.takeIf { settings.japaneseLyricFont })
         enforceNativeVisibility()
         this.artwork = artwork
         this.ink = ink

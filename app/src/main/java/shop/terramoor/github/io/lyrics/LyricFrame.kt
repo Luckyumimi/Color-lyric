@@ -1,5 +1,7 @@
 package shop.terramoor.github.io.lyrics
 
+internal enum class TranslationRow { FIRST, SECOND }
+
 internal data class LyricRows(
     val first: String,
     val second: String? = null,
@@ -7,6 +9,7 @@ internal data class LyricRows(
     val nextLyricStartMs: Long? = null,
     val firstWords: List<LyricWord> = emptyList(),
     val secondWords: List<LyricWord> = emptyList(),
+    val translationRow: TranslationRow? = null,
 )
 
 internal data class LyricCountdown(val startMs: Long, val endMs: Long) {

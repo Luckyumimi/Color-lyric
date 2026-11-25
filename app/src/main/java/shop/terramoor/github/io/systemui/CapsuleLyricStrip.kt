@@ -15,6 +15,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.icu.text.BreakIterator
+import android.os.LocaleList
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -22,12 +23,14 @@ import shop.terramoor.github.io.lyrics.LyricCountdown
 import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.LyricRows
 import shop.terramoor.github.io.lyrics.LyricWord
+import shop.terramoor.github.io.lyrics.TranslationRow
 import shop.terramoor.github.io.settings.CapsuleSettings
 import shop.terramoor.github.io.settings.CapsuleTuning
 import shop.terramoor.github.io.settings.LineMotion
 import shop.terramoor.github.io.settings.LyricAlignment
 import kotlin.math.ceil
 import kotlin.math.floor
+import java.util.Locale
 
 private const val CAMERA_FADE_RADIUS_DP = 2f
 private const val WORD_SWEEP_FEATHER_DP = 3f
@@ -37,7 +40,13 @@ private const val UNPLAYED_ALPHA = 0.55f
 internal const val LYRIC_MOTION_DURATION_MS = 260L
 
 /** Draws each lyric lane once, with a fixed mask over the camera. */
-internal class CapsuleLyricStrip(private val density: Float) {
+internal class CapsuleLyricStrip(
+    private val density: Float,
+    private val japaneseTypeface: (Boolean) -> Typeface? = { null },
+) {
+    var customTypeface: (Boolean, Boolean) -> Typeface? = { _, _ -> null }
+    private val lyricTypeface = Typeface.create(Typeface.DEFAULT, 600, false)
+    private val boldTypeface = Typeface.create(Typeface.DEFAULT, 700, false)
     private val firstRow = Lane(density, rowUnsungOffsetPx = density)
     private val secondRow = Lane(density)
     private val priorFirstRow = Lane(density, rowUnsungOffsetPx = density)
@@ -59,22 +68,36 @@ internal class CapsuleLyricStrip(private val density: Float) {
         this.frame = frame
         motion = settings.motion
         lyricAlignment = settings.lyricAlignment
-        avoidCameraWords = settings.cameraWordAvoidance && frame?.isTrackInfo != true
+        avoidCameraWords = settings.cameraWordAvoidance
         introColor = ink.first
         introOpacity = settings[CapsuleTuning.FIRST_ROW_OPACITY] / 100f
+        fun faceFor(text: String?, fallback: Typeface, translation: Boolean): Typeface {
+            return when (lyricFontSource(settings.japaneseLyricFont, settings.customLyricFontId, text, translation)) {
+                LyricFontSource.CUSTOM -> customTypeface(settings.lyricBold, translation) ?: fallback
+                LyricFontSource.JAPANESE -> japaneseTypeface(settings.lyricBold) ?: fallback
+                LyricFontSource.SYSTEM -> fallback
+            }
+        }
         fun setup(main: Lane, second: Lane, rows: LyricRows?, avoidWords: Boolean) {
             val size = settings.effectiveFirstRowSize(rows?.missingTranslationSingleLine == true)
-            main.update(rows?.first, size * density, settings[CapsuleTuning.FIRST_ROW_OPACITY], Typeface.DEFAULT_BOLD,
+            val mainTranslation = rows?.translationRow == TranslationRow.FIRST
+            val secondTranslation = rows?.translationRow == TranslationRow.SECOND
+            val originalFace = if (settings.lyricBold) boldTypeface else lyricTypeface
+            val mainFace = if (mainTranslation) Typeface.DEFAULT else originalFace
+            main.update(rows?.first, size * density, settings[CapsuleTuning.FIRST_ROW_OPACITY],
+                faceFor(rows?.first, mainFace, mainTranslation), mainFace,
+                mainTranslation && settings.japaneseLyricFont && containsJapaneseKana(rows?.first),
                 ink.first, ink.texture, rows?.firstWords.orEmpty(), avoidWords, ink.gradient)
             // An upcoming lyric uses the same glyphs before and after promotion.
-            val secondFace = if (rows?.nextLyricStartMs != null) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+            val secondFace = if (mainTranslation || rows?.nextLyricStartMs != null) originalFace else Typeface.DEFAULT
             second.update(rows?.second, settings.effectiveSecondRowSize * density,
-                settings[CapsuleTuning.SECOND_ROW_OPACITY], secondFace, ink.second, ink.texture,
+                settings[CapsuleTuning.SECOND_ROW_OPACITY], faceFor(rows?.second, secondFace, secondTranslation), secondFace,
+                secondTranslation && settings.japaneseLyricFont && containsJapaneseKana(rows?.second), ink.second, ink.texture,
                 rows?.secondWords.orEmpty(), avoidWords, ink.gradient)
         }
         setup(firstRow, secondRow, frame?.rows, avoidCameraWords && frame?.countdown == null)
         setup(priorFirstRow, priorSecondRow, frame?.priorRows,
-            avoidCameraWords && frame?.priorCountdown == null && frame?.priorTrackProgress == null)
+            avoidCameraWords && frame?.priorCountdown == null)
         fadePx = if (settings.cameraFade) CAMERA_FADE_RADIUS_DP * density else 0f
     }
 
@@ -142,8 +165,11 @@ internal class CapsuleLyricStrip(private val density: Float) {
         val anchor = wordFollowAnchor(compactRight - left, lensLeft - left, feather.trailingInset)
         val center = (top + bottom) / 2
         val marquee = if (current.isTrackInfo) {
-            val overflow = viewport.travel(firstRow.width) / density
-            val inset = feather.trailingInset / density
+            val normalTravel = viewport.travel(firstRow.width)
+            val cameraTravel = firstRow.extraCameraTravel(viewport)
+            val overflow = (if (normalTravel > 0f) normalTravel else
+                cameraTravel?.let { it.head - it.tail } ?: 0f) / density
+            val inset = if (normalTravel > 0f) feather.trailingInset / density else 0f
             trackInfoMarquee?.sample(position, trackInfoSettled, overflow, inset)
                 ?: TrackTitleMarquee.sample(position, overflow, inset)
         } else null
@@ -288,7 +314,13 @@ internal class CapsuleLyricStrip(private val density: Float) {
         private val cameraBufferPx = CAMERA_FADE_RADIUS_DP * density
         private val wordSweep by lazy { WordHighlightSweep(WORD_SWEEP_FEATHER_DP * density) }
         private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG)
+        private val defaultLocales = paint.textLocales
+        private val japaneseLocales = LocaleList(Locale.JAPAN)
         private var layout: StaticLayout? = null
+        private var spacingLayout: StaticLayout? = null
+        private var spacingFace: Typeface? = null
+        private var inkTopExtra = 0f
+        private var inkBottomExtra = 0f
         private var text: String? = null
         private var texture: Bitmap? = null
         private var textureShader: BitmapShader? = null
@@ -312,11 +344,12 @@ internal class CapsuleLyricStrip(private val density: Float) {
         private val paths = HashMap<Long, Path>()
         var cameraSeam = 0f
         fun paintDiagnostics() = "#${paint.color.toUInt().toString(16)}/alpha=${paint.alpha}/present=${layout != null}"
-        val height: Int get() = layout?.height ?: 0
+        val height: Int get() = spacingLayout?.height ?: 0
         val width: Float get() = layout?.getLineWidth(0) ?: 0f
 
         fun update(
-            value: String?, size: Float, opacity: Int, face: Typeface, rgb: Int, bitmap: Bitmap?,
+            value: String?, size: Float, opacity: Int, face: Typeface, referenceFace: Typeface,
+            japaneseLocale: Boolean, rgb: Int, bitmap: Bitmap?,
             newWords: List<LyricWord>, avoidCamera: Boolean, newGradient: LyricGradient?,
         ) {
             if (texture !== bitmap) {
@@ -325,16 +358,38 @@ internal class CapsuleLyricStrip(private val density: Float) {
                     BitmapShader(it, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
                 }
             }
-            val layoutChanged = value != text || size != paint.textSize || face != paint.typeface
+            val locales = if (japaneseLocale) japaneseLocales else defaultLocales
+            val layoutChanged = value != text || size != paint.textSize || face != paint.typeface ||
+                referenceFace != spacingFace || paint.textLocales != locales
             if (layoutChanged) {
                 text = value
                 paint.textSize = size
                 paint.typeface = face
+                paint.textLocales = locales
+                spacingFace = referenceFace
                 layout = value?.let {
                     val singleLine = it.replace('\n', ' ')
-                    val width = (ceil(Layout.getDesiredWidth(singleLine, paint)).toInt() + 2).coerceAtLeast(1)
-                    StaticLayout.Builder.obtain(singleLine, 0, singleLine.length, paint, width)
-                        .setIncludePad(false).setMaxLines(1).build()
+                    fun measure(textPaint: TextPaint): StaticLayout {
+                        val width = (ceil(Layout.getDesiredWidth(singleLine, textPaint)).toInt() + 2).coerceAtLeast(1)
+                        return StaticLayout.Builder.obtain(singleLine, 0, singleLine.length, textPaint, width)
+                            .setIncludePad(false).setMaxLines(1).build()
+                    }
+                    measure(paint).also { rendered ->
+                        spacingLayout = if (face == referenceFace) rendered else
+                            measure(TextPaint(paint).apply { typeface = referenceFace })
+                    }
+                }
+                if (value == null) spacingLayout = null
+                inkTopExtra = 0f
+                inkBottomExtra = 0f
+                val rendered = layout
+                if (rendered != null && face != referenceFace) {
+                    val bounds = Rect()
+                    paint.getTextBounds(rendered.text.toString(), 0, rendered.text.length, bounds)
+                    val metrics = paint.fontMetrics
+                    val baseline = rendered.getLineBaseline(0).toFloat()
+                    inkTopExtra = ceil((-(baseline + minOf(metrics.top, bounds.top.toFloat()))).coerceAtLeast(0f))
+                    inkBottomExtra = ceil((baseline + maxOf(metrics.bottom, bounds.bottom.toFloat()) - rendered.height).coerceAtLeast(0f))
                 }
                 paths.clear()
                 avoidWords = false
@@ -436,7 +491,8 @@ internal class CapsuleLyricStrip(private val density: Float) {
             val head = extraTravel?.head ?: viewport.textOffset(width, 0f, feather.trailingInset)
             val tail = extraTravel?.tail ?: viewport.textOffset(width, 1f, feather.trailingInset)
             val offset = if (extraTravel != null) lerp(head, tail, progress) else viewport.textOffset(width, progress, feather.trailingInset)
-            drawAt(canvas, viewport, feather, y, offset, scale = 1f,
+            val baselineShift = (spacingLayout?.getLineBaseline(0) ?: 0) - (layout?.getLineBaseline(0) ?: 0)
+            drawAt(canvas, viewport, feather, y + baselineShift, offset, scale = 1f,
                 inkAlpha = paint.alpha * alpha, fade = viewport.edgeFade(width, progress, feather), head = head, tail = tail)
         }
 
@@ -458,10 +514,10 @@ internal class CapsuleLyricStrip(private val density: Float) {
                 previous.draw(canvas, viewport, feather, fromTop, 0f, alpha)
                 return
             }
-            val baseline = measured.getLineBaseline(0)
-            val oldBaseline = previous.layout?.getLineBaseline(0) ?: return
+            val baseline = spacingLayout?.getLineBaseline(0) ?: return
+            val oldBaseline = previous.spacingLayout?.getLineBaseline(0) ?: return
             val scale = lerp(previous.paint.textSize / paint.textSize, 1f, phase)
-            val y = lerp(fromTop + oldBaseline, toTop + baseline, phase) - baseline * scale
+            val y = lerp(fromTop + oldBaseline, toTop + baseline, phase) - measured.getLineBaseline(0) * scale
             val previousHead = previous.extraCameraTravel(viewport)?.head ?: viewport.textOffset(previous.width, 0f, feather.trailingInset)
             val travel = extraCameraTravel(viewport)
             val head = travel?.head ?: viewport.textOffset(width, 0f, feather.trailingInset)
@@ -495,8 +551,8 @@ internal class CapsuleLyricStrip(private val density: Float) {
             val crossing = cameraWordFade(cameraGraphemes, cameraSeam, offset, scale, shift)
             val lowerMargin = if (words.isEmpty()) 0f else unsungOffsetPx
             val emphasis = if (rowUnsungOffsetPx > 0f) wordEmphasis * (unsungOffsetPx / rowUnsungOffsetPx) else 0f
-            val top = if (emphasis > 0f) y - unsungOffsetPx - 2f * wordGlowRadiusPx * scale else y
-            val bottom = y + measured.height * scale + lowerMargin
+            val top = y - inkTopExtra * scale - if (emphasis > 0f) unsungOffsetPx + 2f * wordGlowRadiusPx * scale else 0f
+            val bottom = y + (measured.height + inkBottomExtra) * scale + lowerMargin
             try {
                 outerMask.draw(canvas, viewport.left, top, viewport.right, bottom, feather, fade) masked@{ target ->
                     // Clip from the translated split so ink from the left slice cannot reappear on the right.
@@ -620,6 +676,13 @@ internal class CapsuleLyricStrip(private val density: Float) {
             if (paths.size >= 96) paths.clear()
             return Path().also { path ->
                 layout.getSelectionPath(from, until, path)
+                if (layout.height > 0 && (inkTopExtra > 0f || inkBottomExtra > 0f)) {
+                    val vertical = Matrix().apply {
+                        setScale(1f, (layout.height + inkTopExtra + inkBottomExtra) / layout.height)
+                        postTranslate(0f, -inkTopExtra)
+                    }
+                    path.transform(vertical)
+                }
                 paths[key] = path
             }
         }

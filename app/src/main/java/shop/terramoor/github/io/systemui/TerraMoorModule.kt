@@ -2,6 +2,7 @@ package shop.terramoor.github.io.systemui
 
 import android.animation.ValueAnimator
 import android.graphics.Canvas
+import android.graphics.drawable.GradientDrawable
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import io.github.libxposed.api.XposedInterface.ExceptionMode
@@ -109,6 +110,12 @@ class TerraMoorModule : XposedModule() {
                 after(method) { receiver, args, _ ->
                     if (args.firstOrNull() == true) runtime.nativeWidthAnimationStarted(receiver)
                 }.also { runtime.viewportHookInstalled() }
+            } }
+            plugin.drawableWidth?.let { installOptional(hooks, "Native capsule foreground hook") {
+                val draw = GradientDrawable::class.java.getDeclaredMethod("draw", Canvas::class.java)
+                before(draw, "Native capsule foreground") { receiver, _ ->
+                    runtime.beforeNativeForegroundDraw(receiver)
+                }
             } }
             plugin.closeAnimation?.let { installMediaClose(hooks, it, runtime) }
             plugin.mediaCardScene?.let { installMediaCardScene(hooks, it, runtime) }

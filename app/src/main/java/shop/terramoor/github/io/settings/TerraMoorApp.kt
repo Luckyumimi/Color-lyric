@@ -130,6 +130,8 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             CapsuleSettings.DOUBLE_LINE -> current.copy(doubleLine = checked)
             CapsuleSettings.SWAP_TRANSLATION -> current.copy(swapTranslation = checked)
             CapsuleSettings.WORD_LYRICS -> current.copy(wordLyrics = checked)
+            CapsuleSettings.LYRIC_BOLD -> current.copy(lyricBold = checked)
+            CapsuleSettings.JAPANESE_LYRIC_FONT -> current.copy(japaneseLyricFont = checked)
             CapsuleSettings.CAMERA_WORD_AVOIDANCE -> current.copy(cameraWordAvoidance = checked)
             CapsuleSettings.INTRO_DOTS -> current.copy(introDots = checked)
             CapsuleSettings.ARTWORK -> current.copy(artwork = checked)
@@ -223,7 +225,22 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
 
     internal suspend fun restore(settings: CapsuleSettings): Boolean {
         pendingTuning.clear()
-        return save(settings) { writeSettings(settings) }?.await() == true
+        val restored = settings.copy(customLyricFontId = state.value.settings.customLyricFontId)
+        return save(restored) { writeSettings(restored) }?.await() == true
+    }
+
+    internal suspend fun selectCustomFont(id: String): Boolean {
+        require(isCustomFontId(id))
+        val next = state.value.settings.copy(japaneseLyricFont = true, customLyricFontId = id)
+        return save(next) {
+            putBoolean(CapsuleSettings.JAPANESE_LYRIC_FONT, true)
+            putString(CapsuleSettings.CUSTOM_LYRIC_FONT_ID, id)
+        }?.await() == true
+    }
+
+    internal suspend fun clearCustomFont(): Boolean {
+        val next = state.value.settings.copy(customLyricFontId = null)
+        return save(next) { remove(CapsuleSettings.CUSTOM_LYRIC_FONT_ID) }?.await() == true
     }
 
     internal suspend fun revisionBeforeRestart(): Long {
@@ -237,7 +254,7 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         val defaults = CapsuleSettings()
         val current = state.value.settings
         val reset = defaults.copy(enabled = current.enabled, doubleLine = current.doubleLine, artwork = current.artwork)
-        save(reset) {
+        val completion = save(reset) {
             CapsuleTuning.entries.forEach { remove(it.key) }
             remove(CapsuleSettings.LYRIC_ALIGNMENT)
             remove(CapsuleSettings.LYRIC_TINT_ENABLED)
@@ -248,8 +265,16 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             remove(CapsuleSettings.NO_LYRICS)
             remove(CapsuleSettings.PAUSE_BEHAVIOR)
             writeLyricSettings(reset)
+            remove(CapsuleSettings.CUSTOM_LYRIC_FONT_ID)
             remove(CapsuleSettings.SHOW_COVER)
             remove(CapsuleSettings.SHOW_WAVEFORM)
+        }
+        if (completion != null && current.customLyricFontId != null) {
+            scope.launch {
+                if (completion.await()) withContext(Dispatchers.IO) {
+                    CustomLyricFontStore.delete(this@TerraMoorApp, current.customLyricFontId)
+                }
+            }
         }
     }
 

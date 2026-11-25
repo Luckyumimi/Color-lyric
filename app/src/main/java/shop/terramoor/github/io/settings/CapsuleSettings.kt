@@ -59,6 +59,9 @@ internal data class CapsuleSettings(
     val secondRowContent: SecondRowContent = SecondRowContent.TRANSLATION,
     val swapTranslation: Boolean = false,
     val wordLyrics: Boolean = true,
+    val lyricBold: Boolean = true,
+    val japaneseLyricFont: Boolean = false,
+    val customLyricFontId: String? = null,
     val cameraWordAvoidance: Boolean = false,
     val introDots: Boolean = true,
     val missingTranslationMode: MissingTranslationMode = MissingTranslationMode.SINGLE_LINE,
@@ -98,6 +101,9 @@ internal data class CapsuleSettings(
         const val SECOND_ROW_CONTENT = "second_row_content"
         const val SWAP_TRANSLATION = "swap_translation"
         const val WORD_LYRICS = "word_lyrics"
+        const val LYRIC_BOLD = "lyric_bold"
+        const val JAPANESE_LYRIC_FONT = "japanese_lyric_font"
+        const val CUSTOM_LYRIC_FONT_ID = "custom_lyric_font_id"
         const val CAMERA_WORD_AVOIDANCE = "camera_word_avoidance"
         const val INTRO_DOTS = "intro_dots"
         const val MISSING_TRANSLATION_MODE = "missing_translation_mode"
@@ -135,6 +141,9 @@ internal data class CapsuleSettings(
                 secondRowContent = prefs.enumValue(SECOND_ROW_CONTENT, defaults.secondRowContent),
                 swapTranslation = prefs.getBoolean(SWAP_TRANSLATION, defaults.swapTranslation),
                 wordLyrics = prefs.getBoolean(WORD_LYRICS, defaults.wordLyrics),
+                lyricBold = prefs.getBoolean(LYRIC_BOLD, defaults.lyricBold),
+                japaneseLyricFont = prefs.getBoolean(JAPANESE_LYRIC_FONT, defaults.japaneseLyricFont),
+                customLyricFontId = prefs.getString(CUSTOM_LYRIC_FONT_ID, null)?.takeIf(::isCustomFontId),
                 cameraWordAvoidance = prefs.getBoolean(CAMERA_WORD_AVOIDANCE, defaults.cameraWordAvoidance),
                 introDots = prefs.getBoolean(INTRO_DOTS, defaults.introDots),
                 missingTranslationMode = prefs.enumValue(MISSING_TRANSLATION_MODE, defaults.missingTranslationMode),

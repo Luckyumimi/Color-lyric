@@ -1,4 +1,12 @@
 <resources>
+    <string name="lyric_japanese_font">日語歌詞使用日文字形</string>
+    <string name="custom_lyric_font_hint">長按以選擇自訂字體</string>
+    <string name="custom_lyric_font_active">目前正在使用自訂字體</string>
+    <string name="custom_lyric_font">自訂歌詞字體</string>
+    <string name="custom_lyric_font_restore">恢復內置字體</string>
+    <string name="custom_lyric_font_change">選擇其他字體</string>
+    <string name="custom_lyric_font_imported">已選擇自訂字體</string>
+    <string name="custom_lyric_font_failed">無法使用該字體，請選擇有效的 TTF 或 OTF 檔案</string>
     <string name="module_description">在 ColorOS 17 原生流體雲內顯示歌詞。</string>
     <string name="app_language">應用程式語言</string>
     <string name="app_language_system">跟隨系統</string>
@@ -81,6 +89,7 @@
     <string name="section_lyric_behavior">歌詞行為</string>
     <string name="lyric_word_highlight">逐字歌詞</string>
     <string name="lyric_camera_word_avoidance">歌詞整字避讓前置鏡頭（實驗）</string>
+    <string name="lyric_bold">粗體字</string>
     <string name="lyric_intro_dots">前奏倒數動畫</string>
     <string name="lyric_intro_dots_summary">會自動嘗試過濾前奏期間的歌曲資料</string>
     <string name="section_motion">逐句切換效果</string>

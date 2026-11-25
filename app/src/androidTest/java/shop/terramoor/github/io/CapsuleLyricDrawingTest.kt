@@ -217,6 +217,13 @@ class CapsuleLyricDrawingTest {
             assertTrue(resumed < normal)
             assertTrue(width(916L) < normal)
 
+            // A launcher/widget can hide the capsule through CAPSULE_DISAPPEAR.
+            // Native width animation must keep the existing interlude clip throughout.
+            val beforeDisappear = width(924L)
+            for (nativeWidth in listOf(normal, normal - 20, resumed, resumed / 2)) {
+                assertTrue(width(932L, resumeInterlude = true, animatedWidth = nativeWidth) <= beforeDisappear)
+            }
+
             // An OEM transition may animate both the clipping edge and the cover transform.
             cover.translationX = -12f
             left.translationX = -18f
@@ -1043,6 +1050,31 @@ class CapsuleLyricDrawingTest {
         } finally {
             start.recycle()
             during.recycle()
+        }
+    }
+
+    @Test
+    fun trackInfoUsesWholeWordCameraAvoidanceForBothRows() {
+        val strip = CapsuleLyricStrip(3f)
+        val frame = LyricFrame.trackInfo("H".repeat(30), "H".repeat(30))
+        val settings = CapsuleSettings(cameraWordAvoidance = true, cameraFade = false,
+            lyricAlignment = LyricAlignment.LEFT)
+        val enabled = Bitmap.createBitmap(360, 120, Bitmap.Config.ARGB_8888)
+        val disabled = Bitmap.createBitmap(360, 120, Bitmap.Config.ARGB_8888)
+        try {
+            val camera = CapsuleCamera(180f, 10f)
+            strip.update(frame, settings)
+            assertEquals(3000L, strip.draw(Canvas(enabled), 20f, 0f, 340f, 120f, camera, 0))
+            strip.update(frame, settings.copy(cameraWordAvoidance = false))
+            strip.draw(Canvas(disabled), 20f, 0f, 340f, 120f, camera, 0)
+            assertTrue(!enabled.sameAs(disabled))
+            for (row in listOf(0 until 60, 60 until 120)) {
+                assertEquals(0, enabled.ink(190 until 196, row))
+                assertTrue(enabled.ink(196 until 250, row) > 0)
+            }
+        } finally {
+            enabled.recycle()
+            disabled.recycle()
         }
     }
 

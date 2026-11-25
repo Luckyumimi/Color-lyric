@@ -81,6 +81,15 @@
     <string name="section_lyric_behavior">歌詞の動作</string>
     <string name="lyric_word_highlight">歌詞の単語ごとの強調</string>
     <string name="lyric_camera_word_avoidance">カメラ横で文字を分割しない</string>
+    <string name="lyric_japanese_font">日本語の歌詞に日本語字体を使う</string>
+    <string name="custom_lyric_font_hint">長押ししてカスタムフォントを選択</string>
+    <string name="custom_lyric_font_active">カスタムフォントを使用中</string>
+    <string name="custom_lyric_font">歌詞のカスタムフォント</string>
+    <string name="custom_lyric_font_restore">内蔵フォントに戻す</string>
+    <string name="custom_lyric_font_change">別のフォントを選択</string>
+    <string name="custom_lyric_font_imported">カスタムフォントを選択しました</string>
+    <string name="custom_lyric_font_failed">使用できません。有効な TTF または OTF ファイルを選択してください</string>
+    <string name="lyric_bold">太字</string>
     <string name="lyric_intro_dots">イントロの3点カウントダウン</string>
     <string name="lyric_intro_dots_summary">イントロ中の楽曲情報を自動で除外します（判別できる場合）</string>
     <string name="section_motion">行の切替効果</string>

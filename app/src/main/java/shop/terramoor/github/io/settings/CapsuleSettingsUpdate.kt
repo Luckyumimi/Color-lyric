@@ -12,6 +12,7 @@ import shop.terramoor.github.io.systemui.NativeContract
 internal object CapsuleSettingsUpdate {
     private const val SNAPSHOT = "snapshot"
     private const val COMMITTED_AT = "committed_at"
+    private const val CUSTOM_FONT_ID = "custom_font_id"
 
     private fun action(packageName: String) = "$packageName.CAPSULE_SETTINGS_COMMITTED"
     private fun permission(packageName: String) = "$packageName.permission.CAPSULE_SETTINGS"
@@ -20,6 +21,7 @@ internal object CapsuleSettingsUpdate {
         val intent = Intent(action(context.packageName)).setPackage(targetPackage)
             .putExtra(COMMITTED_AT, SystemClock.elapsedRealtimeNanos())
             .putExtra(SNAPSHOT, CapsuleBackup.encode(settings))
+            .putExtra(CUSTOM_FONT_ID, settings.customLyricFontId)
         context.sendBroadcast(intent, null, BroadcastOptions.makeBasic().setShareIdentityEnabled(true).toBundle())
     }
 
@@ -37,7 +39,9 @@ internal object CapsuleSettingsUpdate {
                 val committedAt = intent.getLongExtra(COMMITTED_AT, 0L)
                 if (committedAt <= lastCommit) return
                 val snapshot = intent.getStringExtra(SNAPSHOT) ?: return
-                val settings = runCatching { CapsuleBackup.decode(snapshot.byteInputStream()) }.getOrNull() ?: return
+                val settings = runCatching { CapsuleBackup.decode(snapshot.byteInputStream()) }.getOrNull()?.copy(
+                    customLyricFontId = intent.getStringExtra(CUSTOM_FONT_ID)?.takeIf(::isCustomFontId),
+                ) ?: return
                 lastCommit = committedAt
                 apply(settings)
             }

@@ -81,6 +81,15 @@
     <string name="section_lyric_behavior">歌词行为</string>
     <string name="lyric_word_highlight">逐字歌词</string>
     <string name="lyric_camera_word_avoidance">歌词整字避让前摄（实验）</string>
+    <string name="lyric_japanese_font">日语歌词使用日标汉字</string>
+    <string name="custom_lyric_font_hint">长按以选择自定义字体</string>
+    <string name="custom_lyric_font_active">当前正在使用自定义字体</string>
+    <string name="custom_lyric_font">自定义歌词字体</string>
+    <string name="custom_lyric_font_restore">恢复内置字体</string>
+    <string name="custom_lyric_font_change">选择其他字体</string>
+    <string name="custom_lyric_font_imported">已选择自定义字体</string>
+    <string name="custom_lyric_font_failed">无法使用该字体，请选择有效的 TTF 或 OTF 文件</string>
+    <string name="lyric_bold">粗体字</string>
     <string name="lyric_intro_dots">前奏倒计时动画</string>
     <string name="lyric_intro_dots_summary">会自动尝试过滤前奏期间的歌曲信息</string>
     <string name="section_motion">逐句切换动效</string>

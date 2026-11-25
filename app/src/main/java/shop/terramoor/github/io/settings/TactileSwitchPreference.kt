@@ -1,6 +1,8 @@
 package shop.terramoor.github.io.settings
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
@@ -14,12 +16,14 @@ import com.itos.coui.switch.Switch
 import io.github.suqi8.coui.kmp.basic.BasicComponent
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 internal fun TactileSwitchPreference(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     title: String,
     enabled: Boolean,
     summary: String? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val view = LocalView.current
     val change: (Boolean) -> Unit = { target ->
@@ -32,13 +36,22 @@ internal fun TactileSwitchPreference(
             onCheckedChange(target)
         }
     }
+    val gesture = if (onLongClick == null) Modifier else Modifier.combinedClickable(
+        enabled = enabled,
+        role = Role.Switch,
+        onClick = { change(!checked) },
+        onLongClick = {
+            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            onLongClick()
+        },
+    )
     BasicComponent(
-        modifier = Modifier.semantics { toggleableState = ToggleableState(checked) },
+        modifier = gesture.semantics { toggleableState = ToggleableState(checked) },
         title = title,
         summary = summary,
         role = Role.Switch,
         enabled = enabled,
-        onClick = { change(!checked) },
+        onClick = if (onLongClick == null) ({ change(!checked) }) else null,
         endActions = {
             Switch(
                 checked = checked,

@@ -194,6 +194,9 @@ internal object NativeContract {
             capsule.method("getWidthChanging", Boolean::class.javaPrimitiveType!!) to
                 capsule.method("getCapsuleDrawableWidth", Int::class.javaPrimitiveType!!)
         }
+        val drawableWidth = optional("native drawable width writer", optionalMissing) {
+            capsule.method("setCapsuleDrawableWidth", Void.TYPE, Int::class.javaPrimitiveType!!)
+        }
         val widthChange = optional("native width animation start", optionalMissing) {
             capsule.method("setCapsuleWidthChanged", Void.TYPE, Boolean::class.javaPrimitiveType!!)
         }
@@ -302,6 +305,12 @@ internal object NativeContract {
 
         fun isAnimatingWidth(active: ViewGroup): Boolean = animatedWidth?.first?.invoke(active) == true
 
+        fun drawableWidth(active: ViewGroup): Int? =
+            animatedWidth?.second?.invoke(active) as? Int
+
+        fun setDrawableWidth(active: ViewGroup, width: Int): Boolean =
+            drawableWidth?.let { it.invoke(active, width); true } == true
+
         fun isSingleLane(host: ViewGroup): Boolean = (showing?.invoke(host) as? List<*>)?.size?.let { it <= 1 } == true
 
         fun supportsInterludeViewport(active: ViewGroup): Boolean {
@@ -310,7 +319,7 @@ internal object NativeContract {
         }
 
         fun animatedDrawingWidth(active: ViewGroup): Int? = if (isAnimatingWidth(active)) {
-            (animatedWidth?.second?.invoke(active) as? Int)?.takeIf { it > 0 }
+            drawableWidth(active)?.takeIf { it > 0 }
         } else null
 
         fun findTarget(root: ViewGroup, notificationKey: String, retained: Target? = null,

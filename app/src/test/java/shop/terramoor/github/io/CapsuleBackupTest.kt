@@ -22,6 +22,8 @@ class CapsuleBackupTest {
         assertEquals(SecondRowContent.TRANSLATION, fresh.secondRowContent)
         assertFalse(fresh.swapTranslation)
         assertTrue(fresh.wordLyrics)
+        assertTrue(fresh.lyricBold)
+        assertFalse(fresh.japaneseLyricFont)
         assertFalse(fresh.cameraWordAvoidance)
         assertTrue(fresh.introDots)
         assertEquals(MissingTranslationMode.SINGLE_LINE, fresh.missingTranslationMode)
@@ -121,12 +123,14 @@ class CapsuleBackupTest {
         assertEquals(PauseBehavior.KEEP_CURRENT, restored.pauseBehavior)
     }
 
-    @Test fun v14RoundTripPreservesTintPauseBehaviorAndInactiveSettings() {
+    @Test fun v16RoundTripPreservesTintPauseBehaviorAndInactiveSettings() {
         val expected = CapsuleSettings(
             doubleLine = false,
             secondRowContent = SecondRowContent.LYRIC,
             swapTranslation = true,
             wordLyrics = true,
+            lyricBold = false,
+            japaneseLyricFont = true,
             cameraWordAvoidance = true,
             cameraFade = true,
             introDots = true,
@@ -140,12 +144,24 @@ class CapsuleBackupTest {
         })
         val encoded = CapsuleBackup.encode(expected)
         val root = JSONObject(encoded)
-        assertEquals(14, root.getInt("version"))
+        assertEquals(16, root.getInt("version"))
         val data = root.getJSONObject("settings")
         assertFalse(data.getBoolean(CapsuleSettings.LYRIC_TINT_ENABLED))
         assertFalse(data.has("translation"))
         assertTrue(CapsuleSettings.retiredTintKeys.none(data::has))
         assertEquals(expected, CapsuleBackup.decode(encoded.byteInputStream()))
+    }
+
+    @Test fun v15BackupDefaultsBoldLyricsToOn() {
+        val backup = JSONObject(CapsuleBackup.encode(CapsuleSettings())).put("version", 15)
+        backup.getJSONObject("settings").remove(CapsuleSettings.LYRIC_BOLD)
+        assertTrue(CapsuleBackup.decode(backup.toString().byteInputStream()).lyricBold)
+    }
+
+    @Test fun v14BackupDefaultsJapaneseLyricFontToOff() {
+        val backup = JSONObject(CapsuleBackup.encode(CapsuleSettings())).put("version", 14)
+        backup.getJSONObject("settings").remove(CapsuleSettings.JAPANESE_LYRIC_FONT)
+        assertFalse(CapsuleBackup.decode(backup.toString().byteInputStream()).japaneseLyricFont)
     }
 
     @Test fun oldBackupRestoresBothCameraPreferencesIndependently() {

@@ -28,7 +28,9 @@ class CapsuleSettingsUpdateTest {
                 .withTuning(CapsuleTuning.entries.associateWith { it.default })
             val gradient = texture.copy(lyricTintMode = LyricTintMode.GRADIENT)
                 .withTuning(mapOf(CapsuleTuning.FIRST_ROW_OPACITY to 75))
-            for (settings in listOf(texture, gradient)) {
+            val customFont = gradient.copy(japaneseLyricFont = true,
+                customLyricFontId = "0123456789abcdef0123456789abcdef")
+            for (settings in listOf(texture, gradient, customFont, gradient)) {
                 CapsuleSettingsUpdate.publish(context, settings, targetPackage = context.packageName)
                 assertEquals(settings, updates.poll(3, TimeUnit.SECONDS))
             }

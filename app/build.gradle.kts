@@ -13,8 +13,8 @@ android {
         applicationId = "io.github.luckyumimi.terramoor"
         minSdk = 34
         targetSdk = 37
-        versionCode = 16
-        versionName = "1.9.2"
+        versionCode = 17
+        versionName = "1.9.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -22,6 +22,7 @@ android {
     buildFeatures { compose = true }
 
     androidResources {
+        noCompress += "ttf"
         // Keep in sync with res/xml/locales_config.xml, including script qualifiers.
         localeFilters += listOf(
             "en", "b+zh+Hans", "b+zh+Hant+HK", "b+zh+Hant+TW",

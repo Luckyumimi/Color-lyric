@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +46,9 @@ import io.github.suqi8.coui.kmp.preference.SliderPreference
 import io.github.suqi8.coui.kmp.theme.COUITheme
 import io.github.suqi8.coui.kmp.utils.CouiHapticEffect
 import io.github.suqi8.coui.kmp.utils.rememberCouiHaptic
+import com.itos.coui.dialog.CouiDialogAction
+import com.itos.coui.dialog.CouiDialogPlacement
+import com.itos.coui.dialog.Dialog as CouiDialog
 import shop.terramoor.github.io.R
 import shop.terramoor.github.io.settings.TerraMoorApp.Connection
 import kotlin.math.roundToInt
@@ -59,6 +63,9 @@ internal fun TuningPage(
     previewVisible: Boolean,
     translationHelpHidden: Boolean,
     onHideTranslationHelp: () -> Unit,
+    customFontBusy: Boolean,
+    onChooseCustomFont: () -> Unit,
+    onClearCustomFont: () -> Unit,
 ) {
     val haptic = rememberCouiHaptic()
     val settings = state.settings
@@ -69,6 +76,24 @@ internal fun TuningPage(
 
     var previewLanguage by rememberSaveable { mutableStateOf(PreviewLanguage.JAPANESE) }
     var showTranslationHelp by rememberSaveable { mutableStateOf(false) }
+    var showCustomFontActions by rememberSaveable { mutableStateOf(false) }
+    if (showCustomFontActions) {
+        val dismiss = { showCustomFontActions = false }
+        CouiDialog(
+            onDismissRequest = dismiss,
+            dark = isSystemInDarkTheme(),
+            placement = CouiDialogPlacement.Center,
+            title = stringResource(R.string.custom_lyric_font),
+            dismissAction = CouiDialogAction(stringResource(R.string.custom_lyric_font_restore), onClick = {
+                dismiss()
+                onClearCustomFont()
+            }),
+            confirmAction = CouiDialogAction(stringResource(R.string.custom_lyric_font_change), onClick = {
+                dismiss()
+                onChooseCustomFont()
+            }),
+        )
+    }
     if (previewVisible && showTranslationHelp && !translationHelpHidden) {
         TranslationHelpDialog(
             onDismiss = { showTranslationHelp = false },
@@ -143,6 +168,19 @@ internal fun TuningPage(
             }
             SettingsGroup(stringResource(R.string.section_text_tuning)) {
                 TactileSwitchPreference(
+                    checked = settings.japaneseLyricFont,
+                    onCheckedChange = { app.set(CapsuleSettings.JAPANESE_LYRIC_FONT, it) },
+                    title = stringResource(R.string.lyric_japanese_font),
+                    summary = stringResource(if (settings.japaneseLyricFont && settings.customLyricFontId != null)
+                        R.string.custom_lyric_font_active else R.string.custom_lyric_font_hint),
+                    enabled = ready && !customFontBusy,
+                    onLongClick = {
+                        if (settings.customLyricFontId != null) showCustomFontActions = true
+                        else onChooseCustomFont()
+                    },
+                )
+                HorizontalDivider(divider)
+                TactileSwitchPreference(
                     checked = settings.doubleLine,
                     onCheckedChange = { app.set(CapsuleSettings.DOUBLE_LINE, it) },
                     title = stringResource(R.string.double_line_lyrics),
@@ -167,6 +205,13 @@ internal fun TuningPage(
                 }
                 HorizontalDivider(divider)
                 ExpandableTuning(R.string.tune_text_details) {
+                    HorizontalDivider(divider)
+                    TactileSwitchPreference(
+                        checked = settings.lyricBold,
+                        onCheckedChange = { app.set(CapsuleSettings.LYRIC_BOLD, it) },
+                        title = stringResource(R.string.lyric_bold),
+                        enabled = ready,
+                    )
                     HorizontalDivider(divider)
                     slider(CapsuleTuning.FIRST_ROW_SIZE, R.string.tune_first_row_size, R.string.value_dp, ready)
                     HorizontalDivider(divider)
