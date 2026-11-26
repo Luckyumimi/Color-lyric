@@ -101,16 +101,8 @@
     <string name="provider_download">Скачать</string>
     <string name="provider_not_checked">Не проверено</string>
     <string name="provider_check_enable">Проверить источники текстов</string>
-    <string name="provider_check_explanation">Разрешить Color lyric проверить, установлены ли Bridge и Universal Player Provider? Проверка выполняется только на этом устройстве.</string>
     <string name="provider_check_allow">Разрешить</string>
     <string name="provider_check_later">Не сейчас</string>
-    <string name="lock_screen_lyrics_section">Перед настройкой</string>
-    <string name="lock_screen_lyrics_check">Подтвердите кнопку текста на экране блокировки</string>
-    <string name="lock_screen_lyrics_question">После настройки модулей текстов видите ли вы на экране блокировки кнопку, показанную на изображении?</string>
-    <string name="lock_screen_lyrics_seen">Вижу</string>
-    <string name="lock_screen_lyrics_later">Позже</string>
-    <string name="lock_screen_lyrics_unconfirmed">Не подтверждено</string>
-    <string name="lock_screen_lyrics_example_description">Обведённая кнопка текста вверху справа на плеере экрана блокировки</string>
     <string name="section_support">Проект и обратная связь</string>
     <string name="open_repository">Исходный код на GitHub</string>
     <string name="update_title">Обновления</string>

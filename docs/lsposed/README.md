@@ -17,7 +17,7 @@ Color lyric 在 ColorOS 17 的原生媒体胶囊中显示同步歌词。可调�
 ## 使用方法
 
 1. 安装正式 APK，在 LSPosed 启用 Color lyric，作用域勾选「系统界面」。重新启动 SystemUI 以加载模块。
-2. 打开 Color lyric，启用「流体云歌词」。播放器需要发布同步歌词。如果播放器不提供，可在 [ColorOS Live Lyrics Bridge](https://github.com/Andrea-lyz/ColorOS-Live-Lyrics-Bridge) 的商店选择对应 Provider。
+2. 打开 Color lyric，启用「流体云歌词」。可在「设置」选择内置联网搜索、SuperLyric 或词幕。使用这些获取方式时，还需在 LSPosed 勾选「系统框架」并重启设备。
 3. 打开「调整」页，拖动滑块时可在应用预览和系统媒体胶囊中查看效果。停用时可在 Color lyric 里关闭功能，或在 LSPosed 停用模块后重新启动 SystemUI。
 
 Root 仅用于应用内的「重启系统界面」按钮，执行前会弹出确认。歌词和配置在本机处理。如果同时安装了本地调试包，请在 LSPosed 里停用调试包，再启用正式包。需要迁移设置时，可在旧包的「关于」页导出 JSON，在正式包里导入。

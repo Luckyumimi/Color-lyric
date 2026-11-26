@@ -101,16 +101,8 @@
     <string name="provider_download">Scarica</string>
     <string name="provider_not_checked">Non verificato</string>
     <string name="provider_check_enable">Verifica i fornitori di testi</string>
-    <string name="provider_check_explanation">Consenti a Color lyric di verificare se Bridge e Universal Player Provider sono installati? La verifica avviene solo su questo dispositivo.</string>
     <string name="provider_check_allow">Consenti</string>
     <string name="provider_check_later">Non ora</string>
-    <string name="lock_screen_lyrics_section">Prima della configurazione</string>
-    <string name="lock_screen_lyrics_check">Conferma il pulsante dei testi nella schermata di blocco</string>
-    <string name="lock_screen_lyrics_question">Dopo aver configurato i moduli per i testi, vedi sulla schermata di blocco il pulsante mostrato nell’immagine?</string>
-    <string name="lock_screen_lyrics_seen">Lo vedo</string>
-    <string name="lock_screen_lyrics_later">Più tardi</string>
-    <string name="lock_screen_lyrics_unconfirmed">Non confermato</string>
-    <string name="lock_screen_lyrics_example_description">Pulsante dei testi cerchiato in alto a destra nel lettore della schermata di blocco</string>
     <string name="section_support">Progetto e feedback</string>
     <string name="open_repository">Codice su GitHub</string>
     <string name="update_title">Aggiornamenti</string>

@@ -6,6 +6,12 @@ import java.util.Locale
 
 internal object LyricPayload {
     const val KEY = "lyricInfo"
+    private const val SUPER_LYRIC_KEY = "shop.terramoor.github.io.lyrics.SUPER_LYRIC"
+
+    fun metadataKey(superLyricOnly: Boolean): String = if (superLyricOnly) SUPER_LYRIC_KEY else KEY
+
+    fun selectMetadata(superLyricOnly: Boolean, getString: (String) -> String?): String? =
+        getString(metadataKey(superLyricOnly))?.takeIf(String::isNotBlank)
     private const val MAX_CHARS = 262_144
     private val translationKeys = listOf(
         "translationLyric", "translatedLyric", "translateLyric", "transLyric",

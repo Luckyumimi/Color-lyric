@@ -2,23 +2,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Unknown SuperLyric API publishers and user-chosen players have no fixed package list. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <permission android:name="${applicationId}.permission.CAPSULE_SETTINGS" android:protectionLevel="signature" />
     <uses-permission android:name="${applicationId}.permission.CAPSULE_SETTINGS" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <queries>
         <package android:name="com.android.systemui" />
         <package android:name="com.oplus.systemui.plugins" />
         <package android:name="com.astraflow.tool" />
-        <package android:name="io.github.andrealtb.lockscreenlyrics" />
         <package android:name="io.github.andrealtb.coloroslyrics.provider.universal" />
     </queries>
     <application
         android:name=".settings.TerraMoorApp"
         android:allowBackup="false"
         android:description="@string/module_description"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:icon="@mipmap/color_lyric_launcher"
+        android:label="@string/color_lyric_app_name"
         android:localeConfig="@xml/locales_config"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@mipmap/color_lyric_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.TerraMoor">
         <provider android:name="io.github.libxposed.service.XposedProvider" tools:node="remove" />
@@ -36,6 +38,32 @@
             android:authorities="${applicationId}.CustomLyricFont"
             android:directBootAware="true"
             android:exported="true" />
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.ProviderInstall"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_install_paths" />
+        </provider>
+        <service
+            android:name=".lyrics.provider.SuperLyricReceiverService"
+            android:exported="true"
+            android:permission="android.permission.MANAGE_USERS"
+            android:process=":superlyric" />
+        <receiver
+            android:name="io.github.andrealtb.coloroslyrics.provider.universal.SnapshotReceiver"
+            android:exported="true"
+            android:permission="android.permission.MANAGE_USERS">
+            <intent-filter>
+                <action android:name="shop.terramoor.github.io.builtinlyrics.ACTION_SNAPSHOT_UPDATE" />
+                <action android:name="shop.terramoor.github.io.builtinlyrics.ACTION_REQUEST_PLAYER_BINDINGS_SYNC" />
+                <action android:name="shop.terramoor.github.io.builtinlyrics.ACTION_CACHE_RESPONSE" />
+            </intent-filter>
+        </receiver>
+        <activity
+            android:name="io.github.andrealtb.coloroslyrics.provider.universal.ui.AppleMusicLoginActivity"
+            android:exported="false"
+            android:label="Apple Music" />
         <!-- A language change can also report a screenLayout change. -->
         <activity
             android:name=".settings.SettingsActivity"

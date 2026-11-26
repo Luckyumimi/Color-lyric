@@ -17,14 +17,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +43,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,8 +53,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,13 +64,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -89,8 +95,11 @@ import com.itos.coui.dialog.CouiDialogDefaults
 import com.itos.coui.dialog.CouiDialogPlacement
 import com.itos.coui.dialog.Dialog as CouiDialog
 import com.itos.coui.layout.CouiPageDefaults
+import com.itos.coui.icons.CouiIcons
 import com.itos.coui.menu.ProvideCouiMenuBackdrop
+import com.itos.coui.backdrop.rememberCouiBackdrop
 import com.itos.coui.theme.CouiTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.itos.coui.topappbar.CouiTopAppBarButtonDefaults
 import com.itos.coui.topappbar.TopAppBarButton
 import com.itos.coui.topappbar.TopAppBarSurface
@@ -115,6 +124,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import shop.terramoor.github.io.R
@@ -128,14 +138,11 @@ class SettingsActivity : ComponentActivity() {
     private var restartBusy by mutableStateOf(false)
     private var updateResult by mutableStateOf<GitHubUpdates.Result>(GitHubUpdates.Result.Idle)
     private val onboarding by lazy { getSharedPreferences("onboarding", MODE_PRIVATE) }
-    private var providerStatuses by mutableStateOf<Map<LyricsProvider, Boolean>>(emptyMap())
-    private var lockScreenLyricsConfirmed by mutableStateOf(false)
     private var translationHelpHidden by mutableStateOf(false)
     private var customFontBusy by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        lockScreenLyricsConfirmed = onboarding.getBoolean(LOCK_SCREEN_LYRICS_CONFIRMED, false)
         translationHelpHidden = onboarding.getBoolean(CapsuleBackup.TRANSLATION_HELP_HIDDEN, false)
         enableEdgeToEdge()
         val version = packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
@@ -158,12 +165,6 @@ class SettingsActivity : ComponentActivity() {
                     state = state,
                     app = app,
                     version = version.versionName.orEmpty(),
-                    providerStatuses = providerStatuses,
-                    askForProviderCheck = !onboarding.contains(PROVIDER_CHECK),
-                    setProviderCheck = ::setProviderCheck,
-                    openProvider = ::openProvider,
-                    lockScreenLyricsConfirmed = lockScreenLyricsConfirmed,
-                    confirmLockScreenLyrics = ::confirmLockScreenLyrics,
                     translationHelpHidden = translationHelpHidden,
                     onHideTranslationHelp = { saveTranslationHelpHidden(true) },
                     customFontBusy = customFontBusy,
@@ -195,28 +196,11 @@ class SettingsActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (app.state.value.connection != Connection.CHECKING) app.refresh()
-        refreshProviderStatuses()
-    }
-
-    private fun setProviderCheck(allowed: Boolean) {
-        onboarding.edit().putBoolean(PROVIDER_CHECK, allowed).apply()
-        refreshProviderStatuses()
-    }
-
-    private fun confirmLockScreenLyrics() {
-        onboarding.edit().putBoolean(LOCK_SCREEN_LYRICS_CONFIRMED, true).apply()
-        lockScreenLyricsConfirmed = true
     }
 
     private fun saveTranslationHelpHidden(hidden: Boolean) {
         onboarding.edit().putBoolean(CapsuleBackup.TRANSLATION_HELP_HIDDEN, hidden).apply()
         translationHelpHidden = hidden
-    }
-
-    private fun refreshProviderStatuses() {
-        if (onboarding.getBoolean(PROVIDER_CHECK, false)) {
-            providerStatuses = LyricsProvider.entries.associateWith { it.isInstalled(packageManager) }
-        }
     }
 
     private fun importCustomFont(uri: Uri) {
@@ -263,19 +247,6 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    private fun openProvider(provider: LyricsProvider) {
-        val launch = if (providerStatuses[provider] == true) packageManager.getLaunchIntentForPackage(provider.packageId) else null
-        if (launch != null) {
-            try {
-                startActivity(launch)
-                return
-            } catch (_: ActivityNotFoundException) {
-                refreshProviderStatuses()
-            }
-        }
-        openWeb(provider.downloadPage)
-    }
-
     private fun checkForUpdates(version: PackageInfo) {
         if (updateResult == GitHubUpdates.Result.Checking) return
         updateResult = GitHubUpdates.Result.Checking
@@ -300,7 +271,6 @@ class SettingsActivity : ComponentActivity() {
     private fun saveDiagnostics(uri: Uri) {
         if (diagnosticsBusy) return
         diagnosticsBusy = true
-        val providers = providerStatuses
         val service = app.diagnosticService()
         lifecycleScope.launch {
             try {
@@ -308,10 +278,10 @@ class SettingsActivity : ComponentActivity() {
                 val state = app.state.value
                 val snapshot = state.copy(settings = currentSettings ?: state.settings)
                 val ui = DiagnosticReport.SettingsUi(
-                    lockScreenLyricsConfirmed, app.restartReminder.visible.value, translationHelpHidden,
+                    app.restartReminder.visible.value, translationHelpHidden,
                 )
                 withContext(Dispatchers.IO) {
-                    val report = DiagnosticReport.collect(app, snapshot, providers, service, ui)
+                    val report = DiagnosticReport.collect(app, snapshot, emptyMap(), service, ui)
                     checkNotNull(contentResolver.openOutputStream(uri, "wt")).bufferedWriter(Charsets.UTF_8).use {
                         it.write(report)
                     }
@@ -394,10 +364,6 @@ class SettingsActivity : ComponentActivity() {
 
     private fun notify(@StringRes message: Int) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
-    private companion object {
-        const val PROVIDER_CHECK = "check_provider_installation"
-        const val LOCK_SCREEN_LYRICS_CONFIRMED = "lock_screen_lyrics_confirmed"
-    }
 }
 
 private const val SUPPORT_GROUP = "1102727864"
@@ -408,12 +374,6 @@ private fun SettingsPage(
     state: TerraMoorApp.State,
     app: TerraMoorApp,
     version: String,
-    providerStatuses: Map<LyricsProvider, Boolean>,
-    askForProviderCheck: Boolean,
-    setProviderCheck: (Boolean) -> Unit,
-    openProvider: (LyricsProvider) -> Unit,
-    lockScreenLyricsConfirmed: Boolean,
-    confirmLockScreenLyrics: () -> Unit,
     translationHelpHidden: Boolean,
     onHideTranslationHelp: () -> Unit,
     customFontBusy: Boolean,
@@ -439,18 +399,16 @@ private fun SettingsPage(
     val currentTab = tabs.getOrElse(pager.currentPage) { SettingsTab.HOME }
     val restartReminderVisible by app.restartReminder.visible.collectAsState()
     var showRestartConfirmation by remember { mutableStateOf(false) }
-    var showProviderPrompt by rememberSaveable { mutableStateOf(askForProviderCheck) }
-    var showLockScreenPrompt by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(lockScreenLyricsConfirmed) {
-        if (!lockScreenLyricsConfirmed && pager.currentPage == SettingsTab.TUNING.ordinal) {
-            pager.scrollToPage(SettingsTab.HOME.ordinal)
-        }
+    var lyricStack by rememberSaveable { mutableStateOf(listOf(LyricsSection.HOME.name)) }
+    val lyricSection = LyricsSection.entries.firstOrNull { it.name == lyricStack.lastOrNull() } ?: LyricsSection.HOME
+    val inLyricsDetail = currentTab == SettingsTab.SETTINGS && lyricSection != LyricsSection.HOME
+    fun openLyricSection(section: LyricsSection) {
+        if (section == lyricSection) return
+        val existing = lyricStack.indexOfLast { it == section.name }
+        lyricStack = if (existing >= 0) lyricStack.take(existing + 1) else lyricStack + section.name
     }
-    if (showProviderPrompt) {
-        ProviderCheckDialog { allowed ->
-            showProviderPrompt = false
-            setProviderCheck(allowed)
-        }
+    fun closeLyricSection() {
+        if (lyricStack.size > 1) lyricStack = lyricStack.dropLast(1)
     }
     if (showRestartConfirmation) {
         val dark = isSystemInDarkTheme()
@@ -475,130 +433,79 @@ private fun SettingsPage(
         )
     }
     fun selectTab(tab: SettingsTab): Boolean {
-        if (tab == SettingsTab.TUNING && !lockScreenLyricsConfirmed) {
-            showLockScreenPrompt = true
-            return false
-        }
         scope.launch { pager.animateScrollToPage(tab.ordinal) }
         return true
     }
-    if (showLockScreenPrompt) {
-        LockScreenLyricsDialog(
-            onDismiss = { showLockScreenPrompt = false },
-            onConfirm = {
-                confirmLockScreenLyrics()
-                showLockScreenPrompt = false
-                scope.launch { pager.animateScrollToPage(SettingsTab.TUNING.ordinal) }
-            },
-        )
+    BackHandler(currentTab != SettingsTab.HOME) {
+        if (inLyricsDetail) closeLyricSection() else selectTab(SettingsTab.HOME)
     }
-    BackHandler(currentTab != SettingsTab.HOME) { selectTab(SettingsTab.HOME) }
     val background = CouiPageDefaults.themeColors().background
-    FloatingScaffold(
-        containerColor = background,
-        topBar = {
-            TopAppBarSurface(gradientColor = background, dark = isSystemInDarkTheme()) {
-                SettingsTopBar(
-                    titleVisibility = {
-                        val offset = pager.currentPage - SettingsTab.TUNING.ordinal + pager.currentPageOffsetFraction
-                        (1f - abs(offset)).coerceIn(0f, 1f)
-                    },
-                    showTitle = currentTab == SettingsTab.TUNING,
-                    showRestartReminder = currentTab == SettingsTab.TUNING && restartReminderVisible,
-                    restartAction = {
-                        RestartSystemUiButton(enabled = !restartBusy) { showRestartConfirmation = true }
-                    },
-                )
+    Box(Modifier.fillMaxSize().background(background)) {
+        FloatingScaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = background,
+            topBar = {
+                TopAppBarSurface(gradientColor = background, dark = isSystemInDarkTheme()) {
+                    if (inLyricsDetail) LyricsTopBar(::closeLyricSection) else SettingsTopBar(
+                        titleVisibility = {
+                            val offset = pager.currentPage - SettingsTab.TUNING.ordinal + pager.currentPageOffsetFraction
+                            (1f - abs(offset)).coerceIn(0f, 1f)
+                        },
+                        showTitle = currentTab == SettingsTab.TUNING,
+                        showRestartReminder = currentTab == SettingsTab.TUNING && restartReminderVisible,
+                        restartAction = {
+                            RestartSystemUiButton(enabled = !restartBusy) { showRestartConfirmation = true }
+                        },
+                    )
+                }
+            },
+            bottomBar = {
+                FloatingTabBar(currentTab, ::selectTab)
+            },
+        ) { padding ->
+            val topPadding = remember(padding) {
+                object : PaddingValues by padding {
+                    override fun calculateBottomPadding() = 0.dp
+                }
             }
-        },
-        bottomBar = { FloatingTabBar(currentTab, ::selectTab) },
-    ) { padding ->
-        val topPadding = remember(padding) {
-            object : PaddingValues by padding {
-                override fun calculateBottomPadding() = 0.dp
-            }
-        }
-        // Read the scaffold's padding during measurement, after it measures the shared header.
-        val content = Modifier.fillMaxSize().padding(topPadding).consumeWindowInsets(padding)
-        val bottomClearance = padding.calculateBottomPadding()
-        ProvideCouiMenuBackdrop(isolateContent = false) { backdrop ->
-            HorizontalPager(
-                state = pager,
-                modifier = backdrop.then(content),
-                beyondViewportPageCount = 1,
-                userScrollEnabled = lockScreenLyricsConfirmed,
-                key = { tabs[it].name },
-            ) { page ->
-                val tab = tabs[page]
-                pageState.SaveableStateProvider(tab.name) {
-                    when (tab) {
-                        SettingsTab.HOME -> HomePage(
-                            Modifier.fillMaxSize(), bottomClearance, state, app, providerStatuses, openProvider,
-                            enableProviderCheck = { showProviderPrompt = true },
-                            lockScreenLyricsConfirmed = lockScreenLyricsConfirmed,
-                            checkLockScreenLyrics = { showLockScreenPrompt = true },
-                        )
-                        SettingsTab.TUNING -> if (lockScreenLyricsConfirmed) {
-                            val visible by remember(pager, page) {
-                                derivedStateOf { abs(pager.currentPage - page + pager.currentPageOffsetFraction) < 1f }
+            val content = Modifier.fillMaxSize().padding(topPadding).consumeWindowInsets(padding)
+            val bottomClearance = padding.calculateBottomPadding()
+            ProvideCouiMenuBackdrop(isolateContent = false) { backdrop ->
+                HorizontalPager(
+                    state = pager,
+                    modifier = backdrop.then(content),
+                    beyondViewportPageCount = 1,
+                    userScrollEnabled = !inLyricsDetail,
+                    key = { tabs[it].name },
+                ) { page ->
+                    val tab = tabs[page]
+                    pageState.SaveableStateProvider(tab.name) {
+                        when (tab) {
+                            SettingsTab.HOME -> HomePage(
+                                Modifier.fillMaxSize(), bottomClearance, state, app,
+                            )
+                            SettingsTab.TUNING -> {
+                                val visible by remember(pager, page) {
+                                    derivedStateOf { abs(pager.currentPage - page + pager.currentPageOffsetFraction) < 1f }
+                                }
+                                TuningPage(Modifier.fillMaxSize(), bottomClearance, background, state, app, visible,
+                                    translationHelpHidden, onHideTranslationHelp, customFontBusy,
+                                    onChooseCustomFont, onClearCustomFont)
                             }
-                            TuningPage(Modifier.fillMaxSize(), bottomClearance, background, state, app, visible,
-                                translationHelpHidden, onHideTranslationHelp, customFontBusy,
-                                onChooseCustomFont, onClearCustomFont)
+                            SettingsTab.SETTINGS -> BuiltinLyricsPage(
+                                Modifier.fillMaxSize(), bottomClearance, lyricSection, lyricStack.size, ::openLyricSection,
+                            )
+                            SettingsTab.ABOUT -> AboutPage(
+                                Modifier.fillMaxSize(), bottomClearance, version, canUseBackup, onExport, onImport,
+                                openRepository, updateResult, checkForUpdates, openReleases, copySupportGroup,
+                                canExportDiagnostics, onExportDiagnostics,
+                            )
                         }
-                        SettingsTab.ABOUT -> AboutPage(
-                            Modifier.fillMaxSize(), bottomClearance, version, canUseBackup, onExport, onImport,
-                            openRepository, updateResult, checkForUpdates, openReleases, copySupportGroup,
-                            canExportDiagnostics, onExportDiagnostics,
-                        )
                     }
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun ProviderCheckDialog(onDecision: (Boolean) -> Unit) {
-    val dark = isSystemInDarkTheme()
-    CouiDialog(
-        onDismissRequest = { onDecision(false) },
-        dark = dark,
-        placement = CouiDialogPlacement.Center,
-        title = stringResource(R.string.provider_check_enable),
-        message = stringResource(R.string.provider_check_explanation),
-        dismissAction = CouiDialogAction(stringResource(R.string.provider_check_later), onClick = { onDecision(false) }),
-        confirmAction = CouiDialogAction(
-            text = stringResource(R.string.provider_check_allow),
-            style = CouiDialogActionStyle.Primary,
-            colors = CouiDialogDefaults.primaryActionColors(CouiTheme.colorSchemeFor(dark).accent),
-            onClick = { onDecision(true) },
-        ),
-    )
-}
-
-@Composable
-private fun LockScreenLyricsDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    val dark = isSystemInDarkTheme()
-    CouiDialog(
-        onDismissRequest = onDismiss,
-        dark = dark,
-        placement = CouiDialogPlacement.Center,
-        title = stringResource(R.string.lock_screen_lyrics_check),
-        message = stringResource(R.string.lock_screen_lyrics_question),
-        dismissAction = CouiDialogAction(stringResource(R.string.lock_screen_lyrics_later), onClick = onDismiss),
-        confirmAction = CouiDialogAction(
-            text = stringResource(R.string.lock_screen_lyrics_seen),
-            style = CouiDialogActionStyle.Primary,
-            colors = CouiDialogDefaults.primaryActionColors(CouiTheme.colorSchemeFor(dark).accent),
-            onClick = onConfirm,
-        ),
-    ) {
-        Image(
-            painter = painterResource(R.drawable.lock_screen_lyrics_example),
-            contentDescription = stringResource(R.string.lock_screen_lyrics_example_description),
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
-        )
     }
 }
 
@@ -614,11 +521,6 @@ private fun HomePage(
     bottomClearance: Dp,
     state: TerraMoorApp.State,
     app: TerraMoorApp,
-    providerStatuses: Map<LyricsProvider, Boolean>,
-    openProvider: (LyricsProvider) -> Unit,
-    enableProviderCheck: () -> Unit,
-    lockScreenLyricsConfirmed: Boolean,
-    checkLockScreenLyrics: () -> Unit,
 ) {
     val (title, hint) = when (state.connection) {
         Connection.CHECKING -> R.string.status_checking to null
@@ -628,7 +530,7 @@ private fun HomePage(
         Connection.FAILED -> R.string.status_failed to R.string.status_failed_hint
     }
     SettingsList(modifier, bottomClearance) {
-        SettingsPageTitle(R.string.app_name)
+        SettingsPageTitle(R.string.color_lyric_app_name)
         SettingsGroup(stringResource(R.string.section_connection)) {
             BasicComponent(
                 title = stringResource(title),
@@ -648,52 +550,6 @@ private fun HomePage(
                 onCheckedChange = { app.set(CapsuleSettings.ENABLED, it) },
                 title = stringResource(R.string.enable_lyrics),
                 enabled = state.connection == Connection.READY,
-            )
-        }
-        SettingsGroup(stringResource(R.string.section_provider), notice = stringResource(R.string.provider_both_required)) {
-            LyricsProvider.entries.forEachIndexed { index, provider ->
-                if (index != 0) HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
-                val installed = providerStatuses[provider]
-                BasicComponent(
-                    title = stringResource(provider.title),
-                    onClick = { openProvider(provider) },
-                    startAction = {
-                        Image(
-                            painter = painterResource(provider.icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp).clip(CircleShape),
-                        )
-                    },
-                    endActions = {
-                        Text(
-                            text = stringResource(when (installed) {
-                                true -> R.string.provider_installed
-                                false -> R.string.provider_download
-                                null -> R.string.provider_not_checked
-                            }),
-                            color = if (installed == true) installedColor() else COUITheme.colorScheme.onSurfaceVariantSummary,
-                            style = COUITheme.textStyles.body2,
-                        )
-                    },
-                )
-            }
-            if (providerStatuses.isEmpty()) {
-                HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
-                BasicComponent(title = stringResource(R.string.provider_check_enable), onClick = enableProviderCheck)
-            }
-        }
-        SettingsGroup(stringResource(R.string.lock_screen_lyrics_section)) {
-            BasicComponent(
-                title = stringResource(R.string.lock_screen_lyrics_check),
-                onClick = checkLockScreenLyrics,
-                endActions = {
-                    Text(
-                        text = stringResource(if (lockScreenLyricsConfirmed) R.string.lock_screen_lyrics_seen
-                            else R.string.lock_screen_lyrics_unconfirmed),
-                        color = if (lockScreenLyricsConfirmed) installedColor() else unavailableColor(),
-                        style = COUITheme.textStyles.body2,
-                    )
-                },
             )
         }
     }
@@ -719,7 +575,7 @@ private fun AboutPage(
         SettingsPageTitle(R.string.tab_about)
         SettingsGroup(stringResource(R.string.section_app_info)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(R.string.app_name), color = COUITheme.colorScheme.onSurface)
+                Text(stringResource(R.string.color_lyric_app_name), color = COUITheme.colorScheme.onSurface)
                 SettingSummary(stringResource(R.string.app_version, version))
                 SettingSummary(stringResource(R.string.app_compatibility))
             }
@@ -798,6 +654,29 @@ private fun TroubleshootingPreference(canExportDiagnostics: Boolean, onExportDia
             },
         ),
     )
+}
+
+@Composable
+private fun LyricsTopBar(onBack: () -> Unit) {
+    val haptic = rememberCouiHaptic()
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top))
+            .padding(horizontal = 16.dp).heightIn(min = 52.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TopAppBarButton(
+            onClick = { haptic(CouiHapticEffect.Strength); onBack() },
+            style = CouiTopAppBarButtonDefaults.style(dark = isSystemInDarkTheme()),
+        ) {
+            Icon(
+                imageVector = CouiIcons.Outlined.Back,
+                contentDescription = stringResource(R.string.lyrics_hub_back),
+                tint = COUITheme.colorScheme.onSurface,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
 }
 
 @Composable

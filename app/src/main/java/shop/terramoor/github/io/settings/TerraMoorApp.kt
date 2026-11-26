@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import shop.terramoor.github.io.diagnostics.DiagnosticLog
 import shop.terramoor.github.io.diagnostics.DiagnosticStore
 import shop.terramoor.github.io.systemui.NativeContract
@@ -45,7 +47,9 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, -1),
         )
     }
-    private var service: XposedService? = null
+    @Volatile private var service: XposedService? = null
+    private val lyricHookWriteLock = Mutex()
+    @Volatile private var lyricHookWriteGeneration = 0L
     private var preferences: SharedPreferences? = null
     private var refreshGeneration = 0
     private var confirmed = CapsuleSettings()
@@ -57,6 +61,8 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
 
     override fun onCreate() {
         super.onCreate()
+        if (Application.getProcessName() == "$packageName:superlyric") return
+        BuiltinLyricsConfig.install(this)
         diagnostics.note("App process started, pid=${android.os.Process.myPid()}")
         XposedServiceHelper.registerListener(this)
         main.postDelayed({ if (service == null) refresh() }, 1200)
@@ -69,7 +75,9 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
                 updateState(State(Connection.CHECKING, confirmed))
             }
             this.service = service
+            io.github.andrealtb.coloroslyrics.provider.universal.UniversalAppIo.execute { BuiltinLyricsConfig.syncAll(this) }
             refresh()
+
         }
     }
 

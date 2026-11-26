@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -13,13 +14,27 @@ android {
         applicationId = "io.github.luckyumimi.terramoor"
         minSdk = 34
         targetSdk = 37
-        versionCode = 17
-        versionName = "1.9.3"
+        versionCode = 23
+        versionName = "1.9.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    sourceSets.named("main") {
+        kotlin.directories.add(rootProject.file("third_party/hle-provider-host/src/main/kotlin").path)
+        val imported = rootProject.file("third_party/coloros-lyrics-providers")
+        listOf("parser-lrc", "parser-qrc", "parser-yrc", "parser-krc", "parser-ttml", "universal-api")
+            .forEach { kotlin.directories.add(imported.resolve("$it/src/main/kotlin").path) }
+        listOf("provider-core", "provider-runtime-diagnostics", "universal-runtime").forEach {
+            kotlin.directories.add(imported.resolve("$it/main/kotlin").path)
+            java.directories.add(imported.resolve("$it/main/java").path)
+        }
+    }
 
     androidResources {
         noCompress += "ttf"
@@ -44,15 +59,19 @@ android {
 
     buildTypes {
         release {
+            proguardFiles("hle-provider-rules.pro")
             isShrinkResources = true
             optimization {
                 enable = true
             }
         }
     }
+    // The upstream DexKit host loads the module’s extracted native library in player processes.
+    packaging.jniLibs.useLegacyPackaging = true
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
@@ -72,6 +91,16 @@ dependencies {
     implementation(libs.coui.kit.icons)
     compileOnly(libs.xposed.api)
     implementation(libs.xposed.service)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.dexkit)
+    implementation(libs.kavaref.core)
+    implementation(libs.kavaref.extension)
+    implementation(libs.lyricon.model)
+    implementation(libs.lyricon.subscriber)
+    implementation("io.github.proify.lyricon:provider:0.1.70")
+    implementation(libs.superlyric.api)
+    implementation(libs.okhttp.brotli)
     testImplementation(libs.junit)
     testImplementation(libs.json)
     androidTestImplementation(libs.androidx.espresso.core)

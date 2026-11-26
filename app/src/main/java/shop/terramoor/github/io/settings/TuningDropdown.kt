@@ -38,6 +38,7 @@ internal fun TuningDropdown(
     selectedIndex: Int,
     enabled: Boolean = true,
     titleAction: (@Composable () -> Unit)? = null,
+    itemEnabled: (Int) -> Boolean = { true },
     onSelectedIndexChange: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -69,11 +70,12 @@ internal fun TuningDropdown(
                     expanded = expanded && enabled,
                     onDismissRequest = { expanded = false },
                     items = items.mapIndexed { index, label ->
-                        CouiMenuItem(index, label, icon = COUIIcons.Basic.Check.takeIf { index == selectedIndex })
+                        CouiMenuItem(index, label, icon = COUIIcons.Basic.Check.takeIf { index == selectedIndex },
+                            enabled = itemEnabled(index))
                     },
                     onItemClick = { item ->
                         expanded = false
-                        onSelectedIndexChange(item.value)
+                        if (itemEnabled(item.value)) onSelectedIndexChange(item.value)
                     },
                     style = menuStyle,
                     anchor = anchor,

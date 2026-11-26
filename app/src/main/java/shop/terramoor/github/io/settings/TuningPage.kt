@@ -391,7 +391,7 @@ internal fun TuningPage(
 }
 
 @Composable
-private fun ExpandableTuning(@StringRes title: Int, content: @Composable () -> Unit) {
+internal fun ExpandableTuning(@StringRes title: Int, content: @Composable () -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val haptic = rememberCouiHaptic()
     val rotation by animateFloatAsState(if (expanded) 90f else 0f, label = "Tuning chevron")

@@ -101,16 +101,8 @@
     <string name="provider_download">Pobierz</string>
     <string name="provider_not_checked">Nie sprawdzono</string>
     <string name="provider_check_enable">Sprawdź dostawców tekstów</string>
-    <string name="provider_check_explanation">Czy zezwolić Color lyric na sprawdzenie, czy Bridge i Universal Player Provider są zainstalowane? Sprawdzenie odbywa się tylko na tym urządzeniu.</string>
     <string name="provider_check_allow">Zezwól</string>
     <string name="provider_check_later">Nie teraz</string>
-    <string name="lock_screen_lyrics_section">Przed konfiguracją</string>
-    <string name="lock_screen_lyrics_check">Potwierdź przycisk tekstu na ekranie blokady</string>
-    <string name="lock_screen_lyrics_question">Czy po skonfigurowaniu modułów widzisz na ekranie blokady przycisk tekstu pokazany na ilustracji?</string>
-    <string name="lock_screen_lyrics_seen">Widzę</string>
-    <string name="lock_screen_lyrics_later">Później</string>
-    <string name="lock_screen_lyrics_unconfirmed">Nie potwierdzono</string>
-    <string name="lock_screen_lyrics_example_description">Zaznaczony przycisk tekstu w prawym górnym rogu odtwarzacza na ekranie blokady</string>
     <string name="section_support">Projekt i opinie</string>
     <string name="open_repository">Kod źródłowy na GitHubie</string>
     <string name="update_title">Aktualizacje</string>

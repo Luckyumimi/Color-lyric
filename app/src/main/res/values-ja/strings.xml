@@ -110,16 +110,8 @@
     <string name="provider_download">ダウンロード</string>
     <string name="provider_not_checked">未確認</string>
     <string name="provider_check_enable">歌詞プロバイダーを確認</string>
-    <string name="provider_check_explanation">Color lyric が Bridge と汎用プレーヤー Provider のインストール状況を確認することを許可しますか？確認はこの端末内で行われます。</string>
     <string name="provider_check_allow">許可する</string>
     <string name="provider_check_later">今はしない</string>
-    <string name="lock_screen_lyrics_section">設定前の確認</string>
-    <string name="lock_screen_lyrics_check">ロック画面の歌詞ボタンを確認</string>
-    <string name="lock_screen_lyrics_question">歌詞プロバイダーのモジュールを設定した後、画像のような歌詞ボタンがロック画面に表示されていますか？</string>
-    <string name="lock_screen_lyrics_seen">表示されています</string>
-    <string name="lock_screen_lyrics_later">後で確認</string>
-    <string name="lock_screen_lyrics_unconfirmed">未確認</string>
-    <string name="lock_screen_lyrics_example_description">ロック画面のプレーヤー右上にある丸で囲まれた歌詞ボタン</string>
     <string name="section_support">プロジェクトとフィードバック</string>
     <string name="open_repository">GitHub のソースコード</string>
     <string name="update_title">アップデート</string>

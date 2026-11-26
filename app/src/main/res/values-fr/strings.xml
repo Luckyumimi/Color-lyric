@@ -101,16 +101,8 @@
     <string name="provider_download">Télécharger</string>
     <string name="provider_not_checked">Non vérifié</string>
     <string name="provider_check_enable">Vérifier les fournisseurs de paroles</string>
-    <string name="provider_check_explanation">Autoriser Color lyric à vérifier si Bridge et Universal Player Provider sont installés ? La vérification se fait uniquement sur cet appareil.</string>
     <string name="provider_check_allow">Autoriser</string>
     <string name="provider_check_later">Pas maintenant</string>
-    <string name="lock_screen_lyrics_section">Avant la configuration</string>
-    <string name="lock_screen_lyrics_check">Confirmer le bouton des paroles sur l’écran verrouillé</string>
-    <string name="lock_screen_lyrics_question">Après avoir configuré les modules de paroles, voyez-vous sur l’écran verrouillé le bouton montré ici ?</string>
-    <string name="lock_screen_lyrics_seen">Je le vois</string>
-    <string name="lock_screen_lyrics_later">Plus tard</string>
-    <string name="lock_screen_lyrics_unconfirmed">Non confirmé</string>
-    <string name="lock_screen_lyrics_example_description">Bouton des paroles entouré en haut à droite du lecteur sur l’écran de verrouillage</string>
     <string name="section_support">Projet et commentaires</string>
     <string name="open_repository">Code source sur GitHub</string>
     <string name="update_title">Mises à jour</string>

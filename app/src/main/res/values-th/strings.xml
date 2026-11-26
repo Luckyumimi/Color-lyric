@@ -101,16 +101,8 @@
     <string name="provider_download">ดาวน์โหลด</string>
     <string name="provider_not_checked">ยังไม่ได้ตรวจสอบ</string>
     <string name="provider_check_enable">ตรวจสอบผู้ให้บริการเนื้อเพลง</string>
-    <string name="provider_check_explanation">อนุญาตให้ Color lyric ตรวจสอบว่าติดตั้ง Bridge และ Universal Player Provider แล้วหรือไม่ การตรวจสอบทำบนอุปกรณ์นี้เท่านั้น</string>
     <string name="provider_check_allow">อนุญาต</string>
     <string name="provider_check_later">ไว้ทีหลัง</string>
-    <string name="lock_screen_lyrics_section">ก่อนตั้งค่า</string>
-    <string name="lock_screen_lyrics_check">ยืนยันปุ่มเนื้อเพลงบนหน้าจอล็อก</string>
-    <string name="lock_screen_lyrics_question">หลังตั้งค่าโมดูลเนื้อเพลงแล้ว คุณเห็นปุ่มเนื้อเพลงแบบในภาพบนหน้าจอล็อกหรือไม่</string>
-    <string name="lock_screen_lyrics_seen">เห็นแล้ว</string>
-    <string name="lock_screen_lyrics_later">ยืนยันภายหลัง</string>
-    <string name="lock_screen_lyrics_unconfirmed">ยังไม่ยืนยัน</string>
-    <string name="lock_screen_lyrics_example_description">ปุ่มเนื้อเพลงที่วงไว้ด้านขวาบนของเครื่องเล่นบนหน้าจอล็อก</string>
     <string name="section_support">โครงการและความคิดเห็น</string>
     <string name="open_repository">ซอร์สโค้ดบน GitHub</string>
     <string name="update_title">อัปเดต</string>

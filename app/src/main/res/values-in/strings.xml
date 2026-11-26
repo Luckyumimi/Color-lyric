@@ -101,16 +101,8 @@
     <string name="provider_download">Unduh</string>
     <string name="provider_not_checked">Belum diperiksa</string>
     <string name="provider_check_enable">Periksa penyedia lirik</string>
-    <string name="provider_check_explanation">Izinkan Color lyric memeriksa apakah Bridge dan Universal Player Provider sudah terpasang? Pemeriksaan hanya dilakukan di perangkat ini.</string>
     <string name="provider_check_allow">Izinkan</string>
     <string name="provider_check_later">Nanti</string>
-    <string name="lock_screen_lyrics_section">Sebelum mengatur</string>
-    <string name="lock_screen_lyrics_check">Konfirmasi tombol lirik di layar kunci</string>
-    <string name="lock_screen_lyrics_question">Setelah menyiapkan modul penyedia lirik, apakah Anda melihat tombol lirik seperti pada gambar di layar kunci?</string>
-    <string name="lock_screen_lyrics_seen">Saya melihatnya</string>
-    <string name="lock_screen_lyrics_later">Konfirmasi nanti</string>
-    <string name="lock_screen_lyrics_unconfirmed">Belum dikonfirmasi</string>
-    <string name="lock_screen_lyrics_example_description">Tombol lirik yang dilingkari di kanan atas pemutar layar kunci</string>
     <string name="section_support">Proyek dan masukan</string>
     <string name="open_repository">Kode sumber di GitHub</string>
     <string name="update_title">Pembaruan</string>

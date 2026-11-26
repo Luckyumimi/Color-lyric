@@ -45,11 +45,16 @@ Color lyric 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云�
   </tr>
 </table>
 
+在「歌词源与优先级」中可开启 Unison、lrc.red、Karalyr、AMLL TTML DB 和 LunaBeat / TTML Hub。选择 SuperLyric 后可在歌词设置中下载并安装模块。随后在 LSPosed 启用模块，重启后接收连接成功即显示绿色「已激活」。
+
 ## 安装
 
 1. 在 Releases 下载 APK。
-2. 启用 Color lyric，作用域勾选「系统界面」，重启「系统界面」或系统后打开 Color lyric。应用内的重启按钮需要 Root 授权。
-3. 在首页确认 LSPosed 已勾选「系统界面」、已启用流体云歌词、ColorOS Live Lyrics Bridge 和通用播放器 Provider 均已安装，再到「调整」设置显示效果。
+2. 在 LSPosed 启用 Color lyric，勾选「系统界面」和「系统框架」，然后重启手机。应用内重启按钮只重启系统界面，需要 Root 授权。
+3. 在首页开启流体云歌词，在「调整」配置胶囊显示，在「设置」选择歌词获取方式。
+
+- 联网搜索从媒体会话取得歌名、歌手和时长，按启用的曲库搜索。可调整 QQ 音乐、网易云音乐、酷狗音乐和 Apple Music 的优先级，也可手动搜索和管理缓存。Apple Music 官方歌词需要登录。
+- SuperLyric 接收已运行服务发布的完整歌词。LyricInfo 待适配，暂不可选。词幕使用内置 Central。在「词幕配置 → 插件目录」可下载 HLE 上游签名的 Provider Pack。添加后请在 LSPosed 授权目标播放器，再重启播放器。汽水音乐通过系统媒体会话接入。
 
 「调整 → 歌词行为」中的「逐字歌词」和「前奏倒计时动画」默认开启。歌词提供方传入逐字时间时，高亮会从左到右扫过字形，亮暗边界以渐变过渡。长句等高亮到达前摄右侧可视区的中间才跟着滚动，句尾露全时停止。开启前奏动画后，会跳过歌词开头可识别的歌名、署名和版权提示；不足 3 秒的前奏不显示三点，有明确时间边界且至少 7 秒的间奏也会显示三点。圆点按倒计时长度完成整轮呼吸，短前奏只点亮、不缩放。前奏圆点在前摄右侧倒计时，左侧歌曲信息超宽时会滚动。三点或歌曲信息切入歌词时沿用所选的切句动效。译文中的版权提示和 `//` 占位符不显示，只有纯音乐提示时沿用无歌词设置。
 
@@ -69,14 +74,15 @@ Color lyric 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云�
 
 | 目录 | 职责 |
 | --- | --- |
-| `settings/` | COUI 首页、调整页和关于页，Provider 状态与入口，后台串行远程配置写入，预览和 JSON 备份。 |
+| `settings/` | COUI 首页、调整页、关于页和歌词获取入口，播放器与来源设置、缓存管理、远程配置、预览和 JSON 备份。 |
 | `lyrics/` | 读取媒体会话的 `lyricInfo`，解析 LRC 和可匹配的 TTML 句尾及逐字时间，为预览与原生胶囊生成歌词帧和切换边界。 |
 | `systemui/` | 挂载媒体胶囊 Hook，校验系统接口、媒体会话及视图所有权。沿用系统动画绘制歌词与背景，停用时恢复原生胶囊。 |
 | `app/src/main/java/io/github/libxposed/service/` | API 102 设置服务入口校验。 |
-| `app/src/main/resources/META-INF/xposed/` | 模块入口和静态 `com.android.systemui` 作用域。 |
+| `app/src/main/resources/META-INF/xposed/` | 模块入口和默认作用域；系统框架用于监听媒体会话，系统界面用于绘制胶囊。 |
+| `third_party/` | Apache-2.0 授权的 ColorOS Live Lyrics Providers 组件。 |
 | `app/src/test/`、`app/src/androidTest/` | JVM 单测及设备测试。 |
 
-播放器或 Provider 把歌词写入媒体会话。Color lyric 从当前胶囊关联的 Token 获取歌词。设置经 LSPosed Remote Preferences 传到 SystemUI。首页仅检查已知的两个 Provider 包名，在「关于」点击「检查更新」会请求 GitHub API，显示版本状态或连接失败。
+Color lyric 的歌词显示位于 ColorOS 流体云媒体胶囊。播放器或内置获取器把歌词写入媒体会话。Color lyric 从当前胶囊关联的 Token 获取歌词。设置经 LSPosed Remote Preferences 及受权限保护的本地通信传递。自动取词会请求启用的歌词源；「关于 → 检查更新」会请求 GitHub API。
 
 ## 开发与反馈
 
@@ -85,6 +91,3 @@ Color lyric 是一个 ColorOS 17 的 LSPosed 模块，在系统原生流体云�
 遇到歌词不显示或流体云异常时，重启手机，播放一首确认有歌词的歌曲并复现问题，然后在「关于 → 导出诊断日志」保存 TXT。报告包含设备和系统版本、已安装 APK 的 SHA-256、LSPosed 中实际载入的模块版本、当前配置，以及 Hook、媒体匹配、胶囊视图、歌词解析和播放调度记录。日志保留最近 4096 条，省略歌名、歌词正文及会话令牌。
 
 反馈时请同时提供重启后的完整 LSPosed 日志、播放器及版本、复现时间和歌曲、Provider 是否能看到歌词、截图中的歌词来源，以及星流或其他修改系统界面的模块启用情况。应用无法直接读取完整 LSPosed 日志或可靠列出其他模块，需手动提供。Issues 可提交反馈；在「关于」可复制 QQ 群号 `1102727864`。
-
-
-[ColorOS Live Lyrics Bridge 图标](https://github.com/Andrea-lyz/ColorOS-Live-Lyrics-Bridge/blob/a51c946d1c66f02a6a4a96dc0f568e387fe05844/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png)和本项目代码均使用 Apache-2.0。

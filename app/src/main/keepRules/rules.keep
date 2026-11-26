@@ -1,6 +1,22 @@
 # LSPosed loads this entry by name from META-INF/xposed/java_init.list.
+# SuperLyric uses the application's Binder service cache.
+-dontwarn android.os.ServiceManager
+
+# SuperLyric API 4.0 decodes frames with getDeclaredConstructor() and annotated fields.
+# List element types are read from Signature, including Lyric.lines and Line.words.
+-keepattributes RuntimeVisibleAnnotations,Signature
+-keep class com.hchen.superlyricapi.wire.Frame { *; }
+-keep class com.hchen.superlyricapi.wire.Frame$Kind { *; }
+-keep class com.hchen.superlyricapi.model.** { *; }
+
 -keep class shop.terramoor.github.io.systemui.TerraMoorModule {
     public <init>();
     public void onModuleLoaded(io.github.libxposed.api.XposedModuleInterface$ModuleLoadedParam);
     public void onPackageReady(io.github.libxposed.api.XposedModuleInterface$PackageReadyParam);
+}
+
+-keep class io.github.andrealtb.coloroslyrics.provider.universal.UniversalModuleEntry {
+    public <init>();
+    public void onModuleLoaded(io.github.libxposed.api.XposedModuleInterface$ModuleLoadedParam);
+    public void onSystemServerStarting(io.github.libxposed.api.XposedModuleInterface$SystemServerStartingParam);
 }

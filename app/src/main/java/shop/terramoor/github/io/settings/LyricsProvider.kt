@@ -11,12 +11,6 @@ internal enum class LyricsProvider(
     @DrawableRes val icon: Int,
     val downloadPage: String,
 ) {
-    BRIDGE(
-        "io.github.andrealtb.lockscreenlyrics",
-        R.string.provider_bridge,
-        R.drawable.provider_bridge,
-        "https://github.com/Andrea-lyz/ColorOS-Live-Lyrics-Bridge/releases",
-    ),
     UNIVERSAL(
         "io.github.andrealtb.coloroslyrics.provider.universal",
         R.string.provider_universal,

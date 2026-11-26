@@ -101,16 +101,8 @@
     <string name="provider_download">Tải xuống</string>
     <string name="provider_not_checked">Chưa kiểm tra</string>
     <string name="provider_check_enable">Kiểm tra nhà cung cấp lời bài hát</string>
-    <string name="provider_check_explanation">Cho phép Color lyric kiểm tra Bridge và Universal Player Provider đã được cài đặt chưa? Việc kiểm tra chỉ diễn ra trên thiết bị này.</string>
     <string name="provider_check_allow">Cho phép</string>
     <string name="provider_check_later">Để sau</string>
-    <string name="lock_screen_lyrics_section">Trước khi cài đặt</string>
-    <string name="lock_screen_lyrics_check">Xác nhận nút lời bài hát trên màn hình khoá</string>
-    <string name="lock_screen_lyrics_question">Sau khi thiết lập các mô-đun lời bài hát, bạn có thấy nút như trong hình trên màn hình khoá không?</string>
-    <string name="lock_screen_lyrics_seen">Tôi thấy rồi</string>
-    <string name="lock_screen_lyrics_later">Để sau</string>
-    <string name="lock_screen_lyrics_unconfirmed">Chưa xác nhận</string>
-    <string name="lock_screen_lyrics_example_description">Nút lời bài hát được khoanh tròn ở góc trên bên phải trình phát trên màn hình khoá</string>
     <string name="section_support">Dự án và phản hồi</string>
     <string name="open_repository">Mã nguồn trên GitHub</string>
     <string name="update_title">Bản cập nhật</string>

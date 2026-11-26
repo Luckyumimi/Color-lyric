@@ -25,6 +25,8 @@ import android.widget.ImageView
 import io.github.libxposed.api.XposedInterface.HookHandle
 import shop.terramoor.github.io.diagnostics.DiagnosticLog
 import shop.terramoor.github.io.lyrics.LyricPayload
+import shop.terramoor.github.io.lyrics.CapsuleLyricModeSync
+import shop.terramoor.github.io.lyrics.MiguMediaIdentity
 import shop.terramoor.github.io.lyrics.LyricFrame
 import shop.terramoor.github.io.lyrics.LyricPresentation
 import shop.terramoor.github.io.lyrics.PlaybackClock
@@ -51,6 +53,8 @@ internal class CapsuleRuntime(
     private var preferences: SharedPreferences? = null
     private var preferenceAttempts = 0
     private var settingsUpdateRegistered = false
+    private var lyricModeRegistered = false
+    private var superLyricOnly = false
     private var receivedCommittedSettings = false
     private var settings = CapsuleSettings(enabled = false)
     private var tintDrawFrame: String? = null
@@ -571,6 +575,22 @@ internal class CapsuleRuntime(
 
     private fun loadPreferences() {
         val view = hostView ?: return
+        if (!lyricModeRegistered) {
+            try {
+                CapsuleLyricModeSync.registerSystemUi(view.context.applicationContext, main) { onlySuperLyric ->
+                    if (superLyricOnly != onlySuperLyric) {
+                        superLyricOnly = onlySuperLyric
+                        protect("Capsule lyric mode") {
+                            session?.reselectLyrics()
+                            if (labels == null) postRefresh() else render()
+                        }
+                    }
+                }
+                lyricModeRegistered = true
+            } catch (failure: Exception) {
+                report("Register capsule lyric mode", failure)
+            }
+        }
         if (!settingsUpdateRegistered) {
             try {
                 CapsuleSettingsUpdate.register(view.context.applicationContext, modulePackage, main) { next ->
@@ -869,7 +889,8 @@ internal class CapsuleRuntime(
         binding: CapsuleLabels, frame: LyricFrame?, phase: String, background: Bitmap?, ink: LyricInk,
         clock: PlaybackClock? = null,
     ) {
-        binding.render(frame, settings, background, clock, ink, trackIdentity = session?.trackIdentity)
+        binding.render(frame, settings, background, clock, ink, trackIdentity = session?.trackIdentity,
+            tintArtworkPending = settings.lyricTintEnabled && session?.tintArtwork?.bitmap == null)
         if (!binding.shouldReserveCompactStatusBarSpace) updateInterludeStatusBarSpace(compact = false)
         updatePauseOwner(binding)
         val kind = when {
@@ -974,6 +995,7 @@ internal class CapsuleRuntime(
         private var metadata: MediaMetadata? = null
         private var track: Track? = null
         private var raw: String? = null
+        private val miguMediaIdentity = MiguMediaIdentity()
         private var previousTrackPayload: String? = null
         private var lastTrackPayload: String? = null
         private var metadataArtwork: Bitmap? = null
@@ -1069,21 +1091,41 @@ internal class CapsuleRuntime(
 
         fun playbackClock(): PlaybackClock = playback.clock(duration)
 
+        fun reselectLyrics() {
+            clearTimeline()
+            previousTrackPayload = null
+            lastTrackPayload = null
+            metadataChanged(controller.metadata)
+        }
+
+        private fun clearTimeline() {
+            cancelMetadataExpiry()
+            raw = null
+            timeline = null
+            lastLoggedLine = null
+        }
+
         fun metadataChanged(data: MediaMetadata?): Boolean {
             if (data == null) {
                 logLyrics("Media metadata missing")
                 markMetadataMissing(identityMissing = true)
                 return false
             }
-            val nextTrack = Track(data.getString(MediaMetadata.METADATA_KEY_MEDIA_ID),
-                data.getString(MediaMetadata.METADATA_KEY_TITLE), data.getString(MediaMetadata.METADATA_KEY_ARTIST))
+            val nextPayload = LyricPayload.selectMetadata(superLyricOnly, data::getString)
+            val rawArtist = data.getString(MediaMetadata.METADATA_KEY_ARTIST)
+            val metadataArtist = if (controller.packageName == "cmccwm.mobilemusic" && rawArtist.isNullOrBlank())
+                data.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE) else rawArtist
+            val title = miguMediaIdentity.resolve(controller.packageName,
+                data.getString(MediaMetadata.METADATA_KEY_TITLE), metadataArtist,
+                data.getLong(MediaMetadata.METADATA_KEY_DURATION), nextPayload,
+                data.getString(MediaMetadata.METADATA_KEY_MEDIA_ID))
+            val nextTrack = Track(data.getString(MediaMetadata.METADATA_KEY_MEDIA_ID), title, metadataArtist)
             if (nextTrack.id.isNullOrBlank() && nextTrack.title.isNullOrBlank()) {
                 logLyrics("Media metadata has no track identity")
                 markMetadataMissing(identityMissing = true)
                 return false
             }
             missingTrack = false
-            val nextPayload = data.getString(LyricPayload.KEY)?.takeIf { it.isNotBlank() }
             val changed = track != nextTrack
             if (changed) {
                 tintArtworkSelection.onTrack(token to nextTrack)
@@ -1109,8 +1151,9 @@ internal class CapsuleRuntime(
             }
             when {
                 nextPayload == null || nextPayload == previousTrackPayload -> {
-                    logLyrics(if (nextPayload == null) "No lyricInfo in metadata" else "Waiting for new track lyricInfo")
-                    markMetadataMissing()
+                    val key = LyricPayload.metadataKey(superLyricOnly)
+                    logLyrics(if (nextPayload == null) "No $key in metadata" else "Waiting for new track $key")
+                    if (superLyricOnly) clearTimeline() else markMetadataMissing()
                 }
                 else -> {
                     cancelMetadataExpiry()

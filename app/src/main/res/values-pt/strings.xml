@@ -101,16 +101,8 @@
     <string name="provider_download">Baixar</string>
     <string name="provider_not_checked">Não verificado</string>
     <string name="provider_check_enable">Verificar provedores de letras</string>
-    <string name="provider_check_explanation">Permitir que o Color lyric verifique se o Bridge e o Universal Player Provider estão instalados? A verificação é feita apenas neste dispositivo.</string>
     <string name="provider_check_allow">Permitir</string>
     <string name="provider_check_later">Agora não</string>
-    <string name="lock_screen_lyrics_section">Antes de configurar</string>
-    <string name="lock_screen_lyrics_check">Confirmar o botão de letras na tela de bloqueio</string>
-    <string name="lock_screen_lyrics_question">Depois de configurar os módulos de letras, você vê na tela de bloqueio o botão mostrado na imagem?</string>
-    <string name="lock_screen_lyrics_seen">Estou vendo</string>
-    <string name="lock_screen_lyrics_later">Mais tarde</string>
-    <string name="lock_screen_lyrics_unconfirmed">Não confirmado</string>
-    <string name="lock_screen_lyrics_example_description">Botão de letras circulado no canto superior direito do player da tela de bloqueio</string>
     <string name="section_support">Projeto e feedback</string>
     <string name="open_repository">Código no GitHub</string>
     <string name="update_title">Atualizações</string>

@@ -101,16 +101,8 @@
     <string name="provider_download">Downloaden</string>
     <string name="provider_not_checked">Niet gecontroleerd</string>
     <string name="provider_check_enable">Songtekstaanbieders controleren</string>
-    <string name="provider_check_explanation">Mag Color lyric controleren of Bridge en Universal Player Provider zijn geïnstalleerd? Dit gebeurt alleen op dit apparaat.</string>
     <string name="provider_check_allow">Toestaan</string>
     <string name="provider_check_later">Niet nu</string>
-    <string name="lock_screen_lyrics_section">Voor de configuratie</string>
-    <string name="lock_screen_lyrics_check">Bevestig de songtekstknop op het vergrendelscherm</string>
-    <string name="lock_screen_lyrics_question">Zie je na het instellen van de songtekstmodules de afgebeelde knop op je vergrendelscherm?</string>
-    <string name="lock_screen_lyrics_seen">Ik zie hem</string>
-    <string name="lock_screen_lyrics_later">Later</string>
-    <string name="lock_screen_lyrics_unconfirmed">Niet bevestigd</string>
-    <string name="lock_screen_lyrics_example_description">Omcirkelde songtekstknop rechtsboven in de speler op het vergrendelscherm</string>
     <string name="section_support">Project en feedback</string>
     <string name="open_repository">Broncode op GitHub</string>
     <string name="update_title">Updates</string>

@@ -1,8 +1,106 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- These strings intentionally fall back to English where a translation is not yet available. -->
+    <string name="lyrics_hub_title" tools:ignore="MissingTranslation">Lyrics settings</string>
+    <string name="lyrics_provider_page_title">Lyrics providers</string>
+    <string name="lyrics_provider_selection_summary">Used when the acquisition method is Lyrics provider.</string>
+    <string name="lyrics_provider_builtin">Built-in</string>
+    <string name="lyrics_provider_builtin_summary">Player hooks and the selected online lyric sources</string>
+    <string name="lyrics_provider_lyricinfo">LyricInfo (Pending support)</string>
+    <string name="lyrics_provider_lyricinfo_summary">Use lyricInfo already published in the active media session</string>
+    <string name="lyrics_provider_lyricon">Lyricon</string>
+    <string name="lyrics_provider_lyricon_summary">Subscribe to the Lyricon core service in System UI</string>
+    <string name="lyrics_provider_superlyric">SuperLyric</string>
+    <string name="lyrics_provider_superlyric_summary">Subscribe to the SuperLyric service (API 4, with legacy 3.x compatibility)</string>
+    <string name="lyrics_provider_not_available">Not available yet</string>
+    <string name="lyrics_hub_current" tools:ignore="MissingTranslation">Now playing</string>
+    <string name="lyrics_hub_no_track" tools:ignore="MissingTranslation">Waiting for music</string>
+    <string name="lyrics_hub_mode" tools:ignore="MissingTranslation">Lyrics source</string>
+    <string name="lyrics_hub_direct" tools:ignore="MissingTranslation">From player</string>
+    <string name="lyrics_hub_network" tools:ignore="MissingTranslation">Online search</string>
+    <string name="lyrics_hub_provider_mode" tools:ignore="MissingTranslation">Lyrics provider</string>
+    <string name="lyrics_hub_direct_summary" tools:ignore="MissingTranslation">Use player lyrics first, then search online if unavailable</string>
+    <string name="lyrics_hub_network_summary" tools:ignore="MissingTranslation">Search enabled sources by title, artist and duration</string>
+    <string name="lyrics_hub_manage" tools:ignore="MissingTranslation">Library</string>
+    <string name="lyrics_hub_recent" tools:ignore="MissingTranslation">Recent lyrics</string>
+    <string name="lyrics_hub_search" tools:ignore="MissingTranslation">Search lyrics</string>
+    <string name="lyrics_hub_cache" tools:ignore="MissingTranslation">Lyrics cache</string>
+    <string name="lyrics_hub_settings" tools:ignore="MissingTranslation">Source settings</string>
+    <string name="lyrics_hub_players" tools:ignore="MissingTranslation">Players</string>
+    <string name="lyrics_hub_players_summary" tools:ignore="MissingTranslation">Choose which players can provide lyrics</string>
+    <string name="lyrics_hub_sources" tools:ignore="MissingTranslation">Lyrics priority</string>
+    <string name="lyrics_hub_reorder_hint" tools:ignore="MissingTranslation">Select sources and touch and hold the handle to reorder. Unselected sources are excluded from automatic and manual search.</string>
+    <string name="lyrics_hub_no_sources" tools:ignore="MissingTranslation">No lyric sources selected</string>
+    <string name="lyrics_hub_choose_sources" tools:ignore="MissingTranslation">Choose sources to search for lyrics</string>
+    <string name="lyrics_hub_drag_handle" tools:ignore="MissingTranslation">Touch and hold to reorder</string>
+    <string name="lyrics_hub_move_up" tools:ignore="MissingTranslation">Move up</string>
+    <string name="lyrics_hub_move_down" tools:ignore="MissingTranslation">Move down</string>
+    <string name="lyrics_hub_all_sources" tools:ignore="MissingTranslation">All sources</string>
+    <string name="lyrics_hub_all_results" tools:ignore="MissingTranslation">All</string>
+    <string name="lyrics_hub_bound_players" tools:ignore="MissingTranslation">Selected players</string>
+    <string name="lyrics_hub_view_all" tools:ignore="MissingTranslation">View all</string>
+    <string name="lyrics_hub_clear_search" tools:ignore="MissingTranslation">Clear search</string>
+    <string name="lyrics_hub_apple_network_notice" tools:ignore="MissingTranslation">The Apple Music source may also use Better Lyrics and Paxsenix when official lyrics are unavailable.</string>
+    <string name="lyrics_hub_processing" tools:ignore="MissingTranslation">Lyrics processing</string>
+    <string name="lyrics_hub_apple" tools:ignore="MissingTranslation">Apple Music</string>
+    <string name="lyrics_hub_translation" tools:ignore="MissingTranslation">Include translated lyrics</string>
+    <string name="lyrics_hub_word_timing" tools:ignore="MissingTranslation">Prefer word timing</string>
+    <string name="lyrics_hub_coarse_clock" tools:ignore="MissingTranslation">Use line timing for coarse playback clocks</string>
+    <string name="lyrics_hub_raw" tools:ignore="MissingTranslation">Allow rawLyric</string>
+    <string name="lyrics_hub_ttml_first" tools:ignore="MissingTranslation">Prefer TTML</string>
+    <string name="lyrics_hub_debug" tools:ignore="MissingTranslation">Detailed diagnostics</string>
+    <string name="lyrics_hub_official" tools:ignore="MissingTranslation">Official Apple Music lyrics</string>
+    <string name="lyrics_hub_storefront" tools:ignore="MissingTranslation">Catalog region</string>
+    <string name="lyrics_hub_storefront_auto" tools:ignore="MissingTranslation">Follow account</string>
+    <string name="lyrics_hub_storefront_custom" tools:ignore="MissingTranslation">Other region code, for example JP or US</string>
+    <string name="lyrics_hub_login" tools:ignore="MissingTranslation">Sign in to Apple Music</string>
+    <string name="lyrics_hub_signed_in" tools:ignore="MissingTranslation">Signed in</string>
+    <string name="lyrics_hub_sign_in_expired" tools:ignore="MissingTranslation">Sign-in expired; sign in again</string>
+    <string name="lyrics_hub_no_subscription" tools:ignore="MissingTranslation">Apple Music subscription unavailable</string>
+    <string name="lyrics_hub_signed_out" tools:ignore="MissingTranslation">Not signed in</string>
+    <string name="lyrics_hub_sign_out" tools:ignore="MissingTranslation">Sign out</string>
+    <string name="lyrics_hub_disabled" tools:ignore="MissingTranslation">Disabled</string>
+    <string name="lyrics_hub_priority" tools:ignore="MissingTranslation">Priority %1$d</string>
+    <string name="lyrics_hub_back" tools:ignore="MissingTranslation">Back</string>
+    <string name="lyrics_hub_empty" tools:ignore="MissingTranslation">Nothing here yet</string>
+    <string name="lyrics_hub_duration_unknown" tools:ignore="MissingTranslation">Unknown</string>
+    <string name="lyrics_hub_word_timed_tag" tools:ignore="MissingTranslation">Word timed</string>
+    <string name="lyrics_hub_no_lyrics_tag" tools:ignore="MissingTranslation">No lyrics</string>
+    <string name="lyrics_hub_search_hint" tools:ignore="MissingTranslation">Song or artist</string>
+    <string name="lyrics_hub_search_action" tools:ignore="MissingTranslation">Search</string>
+    <string name="lyrics_hub_searching" tools:ignore="MissingTranslation">Searching…</string>
+    <string name="lyrics_hub_search_no_results" tools:ignore="MissingTranslation">No lyrics found</string>
+    <string name="lyrics_hub_search_candidate_count" tools:ignore="MissingTranslation">Found %1$d lyric candidates</string>
+    <string name="lyrics_hub_search_recognizing" tools:ignore="MissingTranslation">Recognizing %1$d lyric candidates…</string>
+    <string name="lyrics_hub_confirm_no_lyrics" tools:ignore="MissingTranslation">Confirm no lyrics</string>
+    <string name="lyrics_hub_apply" tools:ignore="MissingTranslation">Use these lyrics</string>
+    <string name="lyrics_hub_load_more" tools:ignore="MissingTranslation">Load more</string>
+    <string name="lyrics_hub_preview" tools:ignore="MissingTranslation">View lyrics</string>
+    <string name="lyrics_hub_replace" tools:ignore="MissingTranslation">Replace lyrics</string>
+    <string name="lyrics_hub_edit" tools:ignore="MissingTranslation">Edit lyrics</string>
+    <string name="lyrics_hub_delete" tools:ignore="MissingTranslation">Delete</string>
+    <string name="lyrics_hub_save" tools:ignore="MissingTranslation">Save</string>
+    <string name="lyrics_hub_original" tools:ignore="MissingTranslation">Original lyrics</string>
+    <string name="lyrics_hub_translation_field" tools:ignore="MissingTranslation">Translation</string>
+    <string name="lyrics_hub_raw_field" tools:ignore="MissingTranslation">Word timing</string>
+    <string name="lyrics_hub_ttml_field" tools:ignore="MissingTranslation">TTML</string>
+    <string name="lyrics_hub_done" tools:ignore="MissingTranslation">Done</string>
+    <string name="lyrics_hub_failed" tools:ignore="MissingTranslation">Could not complete the request. Check the lyrics and module status.</string>
+    <string name="lyrics_hub_add_player" tools:ignore="MissingTranslation">Add another player</string>
+    <string name="lyrics_hub_find_player" tools:ignore="MissingTranslation">Find an installed app</string>
+    <string name="lyrics_hub_package_hint" tools:ignore="MissingTranslation">App package name</string>
+    <string name="lyrics_hub_add" tools:ignore="MissingTranslation">Add</string>
+    <string name="lyrics_hub_scope_hint" tools:ignore="MissingTranslation">Enable System Framework and System UI in LSPosed. Players only need to expose a media session.</string>
+    <string name="am_login_hint" tools:ignore="MissingTranslation">Sign in on the Apple page; this screen closes when complete.</string>
+    <string name="am_login_close" tools:ignore="MissingTranslation">Close</string>
+    <string name="am_login_verifying" tools:ignore="MissingTranslation">Verifying…</string>
+    <string name="am_login_done" tools:ignore="MissingTranslation">Signed in to Apple Music (%1$s)</string>
+    <string name="am_login_rejected" tools:ignore="MissingTranslation">Apple rejected the sign-in. Please try again.</string>
+    <string name="am_login_unverified" tools:ignore="MissingTranslation">Sign-in saved; verification is temporarily unavailable.</string>
     <string name="module_description">Shows lyrics in ColorOS 17’s native Live Alert capsule.</string>
     <string name="app_language">App language</string>
     <string name="app_language_system">Follow system</string>
     <string name="app_name" translatable="false">Color lyric</string>
+    <string name="color_lyric_app_name" translatable="false">Color lyric</string>
     <string name="section_capsule">Live Alert lyrics</string>
     <string name="section_connection">Module status</string>
     <string name="enable_lyrics">Enable Live Alert lyrics</string>
@@ -85,15 +183,15 @@
     <string name="section_lyric_behavior">Lyric behavior</string>
     <string name="lyric_word_highlight">Word-by-word lyrics</string>
     <string name="lyric_camera_word_avoidance">Keep lyrics whole beside the front camera (experimental)</string>
-    <string name="lyric_japanese_font">Use Japanese glyphs for Japanese lyrics</string>
-    <string name="custom_lyric_font_hint">Long press to choose a custom font</string>
-    <string name="custom_lyric_font_active">Currently using a custom font</string>
-    <string name="custom_lyric_font">Custom lyric font</string>
-    <string name="custom_lyric_font_restore">Restore built-in font</string>
-    <string name="custom_lyric_font_change">Choose another font</string>
-    <string name="custom_lyric_font_imported">Custom font selected</string>
-    <string name="custom_lyric_font_failed">Could not use this font. Choose a valid TTF or OTF file.</string>
-    <string name="lyric_bold">Bold text</string>
+    <string name="lyric_japanese_font" tools:ignore="MissingTranslation">Use Japanese glyphs for Japanese lyrics</string>
+    <string name="custom_lyric_font_hint" tools:ignore="MissingTranslation">Long press to choose a custom font</string>
+    <string name="custom_lyric_font_active" tools:ignore="MissingTranslation">Currently using a custom font</string>
+    <string name="custom_lyric_font" tools:ignore="MissingTranslation">Custom lyric font</string>
+    <string name="custom_lyric_font_restore" tools:ignore="MissingTranslation">Restore built-in font</string>
+    <string name="custom_lyric_font_change" tools:ignore="MissingTranslation">Choose another font</string>
+    <string name="custom_lyric_font_imported" tools:ignore="MissingTranslation">Custom font selected</string>
+    <string name="custom_lyric_font_failed" tools:ignore="MissingTranslation">Could not use this font. Choose a valid TTF or OTF file.</string>
+    <string name="lyric_bold" tools:ignore="MissingTranslation">Bold text</string>
     <string name="lyric_intro_dots">Intro countdown animation</string>
     <string name="lyric_intro_dots_summary">Automatically tries to filter out song information during the intro</string>
     <string name="section_motion">Line transition</string>
@@ -109,22 +207,13 @@
     <string name="section_reset">Defaults</string>
     <string name="section_provider">Lyric providers</string>
     <string name="provider_both_required">Install both</string>
-    <string name="provider_bridge" translatable="false">ColorOS Live Lyrics Bridge</string>
     <string name="provider_universal">Universal Player Provider</string>
     <string name="provider_installed">Installed</string>
     <string name="provider_download">Download</string>
     <string name="provider_not_checked">Not checked</string>
     <string name="provider_check_enable">Check lyric providers</string>
-    <string name="provider_check_explanation">Allow Color lyric to check whether Bridge and Universal Player Provider are installed? The check stays on this device.</string>
     <string name="provider_check_allow">Allow</string>
     <string name="provider_check_later">Not now</string>
-    <string name="lock_screen_lyrics_section">Before setup</string>
-    <string name="lock_screen_lyrics_check">Confirm the lock screen lyrics button</string>
-    <string name="lock_screen_lyrics_question">After setting up the lyric provider modules, do you see the lyrics button shown here on your lock screen?</string>
-    <string name="lock_screen_lyrics_seen">I see it</string>
-    <string name="lock_screen_lyrics_later">Later</string>
-    <string name="lock_screen_lyrics_unconfirmed">Not confirmed</string>
-    <string name="lock_screen_lyrics_example_description">Circled lyrics button at the top right of the lock screen player</string>
     <string name="section_support">Project and feedback</string>
     <string name="open_repository">Source on GitHub</string>
     <string name="update_title">Updates</string>
@@ -156,12 +245,57 @@
     <string name="diagnostics_export_hint">Save the diagnostic log before asking for help.</string>
     <string name="diagnostics_export_ok">Diagnostic log exported</string>
     <string name="diagnostics_export_failed">Could not save the diagnostic log. Try again.</string>
-    <string name="lyric_tint_texture">Texture</string>
-    <string name="tune_texture_brightness">Texture brightness</string>
-    <string name="tune_texture_contrast">Texture contrast</string>
-    <string name="tune_texture_saturation">Texture saturation</string>
-    <string name="tune_texture_blur">Texture blur</string>
+    <string name="lyric_tint_texture" tools:ignore="MissingTranslation">Texture</string>
+    <string name="tune_texture_brightness" tools:ignore="MissingTranslation">Texture brightness</string>
+    <string name="tune_texture_contrast" tools:ignore="MissingTranslation">Texture contrast</string>
+    <string name="tune_texture_saturation" tools:ignore="MissingTranslation">Texture saturation</string>
+    <string name="tune_texture_blur" tools:ignore="MissingTranslation">Texture blur</string>
     <string name="troubleshoot">Troubleshoot</string>
     <string name="troubleshoot_astraflow_installed">AstraFlow is installed. Disable the AstraFlow module in LSPosed, then try again.</string>
     <string name="troubleshoot_send_log">AstraFlow was not found. Export a diagnostic log and send it to QQ group %1$s for help.</string>
+    <string name="lyrics_hub_apple_account" tools:ignore="MissingTranslation">Apple Music account</string>
+    <string name="lyrics_hub_login_action" tools:ignore="MissingTranslation">Sign in</string>
+    <string name="lyrics_hub_relogin" tools:ignore="MissingTranslation">Sign in again</string>
+    <string name="lyrics_cache_hook">Hook</string>
+    <string name="lyrics_cache_online">Online</string>
+    <string name="lyrics_hub_hook_attribution" tools:ignore="MissingTranslation">Hook | %1$s</string>
+    <string name="lyrics_hub_network_attribution" tools:ignore="MissingTranslation">Online | %1$s</string>
+    <string name="lyrics_hub_clear_cache" tools:ignore="MissingTranslation">Delete all</string>
+    <string name="lyrics_hub_clear_cache_message" tools:ignore="MissingTranslation">Delete all cached lyrics? Manually selected lyrics are kept.</string>
+    <string name="lyrics_hub_translation_description" tools:ignore="MissingTranslation">Match translations to the system language when available.</string>
+    <string name="lyrics_hub_word_timing_description" tools:ignore="MissingTranslation">Fall back to line timing if word timing is unavailable.</string>
+    <string name="lyrics_hub_coarse_clock_description" tools:ignore="MissingTranslation">Use line timing when the player reports position infrequently.</string>
+    <string name="lyrics_hub_raw_description" tools:ignore="MissingTranslation">Keep the word-timed lyric field when the source provides it.</string>
+    <string name="lyrics_hub_ttml_first_description" tools:ignore="MissingTranslation">Try native TTML first. Converted lyrics may lack singer and duet layout information.</string>
+    <string name="lyrics_hub_debug_description" tools:ignore="MissingTranslation">Write detailed diagnostics to the LSPosed log.</string>
+    <string name="lyrics_hub_official_description" tools:ignore="MissingTranslation">Requires an active Apple Music subscription. Falls back to other enabled sources when unavailable.</string>
+    <string name="lyrics_tab_settings" tools:ignore="MissingTranslation">Settings</string>
+    <string name="lyricon_config" tools:ignore="MissingTranslation">Lyricon configuration</string>
+    <string name="lyricon_installed" tools:ignore="MissingTranslation">Installed providers</string>
+    <string name="lyricon_no_plugins" tools:ignore="MissingTranslation">No Lyricon providers found</string>
+    <string name="lyricon_discover" tools:ignore="MissingTranslation">Find providers</string>
+    <string name="lyricon_discover_summary" tools:ignore="MissingTranslation">Open the upstream provider repository. Lyricon Central handles provider connections.</string>
+    <string name="lyrics_cache_search" tools:ignore="MissingTranslation">Search loaded songs or artists</string>
+    <string name="lyrics_cache_count" tools:ignore="MissingTranslation">%1$d cached songs</string>
+    <string name="lyricon_catalog" tools:ignore="MissingTranslation">Available providers</string>
+    <string name="lyricon_central_summary" tools:ignore="MissingTranslation">Install Lyricon Central and enable its required LSPosed scope.</string>
+    <string name="lyrics_hub_package_example">e.g. com.example.player</string>
+    <string name="lyricon_download" tools:ignore="MissingTranslation">Download</string>
+    <string name="lyricon_downloading" tools:ignore="MissingTranslation">Downloading…</string>
+    <string name="lyricon_download_failed" tools:ignore="MissingTranslation">Could not add the plugin. Try again.</string>
+    <string name="lyricon_catalog_empty" tools:ignore="MissingTranslation">No compatible plugins available.</string>
+    <string name="hle_pack_catalog" tools:ignore="MissingTranslation">Provider catalog</string>
+    <string name="hle_pack_installed" tools:ignore="MissingTranslation">Downloaded plugins</string>
+    <string name="hle_pack_empty" tools:ignore="MissingTranslation">No plugins downloaded</string>
+    <string name="hle_pack_added" tools:ignore="MissingTranslation">Added</string>
+    <string name="hle_pack_loading" tools:ignore="MissingTranslation">Loading plugin catalog…</string>
+    <string name="hle_pack_loading_failed" tools:ignore="MissingTranslation">Could not load the catalog. Tap to retry.</string>
+    <string name="hle_pack_lsposed_required" tools:ignore="MissingTranslation">Enable Color lyric in LSPosed first.</string>
+    <string name="hle_pack_restart" tools:ignore="MissingTranslation">Check the player scope in LSPosed, then restart the player.</string>
+    <string name="superlyric_not_installed" tools:ignore="MissingTranslation">Not installed</string>
+    <string name="superlyric_active" tools:ignore="MissingTranslation">Active</string>
+    <string name="superlyric_waiting" tools:ignore="MissingTranslation">Waiting for LSPosed</string>
+    <string name="superlyric_downloading" tools:ignore="MissingTranslation">Downloading SuperLyric</string>
+    <string name="superlyric_install" tools:ignore="MissingTranslation">Install SuperLyric</string>
+    <string name="superlyric_download" tools:ignore="MissingTranslation">Download SuperLyric</string>
 </resources>

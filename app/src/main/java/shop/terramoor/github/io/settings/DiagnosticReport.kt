@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
 import io.github.libxposed.service.XposedService
+import io.github.andrealtb.coloroslyrics.provider.universal.UniversalSnapshotStore
+import io.github.andrealtb.coloroslyrics.provider.universal.UniversalSnapshotUi
 import shop.terramoor.github.io.diagnostics.diagnosticFailure
 import shop.terramoor.github.io.diagnostics.DiagnosticStore
 import shop.terramoor.github.io.diagnostics.diagnosticLine
@@ -16,7 +18,7 @@ import java.security.MessageDigest
 import java.io.File
 
 internal object DiagnosticReport {
-    data class SettingsUi(val lockScreenConfirmed: Boolean, val restartReminder: Boolean, val translationHelpHidden: Boolean)
+    data class SettingsUi(val restartReminder: Boolean, val translationHelpHidden: Boolean)
 
     private val fileDate = DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss'Z'").withZone(ZoneOffset.UTC)
 
@@ -27,6 +29,8 @@ internal object DiagnosticReport {
         val pm = context.packageManager
         val self = pm.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
         val events = DiagnosticStore.snapshot(context).sorted()
+        val lyricSettings = BuiltinLyricsConfig.read(context)
+        val lyricSnapshot = UniversalSnapshotStore.read(context)?.let(UniversalSnapshotUi::parse).orEmpty()
         val framework = if (service == null) "service not connected" else runCatching {
             "${diagnosticLine(service.frameworkName)} ${diagnosticLine(service.frameworkVersion)} " +
                 "(${service.frameworkVersionCode}), API ${service.apiVersion}"
@@ -65,7 +69,22 @@ internal object DiagnosticReport {
             appendLine("[Settings snapshot (${if (state.connection == TerraMoorApp.Connection.READY) "connected" else "app snapshot"})]")
             appendLine(CapsuleBackup.encode(state.settings, ui.translationHelpHidden))
             appendLine("Texture rendering: brightness is configurable, contrast=100%, saturation=200%, blur=100%; legacy saved values for these three parameters are ignored.")
-            appendLine("Local UI: lockScreenConfirmed=${ui.lockScreenConfirmed}, restartReminder=${ui.restartReminder}")
+            appendLine("Local UI: restartReminder=${ui.restartReminder}")
+            appendLine()
+            appendLine("[Built-in lyric acquisition]")
+            appendLine("Mode = ${lyricSettings.providerMode.id}, sources = ${lyricSettings.sources.joinToString()}")
+            appendLine("Translation=${lyricSettings.translation}, wordTiming=${lyricSettings.wordTiming}, coarseClockFallback=${lyricSettings.coarseClockFallback}, rawLyric=${lyricSettings.rawLyric}, ttmlFirst=${lyricSettings.ttmlFirst}")
+            appendLine("Apple Music: official=${lyricSettings.officialAppleMusic}, loggedIn=${lyricSettings.appleLoggedIn}, storefront=${lyricSettings.appleStorefront.ifBlank { "auto" }}")
+            appendLine("Bound players = ${lyricSettings.players.size}")
+            for (key in listOf("package", "generation", "lyricSource", "lyricStatus", "lyricClockFallback", "cachedSongs")) {
+                appendLine("$key = ${diagnosticLine(lyricSnapshot[key].orEmpty().ifBlank { "not observed" })}")
+            }
+            if (lyricSettings.providerMode == LyricsProviderMode.SUPER_LYRIC) {
+                for (key in listOf("superLyricConnection", "superLyricDelivery")) {
+                    appendLine("$key = ${diagnosticLine(lyricSnapshot[key].orEmpty().ifBlank { "not observed" })}")
+                }
+            }
+            appendLine("Detailed acquisition events are in the LSPosed/system log; lyrics and login credentials are not included here.")
             appendLine()
             appendLine("[Lyric tint: last observed SystemUI stages in retained history]")
             appendLine("Stages are independent observations; compare pid, session, track, calculation and timestamps before correlating them.")

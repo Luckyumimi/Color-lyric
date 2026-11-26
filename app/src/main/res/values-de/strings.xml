@@ -101,16 +101,8 @@
     <string name="provider_download">Herunterladen</string>
     <string name="provider_not_checked">Nicht geprüft</string>
     <string name="provider_check_enable">Liedtextanbieter prüfen</string>
-    <string name="provider_check_explanation">Darf Color lyric prüfen, ob Bridge und Universal Player Provider installiert sind? Die Prüfung erfolgt nur auf diesem Gerät.</string>
     <string name="provider_check_allow">Erlauben</string>
     <string name="provider_check_later">Nicht jetzt</string>
-    <string name="lock_screen_lyrics_section">Vor der Einrichtung</string>
-    <string name="lock_screen_lyrics_check">Liedtext-Schaltfläche auf dem Sperrbildschirm bestätigen</string>
-    <string name="lock_screen_lyrics_question">Siehst du nach dem Einrichten der Liedtextmodule die abgebildete Schaltfläche auf dem Sperrbildschirm?</string>
-    <string name="lock_screen_lyrics_seen">Ich sehe sie</string>
-    <string name="lock_screen_lyrics_later">Später</string>
-    <string name="lock_screen_lyrics_unconfirmed">Nicht bestätigt</string>
-    <string name="lock_screen_lyrics_example_description">Eingekreiste Liedtext-Schaltfläche oben rechts im Player auf dem Sperrbildschirm</string>
     <string name="section_support">Projekt und Feedback</string>
     <string name="open_repository">Quellcode auf GitHub</string>
     <string name="update_title">Updates</string>

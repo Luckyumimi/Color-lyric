@@ -101,16 +101,8 @@
     <string name="provider_download">डाउनलोड करें</string>
     <string name="provider_not_checked">जांच नहीं की गई</string>
     <string name="provider_check_enable">बोल के प्रोवाइडर की जांच करें</string>
-    <string name="provider_check_explanation">Color lyric को जांचने दें कि Bridge और Universal Player Provider इंस्टॉल हैं या नहीं? यह जांच सिर्फ़ इस डिवाइस पर होगी।</string>
     <string name="provider_check_allow">अनुमति दें</string>
     <string name="provider_check_later">अभी नहीं</string>
-    <string name="lock_screen_lyrics_section">सेटअप से पहले</string>
-    <string name="lock_screen_lyrics_check">लॉक स्क्रीन पर बोल का बटन देखें</string>
-    <string name="lock_screen_lyrics_question">बोल के मॉड्यूल सेट करने के बाद, क्या लॉक स्क्रीन पर चित्र में दिखाया गया बटन दिखाई देता है?</string>
-    <string name="lock_screen_lyrics_seen">हां, दिखता है</string>
-    <string name="lock_screen_lyrics_later">बाद में</string>
-    <string name="lock_screen_lyrics_unconfirmed">पुष्टि नहीं हुई</string>
-    <string name="lock_screen_lyrics_example_description">लॉक स्क्रीन प्लेयर के ऊपर दाईं ओर घेरे में दिखाया गया बोल का बटन</string>
     <string name="section_support">प्रोजेक्ट और सुझाव</string>
     <string name="open_repository">GitHub पर सोर्स कोड</string>
     <string name="update_title">अपडेट</string>

@@ -24,6 +24,7 @@ internal fun TactileSwitchPreference(
     enabled: Boolean,
     summary: String? = null,
     onLongClick: (() -> Unit)? = null,
+    startAction: (@Composable () -> Unit)? = null,
 ) {
     val view = LocalView.current
     val change: (Boolean) -> Unit = { target ->
@@ -49,6 +50,7 @@ internal fun TactileSwitchPreference(
         modifier = gesture.semantics { toggleableState = ToggleableState(checked) },
         title = title,
         summary = summary,
+        startAction = startAction,
         role = Role.Switch,
         enabled = enabled,
         onClick = if (onLongClick == null) ({ change(!checked) }) else null,

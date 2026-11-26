@@ -4,6 +4,12 @@
 
 TerraMoor is a single-module Android app for ColorOS 17. Under `app/src/main/java/shop/terramoor/github/io/`, `settings/` owns COUI, provider discovery, preview, and backup. `lyrics/` parses playback metadata and schedules line changes. `systemui/` resolves and draws into the native media capsule. `app/src/main/java/io/github/libxposed/service/` verifies the API 102 service caller. Xposed metadata lives in `app/src/main/resources/META-INF/xposed/`, and Android strings and drawables live in `app/src/main/res/`.
 
+## Built-in Lyrics Development
+
+The in-progress lyrics integration uses `settings/BuiltinLyricsPage.kt` and `settings/ManualLyricsSearch.kt` for configuration and manual search, and `lyrics/provider/` for external-source selection, SuperLyric reception, and Lyricon publication mapping. The HLE provider host in `third_party/hle-provider-host/` compiles into `:app`. Check `java_init.list`, `scope.list`, and `app/hle-provider-rules.pro` together when touching provider entry points or Release shrinking.
+
+The development branch also contains network-backed lyric search and provider-pack downloads. Consult the built-in lyrics section of [the acceptance record](docs/acceptance.md#内置歌词获取开发分支2026-11-26) for the recorded request limits, fallback behavior, and device verification status. Review the current source and acceptance record alongside `HANDOFF.md`, which captures an earlier release baseline.
+
 ## Build and Test
 
 Use Android SDK 37 and the wrapper’s JDK 25 toolchain. Run `./gradlew.bat` on Windows and `./gradlew` elsewhere.

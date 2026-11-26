@@ -101,16 +101,8 @@
     <string name="provider_download">Muat turun</string>
     <string name="provider_not_checked">Belum disemak</string>
     <string name="provider_check_enable">Semak penyedia lirik</string>
-    <string name="provider_check_explanation">Benarkan Color lyric menyemak sama ada Bridge dan Universal Player Provider telah dipasang? Semakan hanya dilakukan pada peranti ini.</string>
     <string name="provider_check_allow">Benarkan</string>
     <string name="provider_check_later">Bukan sekarang</string>
-    <string name="lock_screen_lyrics_section">Sebelum persediaan</string>
-    <string name="lock_screen_lyrics_check">Sahkan butang lirik skrin kunci</string>
-    <string name="lock_screen_lyrics_question">Selepas menyediakan modul penyedia lirik, adakah anda melihat butang lirik seperti dalam gambar pada skrin kunci anda?</string>
-    <string name="lock_screen_lyrics_seen">Saya nampak</string>
-    <string name="lock_screen_lyrics_later">Sahkan kemudian</string>
-    <string name="lock_screen_lyrics_unconfirmed">Belum disahkan</string>
-    <string name="lock_screen_lyrics_example_description">Butang lirik yang dibulatkan di bahagian atas kanan pemain pada skrin kunci</string>
     <string name="section_support">Projek dan maklum balas</string>
     <string name="open_repository">Kod sumber di GitHub</string>
     <string name="update_title">Kemas kini</string>

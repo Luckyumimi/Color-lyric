@@ -110,16 +110,8 @@
     <string name="provider_download">前往下載</string>
     <string name="provider_not_checked">未檢查</string>
     <string name="provider_check_enable">檢查歌詞提供者</string>
-    <string name="provider_check_explanation">允許 Color lyric 檢查是否已安裝 Bridge 和通用播放器 Provider？檢查僅在本機進行。</string>
     <string name="provider_check_allow">允許檢查</string>
     <string name="provider_check_later">暫不檢查</string>
-    <string name="lock_screen_lyrics_section">設定前確認</string>
-    <string name="lock_screen_lyrics_check">確認鎖定畫面的歌詞按鈕</string>
-    <string name="lock_screen_lyrics_question">設定好歌詞提供者模組後，你是否在鎖定畫面看到圖中的歌詞按鈕？</string>
-    <string name="lock_screen_lyrics_seen">我已看到</string>
-    <string name="lock_screen_lyrics_later">稍後確認</string>
-    <string name="lock_screen_lyrics_unconfirmed">尚未確認</string>
-    <string name="lock_screen_lyrics_example_description">鎖定畫面播放器右上角圈起的歌詞按鈕</string>
     <string name="section_support">專案與意見回饋</string>
     <string name="open_repository">GitHub 原始碼</string>
     <string name="update_title">版本更新</string>

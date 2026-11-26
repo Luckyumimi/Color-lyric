@@ -1,0 +1,16 @@
+package io.github.andrealtb.coloroslyrics.provider.universal
+
+object PlayerBindingPolicy {
+    val SPECIAL_BLOCKED = emptySet<String>()
+
+    val BLOCKED: Set<String> = SPECIAL_BLOCKED
+
+    fun isBlocked(packageName: String): Boolean = packageName in BLOCKED
+
+    fun blockReason(packageName: String): String? = when (packageName) {
+        in SPECIAL_BLOCKED -> "禁用（需专项适配）"
+        else -> null
+    }
+
+    fun sanitize(packages: Set<String>): Set<String> = packages.filterNot(::isBlocked).toSet()
+}

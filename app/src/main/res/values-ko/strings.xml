@@ -101,16 +101,8 @@
     <string name="provider_download">다운로드</string>
     <string name="provider_not_checked">확인 안 함</string>
     <string name="provider_check_enable">가사 제공자 확인</string>
-    <string name="provider_check_explanation">Color lyric가 Bridge와 범용 플레이어 Provider의 설치 여부를 확인하도록 허용할까요? 이 확인은 기기에서만 진행됩니다.</string>
     <string name="provider_check_allow">허용</string>
     <string name="provider_check_later">나중에</string>
-    <string name="lock_screen_lyrics_section">설정 전 확인</string>
-    <string name="lock_screen_lyrics_check">잠금 화면 가사 버튼 확인</string>
-    <string name="lock_screen_lyrics_question">가사 제공자 모듈을 설정한 후 잠금 화면에 그림과 같은 가사 버튼이 보이나요?</string>
-    <string name="lock_screen_lyrics_seen">보입니다</string>
-    <string name="lock_screen_lyrics_later">나중에 확인</string>
-    <string name="lock_screen_lyrics_unconfirmed">미확인</string>
-    <string name="lock_screen_lyrics_example_description">잠금 화면 플레이어 오른쪽 위에 동그라미로 표시된 가사 버튼</string>
     <string name="section_support">프로젝트 및 의견</string>
     <string name="open_repository">GitHub 소스 코드</string>
     <string name="update_title">업데이트</string>

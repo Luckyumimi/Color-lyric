@@ -1,0 +1,116 @@
+package io.github.andrealtb.coloroslyrics.provider.universal.engine
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import io.github.andrealtb.coloroslyrics.provider.universal.UniversalSnapshotStore
+import io.github.andrealtb.coloroslyrics.provider.universal.UniversalAppNetwork
+import io.github.andrealtb.coloroslyrics.provider.universal.LyricsSourceConfigStore
+import io.github.andrealtb.coloroslyrics.provider.universal.UniversalLyricPayloadPolicy
+import io.github.andrealtb.coloroslyrics.provider.universal.UniversalSettingsConstants
+import io.github.andrealtb.coloroslyrics.provider.universal.api.LyricsSourceAggregator
+import io.github.andrealtb.coloroslyrics.provider.universal.api.TrackQuery
+import io.github.andrealtb.coloroslyrics.provider.universal.cache.UniversalLyricCache
+import org.json.JSONObject
+import java.util.Locale
+import java.util.concurrent.Executors
+
+class UniversalLyricEngine(
+    private val context: Context,
+    private val aggregator: LyricsSourceAggregator = LyricsSourceAggregator()
+) {
+    private val executor = Executors.newSingleThreadExecutor()
+    @Volatile
+    private var lastQueryKey: String? = null
+
+    fun onTrackChanged(
+        ownerPackage: String,
+        title: String,
+        artist: String,
+        album: String?,
+        durationMs: Long?,
+        generation: Long
+    ) {
+        if (title.isBlank()) return
+        val queryKey = "${ownerPackage}|${title}|${artist}|$generation"
+        if (queryKey == lastQueryKey) return
+        lastQueryKey = queryKey
+
+        // Check cache first
+        val cachedJson = UniversalLyricCache.get(title, artist)
+        if (!cachedJson.isNullOrBlank() && !io.github.andrealtb.coloroslyrics.provider.universal.NoLyricPolicy.isRetryableMiss(cachedJson)) {
+            val updatedJson = updateGeneration(cachedJson, generation)
+            syncToSystem(ownerPackage, generation, updatedJson)
+            return
+        }
+
+        executor.execute {
+            UniversalAppNetwork.initialize(context)
+            val query = TrackQuery(title, artist, album, durationMs)
+            val priority = LyricsSourceConfigStore.read(context).mapNotNull { id ->
+                runCatching { LyricsSourceAggregator.SourceId.valueOf(id) }.getOrNull()
+            }.distinct()
+            val preferWordTiming = context
+                .getSharedPreferences(UniversalSettingsConstants.PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(UniversalSettingsConstants.KEY_WORD_TIMING, false)
+            val report = aggregator.fetchFirst(
+                query.copy(generation = generation),
+                priority,
+                preferWordTiming,
+                preferTtml = io.github.andrealtb.coloroslyrics.provider.universal.UniversalFeaturePrefs.ttmlFirst(context)
+            )
+            val result = report.result
+            if (result != null && result.lyric.isNotBlank() &&
+                !io.github.andrealtb.coloroslyrics.provider.universal.api.SongMatchScorer.isInstrumentalOrCreditsOnly(result.lyric)
+            ) {
+                val json = JSONObject().apply {
+                    put("songName", result.title)
+                    put("artist", result.artist)
+                    put("album", album.orEmpty())
+                    put("songId", "universal-$generation")
+                    put("lyricType", 0)
+                    put("id", "")
+                    put("noLyric", false)
+                    put("lyric", result.lyric)
+                    put("rawLyric", result.rawLyric ?: result.lyric)
+                    UniversalLyricPayloadPolicy.putTtmlAndFormat(this, result)
+                    val translationOn = context.getSharedPreferences(UniversalSettingsConstants.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                        .getBoolean(UniversalSettingsConstants.KEY_TRANSLATION, true)
+                    if (translationOn && !result.translationLyric.isNullOrBlank()) {
+                        put("transLyric", result.translationLyric)
+                        put("translationLyric", result.translationLyric)
+                        put("translationLanguageTag", Locale.getDefault().toLanguageTag())
+                    }
+                    put("provider", "io.github.andrealtb.coloroslyrics.provider.universal")
+                    put("source", result.source)
+                    put("sessionGeneration", generation)
+                    put("remark", "[CLLUniversal]")
+                }.toString()
+
+                UniversalLyricCache.put(title, artist, json)
+                syncToSystem(ownerPackage, generation, json)
+            }
+        }
+    }
+
+    private fun updateGeneration(jsonStr: String, generation: Long): String {
+        return runCatching {
+            val json = JSONObject(jsonStr)
+            json.put("sessionGeneration", generation)
+            json.put("songId", "universal-$generation")
+            json.toString()
+        }.getOrDefault(jsonStr)
+    }
+
+    @SuppressLint("WrongConstant") // FLAG_RECEIVER_INCLUDE_BACKGROUND is a framework flag.
+    private fun syncToSystem(ownerPackage: String, generation: Long, lyricInfo: String) {
+        val intent = Intent(UniversalSnapshotStore.ACTION_INJECT_REAL_LYRIC).apply {
+            putExtra(UniversalSnapshotStore.EXTRA_OWNER_PACKAGE, ownerPackage)
+            putExtra(UniversalSnapshotStore.EXTRA_GENERATION, generation)
+            putExtra(UniversalSnapshotStore.EXTRA_LYRIC_INFO, lyricInfo)
+            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            addFlags(0x01000000)
+        }
+        context.sendBroadcast(intent)
+    }
+}

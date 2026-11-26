@@ -8,6 +8,12 @@ couiKit = "0.0.1-alpha11"
 xposed = "102.0.0"
 junit = "4.13.2"
 json = "20240303"
+okhttp = "5.3.2"
+kotlinxSerialization = "1.11.0"
+dexkit = "2.2.0"
+kavaref = "1.0.2"
+lyricon = "0.1.70"
+superlyricApi = "4.0"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 
@@ -22,10 +28,21 @@ xposed-api = { module = "io.github.libxposed:api", version.ref = "xposed" }
 xposed-service = { module = "io.github.libxposed:service", version.ref = "xposed" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 json = { module = "org.json:json", version.ref = "json" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+dexkit = { module = "org.luckypray:dexkit", version.ref = "dexkit" }
+kavaref-core = { module = "com.highcapable.kavaref:kavaref-core", version.ref = "kavaref" }
+kavaref-extension = { module = "com.highcapable.kavaref:kavaref-extension", version.ref = "kavaref" }
+lyricon-model = { module = "io.github.proify.lyricon.lyric:model", version.ref = "lyricon" }
+lyricon-subscriber = { module = "io.github.proify.lyricon:subscriber", version.ref = "lyricon" }
+superlyric-api = { module = "com.github.HChenX:SuperLyricApi", version.ref = "superlyricApi" }
+okhttp-brotli = { module = "com.squareup.okhttp3:okhttp-brotli", version.ref = "okhttp" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

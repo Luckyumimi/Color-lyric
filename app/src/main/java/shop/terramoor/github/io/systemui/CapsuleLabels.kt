@@ -1,5 +1,6 @@
 package shop.terramoor.github.io.systemui
 
+import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Path
@@ -37,7 +38,13 @@ internal class CapsuleLabels(
         visibility = View.INVISIBLE
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
-    private var artwork: Bitmap? = null
+    private val backgrounds = CapsuleColorTransition<Bitmap?>(null)
+    private val inks = CapsuleColorTransition(LyricInk.WHITE)
+    private val layerBlend = CapsuleLayerBlend()
+    private var requestedArtwork: Bitmap? = null
+    private var requestedInk = LyricInk.WHITE
+    private var artworkHoldUntil = 0L
+    private var inkHoldUntil = 0L
     private var ink = LyricInk.WHITE
     private var dimAlpha = 0
     private var displayLine: LyricFrame? = null
@@ -60,7 +67,7 @@ internal class CapsuleLabels(
     private val clip = Path()
     private val location = IntArray(2)
 
-    val hasCustomContent: Boolean get() = displayLine != null || artwork != null
+    val hasCustomContent: Boolean get() = displayLine != null || backgrounds.needsBackground()
     val hasInterludeViewport: Boolean get() = displayLine?.countdown?.isIntro == false
     val viewportWidth: Int get() = (capsule.width - viewport.inset * 2).coerceAtLeast(0)
     val hasCompactViewport: Boolean get() = viewport.inset > 0
@@ -75,7 +82,7 @@ internal class CapsuleLabels(
 
     fun render(
         frame: LyricFrame?, settings: CapsuleSettings, artwork: Bitmap?,
-        clock: PlaybackClock? = null, ink: LyricInk = LyricInk.WHITE, trackIdentity: Any? = null,
+        clock: PlaybackClock? = null, ink: LyricInk = LyricInk.WHITE, trackIdentity: Any? = null, tintArtworkPending: Boolean = false,
     ) {
         if (displaySettings == null) nativeMinimumWidth = capsule.minimumWidth
         nativeWhilePaused = false
@@ -105,12 +112,32 @@ internal class CapsuleLabels(
             capsule.removeCallbacks(redrawContent)
             trackInfoMarquee.reset()
         }
-        val changed = displayLine != line || displaySettings != settings || this.artwork !== artwork ||
-            this.clock != clock || this.ink != ink || trackInfoVisibilityChanged
+        val changed = displayLine != line || displaySettings != settings || requestedArtwork !== artwork ||
+            this.clock != clock || requestedInk != ink || trackInfoVisibilityChanged
         if (displayLine?.countdown != line?.countdown || displayTrackIdentity !== trackIdentity ||
                 displaySettings?.showCover != settings.showCover || displaySettings?.showWaveform != settings.showWaveform ||
                 displaySettings?.get(CapsuleTuning.ISLAND_WIDTH) != settings[CapsuleTuning.ISLAND_WIDTH]) {
             suspendViewport()
+        }
+        val now = SystemClock.elapsedRealtime()
+        val previousSettings = displaySettings
+        val animate = previousSettings == settings && ValueAnimator.areAnimatorsEnabled()
+        if (animate && displayTrackIdentity != null && displayTrackIdentity !== trackIdentity) {
+            val deadline = now + CapsuleColorTransition.ARTWORK_WAIT_MS
+            artworkHoldUntil = if (settings.artwork && backgrounds.needsBackground()) deadline else 0L
+            inkHoldUntil = if (settings.lyricTintEnabled && inks.target != LyricInk.WHITE) deadline else 0L
+        }
+        requestedArtwork = artwork
+        requestedInk = ink
+        if (!animate) {
+            artworkHoldUntil = 0L
+            inkHoldUntil = 0L
+            backgrounds.snap(artwork)
+            inks.snap(ink)
+        } else {
+            if (artwork != null) artworkHoldUntil = 0L
+            if (!tintArtworkPending) inkHoldUntil = 0L
+            advanceColors(now)
         }
         viewportPosition = null
         this.clock = clock
@@ -119,14 +146,17 @@ internal class CapsuleLabels(
         displaySettings = settings
         japaneseFont.requestCustom(settings.customLyricFontId.takeIf { settings.japaneseLyricFont })
         enforceNativeVisibility()
-        this.artwork = artwork
-        this.ink = ink
         dimAlpha = alpha(settings[CapsuleTuning.ARTWORK_DIM])
         if (changed) {
-            strip.update(line, settings, ink)
+            strip.update(line, settings, this.ink)
             capsule.invalidate()
         }
         maintainNativeSizing()
+    }
+
+    private fun advanceColors(now: Long) {
+        if (now >= artworkHoldUntil) backgrounds.moveTo(requestedArtwork, now)
+        if (now >= inkHoldUntil) inks.moveTo(requestedInk, now)
     }
 
     fun maintainNativeSizing() {
@@ -184,7 +214,11 @@ internal class CapsuleLabels(
 
     fun draw(canvas: Canvas, animatedWidth: Int?): String {
         if (!capsule.isShown) return "CAPSULE_HIDDEN"
-        if (displayLine == null && artwork == null) return "NO_LYRIC_OR_ARTWORK"
+        val now = SystemClock.elapsedRealtime()
+        advanceColors(now)
+        val artworkLayers = backgrounds.sample(now)
+        val inkLayers = inks.sample(now)
+        if (displayLine == null && artworkLayers.keys.none { it != null }) return "NO_LYRIC_OR_ARTWORK"
         val width = capsule.width
         val height = capsule.height.toFloat()
         if (width <= 0 || height <= 0) return "EMPTY_DRAWING_AREA"
@@ -202,8 +236,22 @@ internal class CapsuleLabels(
         val save = canvas.save()
         try {
             canvas.clipPath(clip)
-            artwork?.takeUnless { it.isRecycled }?.let {
-                artworkBackground.draw(canvas, it, artworkArea, area, dimAlpha)
+            if (backgrounds.isMoving(now) || inks.isMoving(now)) {
+                capsule.postInvalidateOnAnimation()
+            } else {
+                val next = listOf(artworkHoldUntil, inkHoldUntil).filter { it > now }.minOrNull()
+                if (next != null) capsule.postInvalidateDelayed(next - now)
+            }
+            if (artworkLayers.size == 1) {
+                artworkLayers.keys.first()?.takeUnless { it.isRecycled }?.let {
+                    artworkBackground.draw(canvas, it, artworkArea, area, dimAlpha)
+                }
+            } else {
+                layerBlend.draw(canvas, area, artworkLayers) { image ->
+                    image?.takeUnless { it.isRecycled }?.let {
+                        artworkBackground.draw(canvas, it, artworkArea, area, dimAlpha)
+                    }
+                }
             }
             val line = displayLine ?: return "ARTWORK_ONLY"
             val settings = displaySettings ?: return "ARTWORK_ONLY"
@@ -213,14 +261,24 @@ internal class CapsuleLabels(
             val left = capsuleLyricsLeft(iconStart + target.artwork.width, density, settings) + inset
             val right = capsuleLyricsRight(width.toFloat(), waveformLeft, density, settings) - inset
             val timing = clock
-            val now = SystemClock.elapsedRealtime()
             val position = if (line.isTrackInfo) now else viewportPosition ?: timing?.position(now) ?: line.startMs
             val settled = animatedWidth == null && abs(width - capsule.measuredWidth) <= 1
-            val redrawDelay = strip.draw(
-                canvas, left, area.top, right, area.bottom,
-                lens, position, artworkArea = artworkArea,
-                trackInfoMarquee = trackInfoMarquee, trackInfoSettled = settled,
-            )
+            fun drawLyrics(color: LyricInk): Long? {
+                if (ink != color) {
+                    ink = color
+                    strip.update(line, settings, color)
+                }
+                return strip.draw(canvas, left, area.top, right, area.bottom,
+                    lens, position, artworkArea = artworkArea,
+                    trackInfoMarquee = trackInfoMarquee, trackInfoSettled = settled)
+            }
+            val redrawDelay = if (inkLayers.size > 1 && inkLayers.keys.any { it.texture != null }) {
+                var delay: Long? = null
+                layerBlend.draw(canvas, area, inkLayers) { color ->
+                    drawLyrics(color)?.let { delay = minOf(delay ?: it, it) }
+                }
+                delay
+            } else drawLyrics(blendLyricInks(inkLayers))
             capsule.removeCallbacks(redrawContent)
             if (line.isTrackInfo) {
                 if (capsule.windowVisibility == View.VISIBLE && redrawDelay != null) {
@@ -313,7 +371,7 @@ internal class CapsuleLabels(
 
     fun close() {
         suspendViewport()
-        if (displaySettings == null) return
+        val previousSettings = displaySettings ?: return
         displaySettings = null
         capsule.removeCallbacks(redrawContent)
         coverVisibility.restore()
@@ -322,7 +380,14 @@ internal class CapsuleLabels(
         clearFiller()
         displayLine = null
         displayTrackIdentity = null
-        artwork = null
+        requestedArtwork = null
+        requestedInk = LyricInk.WHITE
+        artworkHoldUntil = 0L
+        inkHoldUntil = 0L
+        backgrounds.snap(null)
+        inks.snap(LyricInk.WHITE)
+        ink = LyricInk.WHITE
+        strip.update(null, previousSettings, ink)
         clock = null
         trackInfoShown = false
         trackInfoMarquee.reset()
