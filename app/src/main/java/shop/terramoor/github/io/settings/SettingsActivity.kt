@@ -552,6 +552,40 @@ private fun HomePage(
                 enabled = state.connection == Connection.READY,
             )
         }
+        if (ColorOsCompat.isColorOs16) {
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            val ready = state.connection == Connection.READY
+            SettingsGroup(stringResource(R.string.section_cos16_compat)) {
+                BasicComponent(
+                    title = stringResource(R.string.cos16_live_alerts_collapse_title),
+                    summary = stringResource(R.string.cos16_live_alerts_collapse_summary),
+                    onClick = {
+                        scope.launch {
+                            if (!ColorOsCompat.openLiveAlertsSettings(context)) {
+                                Toast.makeText(context, R.string.cos16_open_live_alerts_fallback, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                )
+                HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
+                TactileSwitchPreference(
+                    checked = state.settings.cos16AodLyrics,
+                    onCheckedChange = { app.set(CapsuleSettings.COS16_AOD_LYRICS, it) },
+                    title = stringResource(R.string.cos16_aod_lyrics_title),
+                    summary = stringResource(R.string.cos16_aod_lyrics_summary),
+                    enabled = ready && state.settings.enabled,
+                )
+                HorizontalDivider(Modifier.padding(horizontal = DividerDefaults.CardInset))
+                TactileSwitchPreference(
+                    checked = state.settings.cos16AodUnlockWhitelist,
+                    onCheckedChange = { app.set(CapsuleSettings.COS16_AOD_UNLOCK_WHITELIST, it) },
+                    title = stringResource(R.string.cos16_aod_whitelist_title),
+                    summary = stringResource(R.string.cos16_aod_whitelist_summary),
+                    enabled = ready && state.settings.enabled && state.settings.cos16AodLyrics,
+                )
+            }
+        }
     }
 }
 

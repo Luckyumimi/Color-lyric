@@ -148,6 +148,8 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
             CapsuleSettings.SHOW_WAVEFORM -> current.copy(showWaveform = checked)
             CapsuleSettings.CAMERA_FADE -> current.copy(cameraFade = checked)
             CapsuleSettings.FALLBACK_SINGLE_LINE_EXPAND -> current.copy(fallbackSingleLineExpand = checked)
+            CapsuleSettings.COS16_AOD_LYRICS -> current.copy(cos16AodLyrics = checked)
+            CapsuleSettings.COS16_AOD_UNLOCK_WHITELIST -> current.copy(cos16AodUnlockWhitelist = checked)
             else -> return
         }
         save(next) { putBoolean(key, checked) }
@@ -261,7 +263,13 @@ class TerraMoorApp : Application(), XposedServiceHelper.OnServiceListener {
         pendingTuning.clear()
         val defaults = CapsuleSettings()
         val current = state.value.settings
-        val reset = defaults.copy(enabled = current.enabled, doubleLine = current.doubleLine, artwork = current.artwork)
+        val reset = defaults.copy(
+            enabled = current.enabled,
+            doubleLine = current.doubleLine,
+            artwork = current.artwork,
+            cos16AodLyrics = current.cos16AodLyrics,
+            cos16AodUnlockWhitelist = current.cos16AodUnlockWhitelist,
+        )
         val completion = save(reset) {
             CapsuleTuning.entries.forEach { remove(it.key) }
             remove(CapsuleSettings.LYRIC_ALIGNMENT)

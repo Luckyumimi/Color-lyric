@@ -86,6 +86,11 @@ internal class CapsuleRuntime(
     private var scheduledTick: LyricBoundaryTick? = null
     private var status: String? = null
     private val stageMessages = mutableMapOf<String, String>()
+    val isCos16Mode: Boolean get() = host.isSeedlingMediaMode
+    private var aodTitleView = WeakReference<android.widget.TextView>(null)
+    private var aodArtistView = WeakReference<android.widget.TextView>(null)
+    private val aodOverlay by lazy { AodLyricOverlay { onMain("AOD attached") { renderAodOnly() } } }
+    private val originalCapsuleMetrics = WeakHashMap<ViewGroup, Pair<Int, Int>>()
 
     private val refresh = Runnable { protect("Capsule update") { refreshTarget(forceRender = true) } }
     private val tick = Runnable {
@@ -141,9 +146,13 @@ internal class CapsuleRuntime(
         if (settings == previous) return
         if (settings.introDots != previous.introDots) session?.lastLoggedLine = null
         if (!settings.enabled) {
+            if (isCos16Mode) aodOverlay.restoreNative()
             stopObservation()
             setStatus("Lyrics disabled")
             return
+        }
+        if (isCos16Mode && !settings.cos16AodLyrics) {
+            aodOverlay.restoreNative()
         }
         if (!previous.enabled) {
             startObservation()
@@ -151,6 +160,224 @@ internal class CapsuleRuntime(
         }
         postRefresh()
         hostView?.invalidate()
+    }
+
+    fun isCos16AodEnabled(): Boolean = isCos16Mode && settings.enabled && settings.cos16AodLyrics
+
+    fun isCos16AodWhitelistUnlocked(): Boolean = isCos16AodEnabled() && settings.cos16AodUnlockWhitelist
+
+    fun shouldKeepAodDozeActive(): Boolean = isCos16AodEnabled() && aodOverlay.isActivelyPlaying
+
+    fun bindAodMediaLayout(layout: ViewGroup, nativeRoot: View?) = onMain("AOD layout bind") {
+        if (!isCos16Mode) return@onMain
+        loadPreferences()
+        aodOverlay.bind(layout, nativeRoot)
+        ensureSessionForCos16Aod()
+        renderAodOnly()
+    }
+
+    fun onAodMediaLayoutVisible(layout: ViewGroup, nativeRoot: View?) = onMain("AOD layout visible") {
+        if (!isCos16Mode) return@onMain
+        loadPreferences()
+        aodOverlay.bind(layout, nativeRoot)
+        ensureSessionForCos16Aod()
+        renderAodOnly()
+    }
+
+    fun onAodRootVisibilityChanged(visible: Boolean) = onMain("AOD visibility") {
+        if (!isCos16Mode) return@onMain
+        if (visible) {
+            loadPreferences()
+            ensureSessionForCos16Aod()
+            renderAodOnly()
+        } else {
+            aodOverlay.onAodHidden()
+        }
+    }
+
+    fun bindAodMediaViews(
+        player: ViewGroup?,
+        playerContainer: View?,
+        albumView: ImageView?,
+        title: android.widget.TextView?,
+        artist: android.widget.TextView?,
+    ) = onMain("AOD media bind") {
+        if (!isCos16Mode) return@onMain
+        loadPreferences()
+        if (player != null) {
+            aodOverlay.bind(player, playerContainer, albumView)
+        }
+        if (title != null) aodTitleView = WeakReference(title)
+        if (artist != null) aodArtistView = WeakReference(artist)
+        ensureSessionForCos16Aod()
+        renderAodOnly()
+    }
+
+    private fun resolveAppContext(): android.content.Context? =
+        hostView?.context?.applicationContext ?: runCatching {
+            val at = Class.forName("android.app.ActivityThread")
+            at.getMethod("currentApplication").invoke(null) as? android.content.Context
+        }.getOrNull()
+
+    private fun restoreCapsuleMetrics(capsule: ViewGroup) {
+        val orig = originalCapsuleMetrics[capsule] ?: return
+        val (origWidth, origMinWidth) = orig
+        if (capsule.minimumWidth != origMinWidth) capsule.minimumWidth = origMinWidth
+        val params = capsule.layoutParams
+        if (params != null && params.width != origWidth) params.width = origWidth
+    }
+
+    fun prepareCapsuleMeasure(instance: Any) {
+        if (!isCos16Mode) return
+        val capsule = instance as? ViewGroup ?: return
+        if (!settings.enabled) {
+            restoreCapsuleMetrics(capsule)
+            return
+        }
+        val active = media?.takeUnless { it.token == destroyedToken } ?: run {
+            restoreCapsuleMetrics(capsule)
+            return
+        }
+        val watch = session ?: return
+        if (watch.token != active.token) return
+        if (watch.isPaused && settings.pauseBehavior == PauseBehavior.RESTORE_NATIVE) {
+            restoreCapsuleMetrics(capsule)
+            return
+        }
+        val contract = plugin ?: return
+        if (!contract.hasOwner(capsule, active.key)) return
+        val normalWidth = capsuleWidthPixels(settings[CapsuleTuning.ISLAND_WIDTH], capsule.resources.displayMetrics.density)
+        if (capsule !in originalCapsuleMetrics) {
+            val rawWidth = capsule.layoutParams?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT
+            val origWidth = if (rawWidth >= normalWidth) ViewGroup.LayoutParams.WRAP_CONTENT else rawWidth
+            val origMinWidth = if (capsule.minimumWidth >= normalWidth) 0 else capsule.minimumWidth
+            originalCapsuleMetrics[capsule] = origWidth to origMinWidth
+        }
+        if (capsule.minimumWidth != normalWidth) capsule.minimumWidth = normalWidth
+        val params = capsule.layoutParams
+        if (params != null && params.width != normalWidth) params.width = normalWidth
+    }
+
+    private fun ensureSessionForCos16Aod() {
+        if (!isCos16Mode || !settings.enabled || session != null) return
+        val appCtx = resolveAppContext() ?: return
+        val candidate = media?.takeUnless { it.token == destroyedToken }
+        if (candidate != null) {
+            val controller = runCatching { MediaController(appCtx, candidate.token) }.getOrNull()
+            if (controller != null && controller.packageName == candidate.owner) {
+                val watch = Session(candidate.token, controller)
+                session = watch
+                controller.registerCallback(watch, main)
+                watch.metadataChanged(controller.metadata)
+                watch.playbackChanged(controller.playbackState)
+                return
+            }
+        }
+        val msm = runCatching {
+            appCtx.getSystemService(android.media.session.MediaSessionManager::class.java)
+        }.getOrNull() ?: return
+        val controllers = runCatching { msm.getActiveSessions(null) }.getOrNull().orEmpty()
+        val chosen = controllers.firstOrNull { c ->
+            c.sessionToken != destroyedToken &&
+                c.playbackState?.state == PlaybackState.STATE_PLAYING &&
+                !c.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE).isNullOrBlank()
+        } ?: controllers.firstOrNull { c ->
+            c.sessionToken != destroyedToken &&
+                !c.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE).isNullOrBlank()
+        } ?: return
+        val watch = Session(chosen.sessionToken, chosen)
+        session = watch
+        chosen.registerCallback(watch, main)
+        watch.metadataChanged(chosen.metadata)
+        watch.playbackChanged(chosen.playbackState)
+    }
+
+    private fun updateAodOverlay(
+        watch: Session?,
+        timeline: Timeline?,
+        index: Int,
+        mainText: String?,
+        translationText: String?,
+        countdown: shop.terramoor.github.io.lyrics.LyricCountdown? = null,
+        positionMs: Long = 0L,
+        nextLineDelayMs: Long? = null,
+    ) {
+        if (!isCos16Mode) return
+        val playing = watch != null && !watch.isPaused
+        val enabled = isCos16AodEnabled() && watch != null &&
+            !(watch.isPaused && settings.pauseBehavior == PauseBehavior.RESTORE_NATIVE)
+        val nextLine = if (countdown == null && timeline != null && index >= 0) {
+            ((index + 1) until timeline.lines.size)
+                .asSequence()
+                .mapNotNull { timeline.lines[it].text.trim().takeIf(String::isNotEmpty) }
+                .firstOrNull()
+        } else null
+        aodOverlay.update(
+            enabled = enabled,
+            playing = playing,
+            songTitle = watch?.aodSongTitle(),
+            songArtist = watch?.aodSongArtist(),
+            artwork = watch?.aodArtwork(),
+            main = mainText,
+            translation = translationText,
+            next = nextLine,
+            countdown = countdown,
+            positionMs = positionMs,
+            nextLineDelayMs = nextLineDelayMs,
+        )
+    }
+
+    private fun renderAodOnly() {
+        if (!isCos16Mode) return
+        val watch = session
+        val timeline = watch?.timeline
+        if (!isCos16AodEnabled() || watch == null || timeline == null) {
+            aodOverlay.restoreNative()
+            return
+        }
+        val presentation = LyricPresentation(timeline, settings)
+        val clock = watch.playbackClock()
+        val now = SystemClock.elapsedRealtime()
+        val uptime = SystemClock.uptimeMillis()
+        val position = clock.position(now)
+        val index = if (watch.hasPlaybackPosition) presentation.indexAt(position) else -1
+        val trackRows = { watch.trackInfo()?.rows }
+        val frame = if (watch.hasPlaybackPosition) {
+            presentation.introAt(position, trackRows) ?: presentation.frameAt(index, watch.duration, trackRows)
+        } else null
+        val current = presentation.lines.getOrNull(index)
+        val first = current?.text?.trim()?.takeIf { it.isNotEmpty() }
+        val second = current?.translation?.trim()?.takeIf { it.isNotEmpty() }
+        val countdown = frame?.countdown
+
+        val nextStart = presentation.nextBoundary(index)
+        val wakeupTarget = when {
+            countdown != null -> countdown.endMs
+            nextStart != null -> nextStart
+            else -> null
+        }
+        val nextDelay = if (clock.moving && wakeupTarget != null) clock.delayTo(position, wakeupTarget) else null
+
+        updateAodOverlay(watch, timeline, index, first, second, countdown, position, nextDelay)
+
+        val titleTv = aodTitleView.get()?.takeIf { it.isAttachedToWindow }
+        if (titleTv != null && first != null && titleTv.text?.toString() != first) {
+            titleTv.text = first
+        }
+        val artistTv = aodArtistView.get()?.takeIf { it.isAttachedToWindow }
+        if (artistTv != null && second != null && artistTv.text?.toString() != second) {
+            artistTv.text = second
+        }
+
+        val aodActive = aodOverlay.isActive || titleTv != null
+        if (aodActive && clock.moving && wakeupTarget != null && nextDelay != null) {
+            val alarmDelay = minOf(nextDelay, AodLyricOverlay.STEADY_DOZE_HOLD_MAX_MS - 3_000L)
+            aodOverlay.scheduleDozeWakeup(alarmDelay, main) { protect("AOD lyric tick", ::render) }
+            val planned = LyricBoundaryTick.plan(clock, wakeupTarget, now, uptime)
+            setLyricTick(planned)
+        } else {
+            aodOverlay.cancelDozeWakeup()
+        }
     }
 
     fun hostChanged(instance: Any) = onMain("Capsule host") {
@@ -192,8 +419,10 @@ internal class CapsuleRuntime(
         if (sent || mediaController.get() === instance || mediaController.get() == null) {
             mediaController = WeakReference(instance)
             dispatched = notification
+            if (isCos16Mode) loadPreferences()
             if (settings.enabled) {
                 readMedia()
+                if (isCos16Mode) ensureSessionForCos16Aod()
                 postRefresh()
             }
         }
@@ -574,10 +803,12 @@ internal class CapsuleRuntime(
     }
 
     private fun loadPreferences() {
-        val view = hostView ?: return
+        val appContext = hostView?.context?.applicationContext
+            ?: if (isCos16Mode) resolveAppContext() else null
+        if (appContext == null) return
         if (!lyricModeRegistered) {
             try {
-                CapsuleLyricModeSync.registerSystemUi(view.context.applicationContext, main) { onlySuperLyric ->
+                CapsuleLyricModeSync.registerSystemUi(appContext, main) { onlySuperLyric ->
                     if (superLyricOnly != onlySuperLyric) {
                         superLyricOnly = onlySuperLyric
                         protect("Capsule lyric mode") {
@@ -593,7 +824,7 @@ internal class CapsuleRuntime(
         }
         if (!settingsUpdateRegistered) {
             try {
-                CapsuleSettingsUpdate.register(view.context.applicationContext, modulePackage, main) { next ->
+                CapsuleSettingsUpdate.register(appContext, modulePackage, main) { next ->
                     receivedCommittedSettings = true
                     main.removeCallbacks(applyPreferences)
                     trace("preferences", "COMMIT_RECEIVED")
@@ -750,6 +981,10 @@ internal class CapsuleRuntime(
         }
         if (candidate == null || target == null) {
             clearLabels()
+            if (isCos16Mode) {
+                ensureSessionForCos16Aod()
+                renderAodOnly()
+            }
             setStatus(if (candidate == null) "Waiting for native media notification" else "Native media capsule not visible")
             return
         }
@@ -775,7 +1010,7 @@ internal class CapsuleRuntime(
         val newBinding = labels?.target != target
         if (newBinding) {
             clearLabels()
-            labels = CapsuleLabels(target, modulePackage) { diagnostics.failure("Japanese lyric font", it) }
+            labels = CapsuleLabels(target, modulePackage, isCos16 = isCos16Mode) { diagnostics.failure("Japanese lyric font", it) }
             Log.i(TAG, "Verified native media capsule label slots")
             fun node(view: View) = "${view.javaClass.name}(${view.width}x${view.height},shown=${view.isShown})"
             diagnostics.note("Native capsule bound: capsule=${node(target.capsule)}, titleFrame=${node(target.title.frame)}, title=${node(target.title.stock)}")
@@ -789,13 +1024,20 @@ internal class CapsuleRuntime(
     }
 
     private fun render() {
-        val binding = labels ?: return
-        val currentRoot = root ?: return
+        val binding = labels ?: run {
+            if (isCos16Mode) renderAodOnly()
+            return
+        }
+        val currentRoot = root ?: run {
+            if (isCos16Mode) renderAodOnly()
+            return
+        }
         val candidate = media ?: return
         // Recheck ownership on every lyric boundary in case the OEM reused the view.
         if (plugin?.findTarget(currentRoot, candidate.key, binding.target) { trace("target", it) } != binding.target) {
             trace("render", "OWNER_OR_TARGET_CHANGED; restoring native content")
             clearLabels()
+            if (isCos16Mode) renderAodOnly()
             return
         }
         val watch = session ?: return
@@ -804,6 +1046,7 @@ internal class CapsuleRuntime(
         if (watch.isPaused && settings.pauseBehavior == PauseBehavior.RESTORE_NATIVE) {
             centeredMedia.remove(binding.target.capsule)
             updateInterludeStatusBarSpace(compact = false)
+            if (isCos16Mode) aodOverlay.restoreNative()
             binding.restoreForPause()
             setLyricTick(null)
             tintDrawFrame = null
@@ -829,6 +1072,7 @@ internal class CapsuleRuntime(
         val presentation = watch.timeline?.let { LyricPresentation(it, settings) }
         if (presentation == null || presentation.lines.isEmpty()) {
             setLyricTick(null)
+            if (isCos16Mode) aodOverlay.restoreNative()
             val trackInfo = if (settings.noLyricsMode == NoLyricsMode.TRACK) watch.trackInfo() else null
             renderFrame(binding, trackInfo, "NO_TIMELINE", background, ink)
             trace("render", "NO_TIMELINE, trackInfo=${trackInfo != null}, artwork=${background != null}, shown=${binding.target.capsule.isShown}, size=${binding.target.capsule.width}x${binding.target.capsule.height}")
@@ -865,7 +1109,24 @@ internal class CapsuleRuntime(
             renderFrame(binding, introInfo, "INTRO_OR_GAP", background, ink)
             setStatus("Waiting for next lyric boundary")
         }
-        val planned = if (shown && next != null) LyricBoundaryTick.plan(clock, next, now, uptime) else null
+        if (isCos16Mode) {
+            val aodLine = presentation.lines.getOrNull(index)
+            val aodMain = aodLine?.text?.trim()?.takeIf { it.isNotEmpty() }
+            val aodTr = aodLine?.translation?.trim()?.takeIf { it.isNotEmpty() }
+            val aodCountdown = frame?.countdown
+            val aodWakeTarget = aodCountdown?.endMs ?: next
+            val aodDelay = if (clock.moving && aodWakeTarget != null) clock.delayTo(position, aodWakeTarget) else null
+            updateAodOverlay(watch, watch.timeline, index, aodMain, aodTr, aodCountdown, position, aodDelay)
+            if (aodOverlay.isActive && clock.moving && aodDelay != null) {
+                val alarmDelay = minOf(aodDelay, AodLyricOverlay.STEADY_DOZE_HOLD_MAX_MS - 3_000L)
+                aodOverlay.scheduleDozeWakeup(alarmDelay, main) { protect("AOD lyric tick", ::render) }
+            } else {
+                aodOverlay.cancelDozeWakeup()
+            }
+        }
+        val planned = if ((shown || (isCos16Mode && aodOverlay.isActive)) && next != null) {
+            LyricBoundaryTick.plan(clock, next, now, uptime)
+        } else null
         setLyricTick(planned)
         trace("scheduler", when {
             planned != null -> "NEXT_LINE index=$index, targetMs=$next"
@@ -1192,6 +1453,23 @@ internal class CapsuleRuntime(
             val name = track?.title?.trim()?.take(512)?.takeIf { it.isNotEmpty() } ?: return null
             val byline = track?.artist?.trim()?.take(512)?.takeIf { it.isNotEmpty() }
             return LyricFrame.trackInfo(name, byline)
+        }
+
+        fun aodSongTitle(): String? = track?.title?.trim()?.takeIf { it.isNotEmpty() }
+            ?: metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)?.trim()?.takeIf { it.isNotEmpty() }
+
+        fun aodSongArtist(): String? = track?.artist?.trim()?.takeIf { it.isNotEmpty() }
+            ?: metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.trim()?.takeIf { it.isNotEmpty() }
+
+        fun aodArtwork(): Bitmap? {
+            metadataArtwork?.takeUnless { it.isRecycled }?.let { return it }
+            val data = metadata ?: return null
+            return sequenceOf(
+                MediaMetadata.METADATA_KEY_ALBUM_ART,
+                MediaMetadata.METADATA_KEY_ART,
+                MediaMetadata.METADATA_KEY_DISPLAY_ICON,
+            ).mapNotNull { data.getBitmap(it) }
+                .firstOrNull { !it.isRecycled }
         }
 
         fun background(source: Bitmap?, strength: Int): Bitmap? {

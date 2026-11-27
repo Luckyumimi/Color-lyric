@@ -76,6 +76,8 @@ internal data class CapsuleSettings(
     val motion: LineMotion = LineMotion.UP,
     val noLyricsMode: NoLyricsMode = DEFAULT_NO_LYRICS_MODE,
     val pauseBehavior: PauseBehavior = PauseBehavior.KEEP_CURRENT,
+    val cos16AodLyrics: Boolean = true,
+    val cos16AodUnlockWhitelist: Boolean = true,
     private val tuning: Map<CapsuleTuning, Int> = emptyMap(),
 ) {
 
@@ -129,6 +131,8 @@ internal data class CapsuleSettings(
         const val MOTION = "line_motion"
         const val NO_LYRICS = "no_lyrics_mode"
         const val PAUSE_BEHAVIOR = "pause_behavior"
+        const val COS16_AOD_LYRICS = "cos16_aod_lyrics"
+        const val COS16_AOD_UNLOCK_WHITELIST = "cos16_aod_unlock_whitelist"
         private val DEFAULT_NO_LYRICS_MODE = NoLyricsMode.TRACK
 
         private val defaults = CapsuleSettings()
@@ -160,6 +164,8 @@ internal data class CapsuleSettings(
                 motion = LineMotion.fromStored(prefs.getString(MOTION, null)) ?: defaults.motion,
                 noLyricsMode = prefs.enumValue(NO_LYRICS, defaults.noLyricsMode),
                 pauseBehavior = prefs.enumValue(PAUSE_BEHAVIOR, defaults.pauseBehavior),
+                cos16AodLyrics = prefs.getBoolean(COS16_AOD_LYRICS, defaults.cos16AodLyrics),
+                cos16AodUnlockWhitelist = prefs.getBoolean(COS16_AOD_UNLOCK_WHITELIST, defaults.cos16AodUnlockWhitelist),
                 tuning = CapsuleTuning.entries.associateWith { option ->
                     if (option == CapsuleTuning.TINT_STRENGTH && !prefs.contains(option.key) &&
                         (prefs.contains(LEGACY_FIRST_ROW_TINT) || prefs.contains(LEGACY_SECOND_ROW_TINT))) {

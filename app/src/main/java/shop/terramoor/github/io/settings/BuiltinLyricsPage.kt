@@ -1216,6 +1216,7 @@ private fun lyricAttribution(rawSource: String): Pair<Boolean, String>? {
         "qq", "netease", "kugou" -> sourceName(id.uppercase())
         "apple", "apple_music", "applemusic", "apple-music", "apple-music/official" -> sourceName("APPLE_MUSIC")
         "lrclib" -> "LRCLIB"
+        "lyricsplus" -> "LyricsPlus"
         "unison", "lrc_red", "karalyr", "amll", "lunabeat" -> sourceName(id.uppercase())
         "better_lyrics" -> "Better Lyrics"
         "paxsenix" -> "Paxsenix"

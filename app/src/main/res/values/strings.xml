@@ -104,6 +104,14 @@
     <string name="section_capsule">Live Alert lyrics</string>
     <string name="section_connection">Module status</string>
     <string name="enable_lyrics">Enable Live Alert lyrics</string>
+    <string name="section_cos16_compat">ColorOS 16 compatibility</string>
+    <string name="cos16_live_alerts_collapse_title">Prevent capsule auto-collapse (5 min)</string>
+    <string name="cos16_live_alerts_collapse_summary">Open ColorOS Live Alerts settings to disable automatic shrinking after 5 minutes</string>
+    <string name="cos16_open_live_alerts_fallback">Open Settings → Notifications &amp; Quick Settings → Live Alerts</string>
+    <string name="cos16_aod_lyrics_title">AOD lyrics overlay</string>
+    <string name="cos16_aod_lyrics_summary">Display borderless multi-line lyrics on Always-On Display (ColorOS 16 only)</string>
+    <string name="cos16_aod_whitelist_title">Unlock AOD player whitelist</string>
+    <string name="cos16_aod_whitelist_summary">Allow all music players to appear on Always-On Display (ColorOS 16 only)</string>
     <string name="double_line_lyrics">Two-line lyrics</string>
     <string name="artwork_background">Use cover background</string>
     <string name="artwork_background_summary">Show blurred cover art behind the lyrics</string>
