@@ -492,6 +492,72 @@ internal fun BuiltinLyricsPage(
                 TactileSwitchPreference(settings.translation, { BuiltinLyricsConfig.setBoolean(context, Keys.KEY_TRANSLATION, it); reloadSettings() }, stringResource(R.string.lyrics_hub_translation), true,
                     summary = stringResource(R.string.lyrics_hub_translation_description))
                 HubDivider()
+                TactileSwitchPreference(
+                    checked = settings.autoTranslate,
+                    onCheckedChange = { BuiltinLyricsConfig.setBoolean(context, Keys.KEY_AUTO_TRANSLATE, it); reloadSettings() },
+                    title = stringResource(R.string.lyrics_hub_auto_translate),
+                    enabled = settings.translation,
+                    summary = stringResource(R.string.lyrics_hub_auto_translate_description),
+                )
+                if (settings.translation && settings.autoTranslate) {
+                    HubDivider()
+                    val langCodes = listOf(
+                        "auto",
+                        "en",
+                        "zh-CN",
+                        "zh-TW",
+                        "es",
+                        "hi",
+                        "fr",
+                        "pt",
+                        "de",
+                        "ja",
+                        "ru",
+                        "ko",
+                        "it",
+                        "nl",
+                        "tr",
+                        "vi",
+                        "th",
+                        "id",
+                        "ms",
+                        "pl",
+                    )
+                    val langLabels = listOf(
+                        stringResource(R.string.lyrics_hub_auto_translate_lang_system),
+                        "English",
+                        "简体中文",
+                        "繁體中文",
+                        "Español",
+                        "हिन्दी",
+                        "Français",
+                        "Português",
+                        "Deutsch",
+                        "日本語",
+                        "Русский",
+                        "한국어",
+                        "Italiano",
+                        "Nederlands",
+                        "Türkçe",
+                        "Tiếng Việt",
+                        "ภาษาไทย",
+                        "Bahasa Indonesia",
+                        "Bahasa Melayu",
+                        "Polski",
+                    )
+                    val selectedIndex = langCodes.indexOf(settings.autoTranslateLang).coerceAtLeast(0)
+                    TuningDropdown(
+                        title = stringResource(R.string.lyrics_hub_auto_translate_lang),
+                        items = langLabels,
+                        selectedIndex = selectedIndex,
+                        enabled = true,
+                        onSelectedIndexChange = {
+                            BuiltinLyricsConfig.setAutoTranslateLang(context, langCodes[it])
+                            reloadSettings()
+                        },
+                    )
+                }
+                HubDivider()
                 TactileSwitchPreference(settings.wordTiming, { BuiltinLyricsConfig.setBoolean(context, Keys.KEY_WORD_TIMING, it); reloadSettings() }, stringResource(R.string.lyrics_hub_word_timing), true,
                     summary = stringResource(R.string.lyrics_hub_word_timing_description))
                 HubDivider()

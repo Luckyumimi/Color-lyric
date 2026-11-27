@@ -21,6 +21,8 @@ internal object UniversalSnapshotStore {
     const val EXTRA_CONFIG_REVISION = "runtime_diagnostic_config_revision"
     const val EXTRA_WORD_TIMING_ENABLED = "extra_word_timing_enabled"
     const val EXTRA_TRANSLATION_ENABLED = "extra_translation_enabled"
+    const val EXTRA_AUTO_TRANSLATE_ENABLED = "extra_auto_translate_enabled"
+    const val EXTRA_AUTO_TRANSLATE_LANG = "extra_auto_translate_lang"
     const val EXTRA_RAW_LYRIC_ENABLED = "extra_raw_lyric_enabled"
     const val EXTRA_DEBUG_ENABLED = "extra_debug_enabled"
     const val EXTRA_DIRECT_MODE = "extra_direct_mode"

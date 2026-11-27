@@ -42,6 +42,10 @@
     <string name="lyrics_hub_processing">歌词处理</string>
     <string name="lyrics_hub_apple">Apple Music</string>
     <string name="lyrics_hub_translation">注入翻译歌词</string>
+    <string name="lyrics_hub_auto_translate">自动翻译歌词</string>
+    <string name="lyrics_hub_auto_translate_description">歌词源缺少目标语言译文时，通过 Google 翻译自动生成双语译文</string>
+    <string name="lyrics_hub_auto_translate_lang">翻译目标语言</string>
+    <string name="lyrics_hub_auto_translate_lang_system">跟随系统</string>
     <string name="lyrics_hub_word_timing">优先使用逐字时间轴</string>
     <string name="lyrics_hub_coarse_clock">进度粒度粗时自动逐行</string>
     <string name="lyrics_hub_raw">允许读取 rawLyric</string>

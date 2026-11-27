@@ -43,6 +43,10 @@
     <string name="lyrics_hub_processing" tools:ignore="MissingTranslation">Lyrics processing</string>
     <string name="lyrics_hub_apple" tools:ignore="MissingTranslation">Apple Music</string>
     <string name="lyrics_hub_translation" tools:ignore="MissingTranslation">Include translated lyrics</string>
+    <string name="lyrics_hub_auto_translate" tools:ignore="MissingTranslation">Auto-translate lyrics</string>
+    <string name="lyrics_hub_auto_translate_description" tools:ignore="MissingTranslation">Translate lyrics automatically via Google Translate when no matching translation is available</string>
+    <string name="lyrics_hub_auto_translate_lang" tools:ignore="MissingTranslation">Target language</string>
+    <string name="lyrics_hub_auto_translate_lang_system" tools:ignore="MissingTranslation">Follow system</string>
     <string name="lyrics_hub_word_timing" tools:ignore="MissingTranslation">Prefer word timing</string>
     <string name="lyrics_hub_coarse_clock" tools:ignore="MissingTranslation">Use line timing for coarse playback clocks</string>
     <string name="lyrics_hub_raw" tools:ignore="MissingTranslation">Allow rawLyric</string>

@@ -14,6 +14,8 @@ import io.github.andrealtb.coloroslyrics.provider.universal.api.AppleMusicAuthSt
 internal object BuiltinLyricsConfig {
     data class State(
         val translation: Boolean,
+        val autoTranslate: Boolean,
+        val autoTranslateLang: String,
         val wordTiming: Boolean,
         val coarseClockFallback: Boolean,
         val rawLyric: Boolean,
@@ -41,6 +43,8 @@ internal object BuiltinLyricsConfig {
         val provider = LyricsProviderMode.fromId(prefs.getString(UniversalSettingsConstants.KEY_PROVIDER_MODE, null))
         return State(
             translation = prefs.getBoolean(UniversalSettingsConstants.KEY_TRANSLATION, true),
+            autoTranslate = prefs.getBoolean(UniversalSettingsConstants.KEY_AUTO_TRANSLATE, false),
+            autoTranslateLang = prefs.getString(UniversalSettingsConstants.KEY_AUTO_TRANSLATE_LANG, "auto") ?: "auto",
             wordTiming = prefs.getBoolean(UniversalSettingsConstants.KEY_WORD_TIMING, true),
             coarseClockFallback = prefs.getBoolean(UniversalSettingsConstants.KEY_CLOCK_LINE_FALLBACK, true),
             rawLyric = prefs.getBoolean(UniversalSettingsConstants.KEY_RAW_LYRIC, true),
@@ -60,6 +64,13 @@ internal object BuiltinLyricsConfig {
         val app = context.applicationContext
         app.getSharedPreferences(UniversalSettingsConstants.PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putBoolean(key, value).apply()
+        UniversalAppIo.execute { pushSourceSettings(app) }
+    }
+
+    fun setAutoTranslateLang(context: Context, lang: String) {
+        val app = context.applicationContext
+        app.getSharedPreferences(UniversalSettingsConstants.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putString(UniversalSettingsConstants.KEY_AUTO_TRANSLATE_LANG, lang).apply()
         UniversalAppIo.execute { pushSourceSettings(app) }
     }
 
@@ -122,6 +133,8 @@ internal object BuiltinLyricsConfig {
             putExtra(UniversalSnapshotStore.EXTRA_PROVIDER_MODE, settings.providerMode.id)
             putStringArrayListExtra("disabled_lyricon_providers", ArrayList(disabledLyriconProviders(context)))
             putExtra(UniversalSnapshotStore.EXTRA_TRANSLATION_ENABLED, prefs.getBoolean(UniversalSettingsConstants.KEY_TRANSLATION, true))
+            putExtra(UniversalSnapshotStore.EXTRA_AUTO_TRANSLATE_ENABLED, prefs.getBoolean(UniversalSettingsConstants.KEY_AUTO_TRANSLATE, false))
+            putExtra(UniversalSnapshotStore.EXTRA_AUTO_TRANSLATE_LANG, prefs.getString(UniversalSettingsConstants.KEY_AUTO_TRANSLATE_LANG, "auto") ?: "auto")
             putExtra(UniversalSnapshotStore.EXTRA_WORD_TIMING_ENABLED, prefs.getBoolean(UniversalSettingsConstants.KEY_WORD_TIMING, true))
             putExtra(UniversalSnapshotStore.EXTRA_CLOCK_LINE_FALLBACK_ENABLED, prefs.getBoolean(UniversalSettingsConstants.KEY_CLOCK_LINE_FALLBACK, true))
             putExtra(UniversalSnapshotStore.EXTRA_RAW_LYRIC_ENABLED, prefs.getBoolean(UniversalSettingsConstants.KEY_RAW_LYRIC, true))

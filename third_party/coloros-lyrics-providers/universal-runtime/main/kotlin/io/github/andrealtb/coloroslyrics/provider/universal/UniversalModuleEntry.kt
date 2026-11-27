@@ -171,6 +171,10 @@ class UniversalModuleEntry : XposedModule() {
     @Volatile
     private var translationEnabled: Boolean = loadTranslationEnabled()
     @Volatile
+    private var autoTranslateEnabled: Boolean = loadAutoTranslateEnabled()
+    @Volatile
+    private var autoTranslateLang: String = loadAutoTranslateLang()
+    @Volatile
     private var rawLyricEnabled: Boolean = loadRawLyricEnabled()
     @Volatile
     private var debugEnabled: Boolean = loadDebugEnabled()
@@ -1168,6 +1172,9 @@ class UniversalModuleEntry : XposedModule() {
                                     }
                                     val wordTiming = intent.getBooleanExtra(UniversalSnapshotStore.EXTRA_WORD_TIMING_ENABLED, wordTimingEnabled)
                                     val translation = intent.getBooleanExtra(UniversalSnapshotStore.EXTRA_TRANSLATION_ENABLED, translationEnabled)
+                                    val autoTranslate = intent.getBooleanExtra(UniversalSnapshotStore.EXTRA_AUTO_TRANSLATE_ENABLED, autoTranslateEnabled)
+                                    val requestedAutoTranslateLang = intent.getStringExtra(UniversalSnapshotStore.EXTRA_AUTO_TRANSLATE_LANG)
+                                        ?.takeIf { it.isNotBlank() } ?: autoTranslateLang
                                     val rawLyric = intent.getBooleanExtra(UniversalSnapshotStore.EXTRA_RAW_LYRIC_ENABLED, rawLyricEnabled)
                                     val debug = intent.getBooleanExtra(UniversalSnapshotStore.EXTRA_DEBUG_ENABLED, debugEnabled)
                                     val requestedProviderMode = normalizeProviderMode(
@@ -1180,6 +1187,8 @@ class UniversalModuleEntry : XposedModule() {
                                     val priorityChanged = priority != sourcePriority
                                     val wordTimingChanged = wordTiming != wordTimingEnabled
                                     val translationChanged = translation != translationEnabled
+                                    val autoTranslateChanged = autoTranslate != autoTranslateEnabled
+                                    val autoTranslateLangChanged = requestedAutoTranslateLang != autoTranslateLang
                                     val rawLyricChanged = rawLyric != rawLyricEnabled
                                     val debugChanged = debug != debugEnabled
                                     val providerChanged = requestedProviderMode != providerMode
@@ -1191,6 +1200,8 @@ class UniversalModuleEntry : XposedModule() {
                                     sourcePriority = priority
                                     wordTimingEnabled = wordTiming
                                     translationEnabled = translation
+                                    autoTranslateEnabled = autoTranslate
+                                    autoTranslateLang = requestedAutoTranslateLang
                                     rawLyricEnabled = rawLyric
                                     debugEnabled = debug
                                     clockLineFallbackEnabled = clockFallback
@@ -1208,6 +1219,8 @@ class UniversalModuleEntry : XposedModule() {
                                         if (priorityChanged) persistSourceConfig(priority)
                                         if (wordTimingChanged) persistWordTimingEnabled(wordTiming)
                                         if (translationChanged) persistTranslationEnabled(translation)
+                                        if (autoTranslateChanged) persistAutoTranslateEnabled(autoTranslate)
+                                        if (autoTranslateLangChanged) persistAutoTranslateLang(requestedAutoTranslateLang)
                                         if (rawLyricChanged) persistRawLyricEnabled(rawLyric)
                                         if (debugChanged) persistDebugEnabled(debug)
                                         if (providerChanged) persistProviderMode(requestedProviderMode)
@@ -1223,7 +1236,7 @@ class UniversalModuleEntry : XposedModule() {
                                     io.github.andrealtb.coloroslyrics.provider.runtimediagnostics.ProviderRuntimeDiagnostics.configConsumed(
                                         debugEnabled, runCatching { intent.getLongExtra(UniversalSnapshotStore.EXTRA_CONFIG_REVISION, -1L) }.getOrDefault(-1L), "CONSUMED")
                                     if (priorityChanged || providerChanged) retryMissedTracks()
-                                    if (wordTimingChanged || rawLyricChanged || translationChanged || clockFallbackChanged) {
+                                    if (wordTimingChanged || rawLyricChanged || translationChanged || autoTranslateChanged || autoTranslateLangChanged || clockFallbackChanged) {
                                         // Reload the complete saved payload for upgrades as well as downgrades.
                                         backgroundExecutor.execute(::refreshProcessingSettings)
                                     }
@@ -1832,7 +1845,7 @@ class UniversalModuleEntry : XposedModule() {
                             }
                             // Cache the complete payload; publishing applies the processing switches, so
                             // turning a switch back on does not need a cache clear.
-                            val json = JSONObject().apply {
+                            val baseJson = JSONObject().apply {
                                 put("songName", result.title)
                                 put("artist", result.artist)
                                 put("album", album.orEmpty())
@@ -1849,7 +1862,7 @@ class UniversalModuleEntry : XposedModule() {
                                 if (!alignedTranslation.isNullOrBlank()) {
                                     put("transLyric", alignedTranslation)
                                     put("translationLyric", alignedTranslation)
-                                    put("translationLanguageTag", java.util.Locale.getDefault().toLanguageTag())
+                                    put("translationLanguageTag", "zh-CN")
                                 }
                                 put("provider", "shop.terramoor.github.io.builtinlyrics")
                                 put(UniversalCacheSourcePolicy.KIND_KEY, UniversalCacheSourcePolicy.NETWORK)
@@ -1860,6 +1873,7 @@ class UniversalModuleEntry : XposedModule() {
                                 put("sessionGeneration", generation)
                                 put("remark", "[ColorLyricBuiltin]")
                             }.toString()
+                            val json = ensureAutoTranslatedPayload(baseJson)
 
                             if (!lookupIsCurrent()) return@execute
                             saveAutomaticLyric(fetchKey, title, artist, json)
@@ -2098,7 +2112,11 @@ class UniversalModuleEntry : XposedModule() {
             trackPayloads.refresh(key) { original ->
                 if (trackPayloads.isManual(key) || (realLyricsByPackage.containsKey(key) &&
                         UniversalCacheSourcePolicy.canUse(original, directMode = false))) {
-                    realLyricsByPackage[key] = updateGeneration(original, descriptor.trackGeneration, descriptor.ownerPackage)
+                    val prepared = ensureAutoTranslatedPayload(original)
+                    if (prepared !== original) {
+                        saveAutomaticLyric(bindingKey(title, artist), title, artist, prepared)
+                    }
+                    realLyricsByPackage[key] = updateGeneration(prepared, descriptor.trackGeneration, descriptor.ownerPackage)
                     restored = true
                 }
             }
@@ -2106,7 +2124,11 @@ class UniversalModuleEntry : XposedModule() {
                 val manual = loadManualBinding(bindingKey(title, artist))
                 val saved = manual ?: loadCachedLyric(title, artist)
                 if (!saved.isNullOrBlank() && (manual != null || UniversalCacheSourcePolicy.canUse(saved, directMode = false))) {
-                    trackPayloads.accept(key, saved, isManual = manual != null) {
+                    val prepared = if (manual != null) saved else ensureAutoTranslatedPayload(saved)
+                    if (manual == null && prepared !== saved) {
+                        saveAutomaticLyric(bindingKey(title, artist), title, artist, prepared)
+                    }
+                    trackPayloads.accept(key, prepared, isManual = manual != null) {
                         realLyricsByPackage[key] = updateGeneration(it, descriptor.trackGeneration, descriptor.ownerPackage)
                         restored = true
                     }
@@ -2125,6 +2147,47 @@ class UniversalModuleEntry : XposedModule() {
 
     private fun persistTranslationEnabled(enabled: Boolean) {
         runCatching { java.io.File("/data/system/colorlyric_universal_translation.enabled").writeText(if (enabled) "1" else "0") }
+    }
+
+    private fun loadAutoTranslateEnabled(): Boolean = runCatching {
+        java.io.File("/data/system/colorlyric_universal_auto_translate.enabled").readText().trim() == "1"
+    }.getOrDefault(false)
+
+    private fun persistAutoTranslateEnabled(enabled: Boolean) {
+        runCatching { java.io.File("/data/system/colorlyric_universal_auto_translate.enabled").writeText(if (enabled) "1" else "0") }
+    }
+
+    private fun loadAutoTranslateLang(): String = runCatching {
+        java.io.File("/data/system/colorlyric_universal_auto_translate.lang").readText().trim().ifEmpty { "auto" }
+    }.getOrDefault("auto")
+
+    private fun persistAutoTranslateLang(lang: String) {
+        runCatching { java.io.File("/data/system/colorlyric_universal_auto_translate.lang").writeText(lang.ifBlank { "auto" }) }
+    }
+
+    private fun ensureAutoTranslatedPayload(jsonStr: String): String {
+        if (!translationEnabled || !autoTranslateEnabled) return jsonStr
+        return runCatching {
+            val json = JSONObject(jsonStr)
+            val lyric = json.optString("lyric")
+            if (lyric.isBlank()) return jsonStr
+            val targetLang = io.github.andrealtb.coloroslyrics.provider.universal.api.GoogleLyricsTranslator
+                .resolveTargetLang(autoTranslateLang)
+            val existingTrans = json.optString("translationLyric").ifBlank { json.optString("transLyric") }
+            val existingTag = json.optString("translationLanguageTag")
+            val alreadyMatches = existingTrans.isNotBlank() && (
+                existingTag.equals(targetLang, ignoreCase = true) ||
+                    (existingTag.isBlank() && targetLang.startsWith("zh", ignoreCase = true))
+                )
+            if (alreadyMatches) return jsonStr
+            val plainLyric = UniversalLyricPayloadPolicy.stripWordTiming(lyric)
+            val translated = io.github.andrealtb.coloroslyrics.provider.universal.api.GoogleLyricsTranslator
+                .translateLrc(plainLyric, targetLang) ?: return jsonStr
+            json.put("transLyric", translated)
+            json.put("translationLyric", translated)
+            json.put("translationLanguageTag", targetLang)
+            json.toString()
+        }.getOrDefault(jsonStr)
     }
 
     private fun loadClockLineFallbackEnabled(): Boolean = runCatching {
