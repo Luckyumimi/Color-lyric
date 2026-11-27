@@ -6,7 +6,7 @@ import java.io.InputStream
 
 internal object CapsuleBackup {
     private const val FORMAT = "terramoor.settings"
-    private const val VERSION = 16
+    private const val VERSION = 17
     private const val MAX_BYTES = 16 * 1024
     const val TRANSLATION_HELP_HIDDEN = "translation_help_hidden"
 
@@ -35,6 +35,8 @@ internal object CapsuleBackup {
             .put(CapsuleSettings.MOTION, settings.motion.name)
             .put(CapsuleSettings.NO_LYRICS, settings.noLyricsMode.name)
             .put(CapsuleSettings.PAUSE_BEHAVIOR, settings.pauseBehavior.name)
+            .put(CapsuleSettings.COS16_AOD_LYRICS, settings.cos16AodLyrics)
+            .put(CapsuleSettings.COS16_AOD_UNLOCK_WHITELIST, settings.cos16AodUnlockWhitelist)
         CapsuleTuning.entries.forEach { data.put(it.key, settings[it]) }
         val appPreferences = JSONObject().put(TRANSLATION_HELP_HIDDEN, translationHelpHidden)
         return JSONObject().put("format", FORMAT).put("version", VERSION)
@@ -94,6 +96,8 @@ internal object CapsuleBackup {
             noLyricsMode = NoLyricsMode.valueOf(data.getString(CapsuleSettings.NO_LYRICS)),
             pauseBehavior = if (version >= 14) PauseBehavior.valueOf(data.getString(CapsuleSettings.PAUSE_BEHAVIOR))
             else lyrics.pauseBehavior,
+            cos16AodLyrics = if (version >= 17) flag(CapsuleSettings.COS16_AOD_LYRICS) else true,
+            cos16AodUnlockWhitelist = if (version >= 17) flag(CapsuleSettings.COS16_AOD_UNLOCK_WHITELIST) else true,
             tuning = tuning,
         )
         val helpHidden = if (version < 10) null else {
@@ -136,6 +140,8 @@ internal fun SharedPreferences.Editor.writeSettings(settings: CapsuleSettings) {
     putString(CapsuleSettings.MOTION, settings.motion.name)
     putString(CapsuleSettings.NO_LYRICS, settings.noLyricsMode.name)
     putString(CapsuleSettings.PAUSE_BEHAVIOR, settings.pauseBehavior.name)
+    putBoolean(CapsuleSettings.COS16_AOD_LYRICS, settings.cos16AodLyrics)
+    putBoolean(CapsuleSettings.COS16_AOD_UNLOCK_WHITELIST, settings.cos16AodUnlockWhitelist)
     CapsuleSettings.retiredTintKeys.forEach { remove(it) }
     CapsuleTuning.entries.forEach { putInt(it.key, settings[it]) }
 }

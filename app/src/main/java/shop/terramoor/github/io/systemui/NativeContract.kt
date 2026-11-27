@@ -24,11 +24,14 @@ internal object NativeContract {
     const val ROOT = "com.oplus.systemui.plugins.seedling.capsule.ui.view.CapsuleContainerRoot"
     const val HOST = "com.oplus.systemui.statusbar.seeding.CapsulePluginContainerController"
     const val MEDIA = "com.oplus.systemui.media.seedling.livealert.MediaLiveAlertController"
+    const val MEDIA_COS16 = "com.oplus.systemui.media.seedling.MediaSeedling"
+    private const val MEDIA_CONTROLLER_COS16 = "com.oplus.systemui.media.seedling.OplusMediaSeedlingController"
     private const val DATA = "com.oplus.systemui.seedlingservice.mediaControl.SeedlingMediaData"
     private const val PLUGIN_INTERFACE = "com.android.systemui.plugins.statusbar.SeedlingPlugin"
     private const val CONTAINER = "com.oplus.systemui.plugins.seedling.capsule.ui.view.CapsuleContainer"
     private const val CAPSULE = "com.oplus.systemui.plugins.seedling.capsule.ui.view.CapsuleView"
     private const val SWITCH = "com.oplus.systemui.plugins.shared.template.component.view.ContentSwitchView"
+    internal const val COS16_KEY_PREFIX = "seedling_media:"
 
     // The lookup label is assembled from hardcoded class, member, or resource names only.
     class Mismatch(val lookup: String, cause: Throwable? = null) : IllegalStateException(lookup, cause)
@@ -44,19 +47,41 @@ internal object NativeContract {
 
     class Host(loader: ClassLoader, optionalMissing: (String, Mismatch) -> Unit) {
         private val host = loader.requiredClass(HOST)
-        private val media = loader.requiredClass(MEDIA)
+        private val liveAlertMedia = try {
+            loader.loadClass(MEDIA)
+        } catch (_: ClassNotFoundException) {
+            null
+        }
+        private val seedlingMedia = if (liveAlertMedia == null) loader.requiredClass(MEDIA_COS16) else null
+        private val media = liveAlertMedia ?: seedlingMedia!!
+        val isSeedlingMediaMode: Boolean = liveAlertMedia == null
+        val mediaClassName: String = media.name
         private val data = loader.requiredClass(DATA)
         private val container = host.field("capsulePluginContainer", ViewGroup::class.java)
-        private val list = media.field("mediaDataList", List::class.java)
-        private val lastPlayerId = optional("active player ID", optionalMissing) {
+        private val list = if (liveAlertMedia != null) media.field("mediaDataList", List::class.java) else null
+        private val lastPlayerId = if (liveAlertMedia != null) optional("active player ID", optionalMissing) {
             media.field("lastStatusBarPlayerId", String::class.java)
-        }
-        private val sbn = optional("stored media notification", optionalMissing) {
+        } else null
+        private val sbn = if (liveAlertMedia != null) optional("stored media notification", optionalMissing) {
             media.field("sbn", StatusBarNotification::class.java)
-        }
+        } else null
+        private val cos16ControllerField = if (seedlingMedia != null) optional("ColorOS 16 media controller", optionalMissing) {
+            seedlingMedia.declaredFields.firstOrNull { it.name == "oplusMediaSeedlingController" }
+                ?.apply { isAccessible = true }
+                ?: throw Mismatch("missing field ${seedlingMedia.name}#oplusMediaSeedlingController")
+        } else null
+        private val cos16SortedEntries = if (seedlingMedia != null) optional("ColorOS 16 sorted entries", optionalMissing) {
+            loader.requiredClass(MEDIA_CONTROLLER_COS16).method("getSortedEntries", List::class.java)
+        } else null
         private val playerId = data.method("getPlayerId", String::class.java)
         private val token = data.method("getToken", MediaSession.Token::class.java)
         private val pkg = data.method("getPackageName", String::class.java)
+        private val stateMethod = if (seedlingMedia != null) optional("media playback state", optionalMissing) {
+            data.method("getState", Int::class.javaPrimitiveType!!)
+        } else null
+        private val activeMethod = if (seedlingMedia != null) optional("media active flag", optionalMissing) {
+            data.method("getActive", Boolean::class.javaPrimitiveType!!)
+        } else null
         private val artwork = optional("notification artwork", optionalMissing) {
             data.method("getArtworkIcon", Icon::class.java)
         }
@@ -68,17 +93,32 @@ internal object NativeContract {
         val pluginRemoved = optional("plugin-removed callback", optionalMissing) {
             host.method("onPluginRemove", Void.TYPE, loader.requiredClass(PLUGIN_INTERFACE))
         }
-        val send = if (sbn == null) null else optional("media send callback", optionalMissing) {
+        val send = if (liveAlertMedia == null || sbn == null) null else optional("media send callback", optionalMissing) {
             media.method("sendLiveAlertData", Boolean::class.javaPrimitiveType!!, String::class.java)
         }
         fun dispatchMethod() = media.method("sendDataToPlugin", Boolean::class.javaPrimitiveType!!,
             String::class.java, StatusBarNotification::class.java)
+        val cos16MediaLoaded = if (seedlingMedia != null) optional("ColorOS 16 onMediaDataLoaded", optionalMissing) {
+            seedlingMedia.method("onMediaDataLoaded", Void.TYPE, String::class.java, data, Int::class.javaPrimitiveType!!)
+        } else null
+        val cos16MediaRemoved = if (seedlingMedia != null) optional("ColorOS 16 onMediaDataRemoved", optionalMissing) {
+            seedlingMedia.method("onMediaDataRemoved", Void.TYPE, String::class.java)
+        } else null
+        val cos16UpdateSeedlings = if (seedlingMedia != null) optional("ColorOS 16 updateSeedlings", optionalMissing) {
+            seedlingMedia.method("updateSeedlings", Void.TYPE,
+                Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!)
+        } else null
         val release = optional("media release callback", optionalMissing) { media.method("release", Void.TYPE) }
-        val pauseTimeout = if (lastPlayerId == null || sbn == null) null else optional("media pause timeout", optionalMissing) {
-            PauseTimeout(loader, lastPlayerId, sbn)
+        val pauseTimeout = if (liveAlertMedia == null || lastPlayerId == null || sbn == null || list == null) null else optional("media pause timeout", optionalMissing) {
+            PauseTimeout(loader, lastPlayerId, sbn, list)
         }
 
-        inner class PauseTimeout(loader: ClassLoader, private val activeId: Field, private val notification: Field) {
+        inner class PauseTimeout(
+            loader: ClassLoader,
+            private val activeId: Field,
+            private val notification: Field,
+            private val mediaList: Field,
+        ) {
             // On the verified host, R8 shares this Runnable class with the release task.
             private val callback = loader.requiredClass("$MEDIA\$release\$1")
             val run = callback.method("run", Void.TYPE)
@@ -108,7 +148,7 @@ internal object NativeContract {
                 val controller = owner.controller
                 if (!showsOnStatusBar.getBoolean(controller)) return false
                 if ((notification.get(controller) as? StatusBarNotification)?.key != owner.key) return false
-                val row = (list.get(controller) as? List<*>)?.iterator()?.let { if (it.hasNext()) it.next() else null }
+                val row = (mediaList.get(controller) as? List<*>)?.iterator()?.let { if (it.hasNext()) it.next() else null }
                 return data.isInstance(row) && playerId.invoke(row) == activeId.get(controller) &&
                     token.invoke(row) == owner.token && pkg.invoke(row) == owner.packageName &&
                     state.invoke(row) == PlaybackState.STATE_PAUSED
@@ -118,6 +158,7 @@ internal object NativeContract {
         fun view(controller: Any): ViewGroup = container.get(controller) as ViewGroup
 
         fun activeMedia(controller: Any, dispatched: StatusBarNotification?, report: (String) -> Unit): Media? {
+            if (isSeedlingMediaMode) return activeSeedlingMedia(controller, report)
             fun missing(reason: String): Media? = null.also { report(reason) }
 
             val notification = dispatched ?: (sbn?.get(controller) as? StatusBarNotification)
@@ -138,7 +179,7 @@ internal object NativeContract {
             val matched = selection.card ?: return missing("${selection.route}, cards=${capsuleCards.size}/${cards.size}")
             val id = matched.id ?: return missing("CAPSULE_HAS_NO_PLAYER_ID")
             val owner = matched.owner ?: return missing("CAPSULE_HAS_NO_PLAYER_PACKAGE")
-            val rows = list.get(controller) as? List<*> ?: return missing("NO_PLAYER_ROWS")
+            val rows = list?.get(controller) as? List<*> ?: return missing("NO_PLAYER_ROWS")
             val matches = rows.filter { data.isInstance(it) && playerId.invoke(it) == id }
             val row = matches.singleOrNull() ?: return missing("PLAYER_ROWS_MATCHED=${matches.size}/${rows.size}")
             if (pkg.invoke(row) != owner) return missing("CARD_PLAYER_OWNER_MISMATCH")
@@ -146,6 +187,34 @@ internal object NativeContract {
             val icon = artwork?.invoke(row) as? Icon
             report("VERIFIED_${selection.route}, cards=${capsuleCards.size}/${cards.size}, artwork=${icon != null}")
             return Media(notification.key, mediaToken, owner, icon)
+        }
+
+        private fun activeSeedlingMedia(controller: Any, report: (String) -> Unit): Media? {
+            fun missing(reason: String): Media? = null.also { report(reason) }
+
+            val lazyRef = cos16ControllerField?.get(controller) ?: return missing("COS16_NO_LAZY_CONTROLLER")
+            val mediaCtrl = try {
+                lazyRef.javaClass.getMethod("get").invoke(lazyRef)
+            } catch (_: Throwable) {
+                lazyRef
+            } ?: return missing("COS16_NO_MEDIA_CONTROLLER")
+            val rows = (cos16SortedEntries?.invoke(mediaCtrl) as? List<*>)
+                ?.filter { it != null && data.isInstance(it) }
+                ?: return missing("COS16_NO_SORTED_ENTRIES")
+            if (rows.isEmpty()) return missing("COS16_EMPTY_MEDIA_LIST")
+
+            val withToken = rows.filter { token.invoke(it) is MediaSession.Token }
+            if (withToken.isEmpty()) return missing("COS16_NO_MEDIA_TOKEN")
+
+            val chosen = withToken.firstOrNull { stateMethod?.invoke(it) == PlaybackState.STATE_PLAYING }
+                ?: withToken.firstOrNull { activeMethod?.invoke(it) == true }
+                ?: withToken.first()
+            val id = (playerId.invoke(chosen) as? String)?.takeIf { it.isNotBlank() } ?: "default"
+            val owner = (pkg.invoke(chosen) as? String)?.takeIf { it.isNotBlank() } ?: SYSTEM_UI
+            val mediaToken = token.invoke(chosen) as MediaSession.Token
+            val icon = artwork?.invoke(chosen) as? Icon
+            report("COS16_SEEDLING_VERIFIED, rows=${rows.size}, state=${stateMethod?.invoke(chosen)}, artwork=${icon != null}")
+            return Media("$COS16_KEY_PREFIX$id", mediaToken, owner, icon)
         }
     }
 
@@ -158,16 +227,27 @@ internal object NativeContract {
     }
 
     class Plugin(loader: ClassLoader, resources: Resources, optionalMissing: (String, Mismatch) -> Unit) {
-        private val sideIconId = resources.pluginId("img_primary")
+        private val sideIconId = resources.optionalPluginId("img_primary")
         private val leftSectionId = resources.pluginId("left_section")
         private val rightSectionId = resources.pluginId("right_section")
-        private val titleFrameId = resources.pluginId("fl_title")
-        private val titleId = resources.pluginId("title")
-        private val contentFrameId = resources.pluginId("fl_content")
-        private val contentId = resources.pluginId("content")
+        private val titleFrameId = resources.optionalPluginId("fl_title")
+        private val titleId = resources.optionalPluginId("title")
+        private val contentFrameId = resources.optionalPluginId("fl_content")
+        private val contentId = resources.optionalPluginId("content")
+        // ColorOS 16 capsule resource IDs (res/2s.xml in com.oplus.systemui.plugins)
+        private val cos16ArtworkId = resources.optionalPluginId("img_capsule")
+        private val cos16TextId = resources.optionalPluginId("capsule_text")
+        private val cos16TextNextId = resources.optionalPluginId("capsule_text_next")
+        private val cos16LottieId = resources.optionalPluginId("lottie_view")
         private val capsule = loader.requiredClass(CAPSULE)
         private val container = loader.requiredClass(CONTAINER)
-        private val contentSwitch = loader.requiredClass(SWITCH)
+        private val contentSwitch = try {
+            loader.loadClass(SWITCH)
+        } catch (_: ClassNotFoundException) {
+            null
+        }
+        private val isCos17Layout = sideIconId != 0 && titleFrameId != 0 && titleId != 0 &&
+            contentFrameId != 0 && contentId != 0 && contentSwitch != null
         private val item = capsule.declaredMethod("getViewItem")
         // Compare only exact notification keys on a proven CapsuleView. The field name can change in OEM builds.
         private val keys = item.returnType.declaredFields.filter {
@@ -184,11 +264,22 @@ internal object NativeContract {
                 Int::class.javaPrimitiveType!!, Int::class.javaPrimitiveType!!,
                 Int::class.javaPrimitiveType!!, Int::class.javaPrimitiveType!!)
         }
+        private val cos16DummyWaveforms = java.util.WeakHashMap<ViewGroup, View>()
+        private val cos16BoundCapsules = java.util.WeakHashMap<ViewGroup, String>()
         val draw = capsule.method("onDraw", Void.TYPE, Canvas::class.java)
+        val measure = if (isCos17Layout) null else optional("capsule measure callback", optionalMissing) {
+            capsule.method("onMeasure", Void.TYPE, Int::class.javaPrimitiveType!!, Int::class.javaPrimitiveType!!)
+        }
         val contentChanged = optional("early content update", optionalMissing) {
-            container.method("h", Void.TYPE,
-                loader.requiredClass("com.oplus.systemui.plugins.seedling.capsule.ui.model.f"),
-                Boolean::class.javaPrimitiveType!!)
+            try {
+                container.method("h", Void.TYPE,
+                    loader.requiredClass("com.oplus.systemui.plugins.seedling.capsule.ui.model.f"),
+                    Boolean::class.javaPrimitiveType!!)
+            } catch (_: Mismatch) {
+                container.method("i", Void.TYPE,
+                    loader.requiredClass("g4.f"),
+                    Boolean::class.javaPrimitiveType!!)
+            }
         }
         private val animatedWidth = optional("native animation width", optionalMissing) {
             capsule.method("getWidthChanging", Boolean::class.javaPrimitiveType!!) to
@@ -299,8 +390,24 @@ internal object NativeContract {
         }
 
         fun hasOwner(active: ViewGroup, notificationKey: String): Boolean {
+            if (notificationKey.startsWith(COS16_KEY_PREFIX) && cos16BoundCapsules[active] == notificationKey) {
+                return true
+            }
             val model = item.invoke(active) ?: return false
-            return keys.any { it.get(model) == notificationKey }
+            val capsuleKeys = keys.mapNotNull { it.get(model) as? String }
+            if (notificationKey in capsuleKeys) return true
+            if (notificationKey.startsWith(COS16_KEY_PREFIX)) {
+                val playerId = notificationKey.removePrefix(COS16_KEY_PREFIX)
+                return capsuleKeys.any { k ->
+                    k == playerId ||
+                        k.startsWith("268452006") ||
+                        k.contains("media", ignoreCase = true) ||
+                        k.contains("music", ignoreCase = true) ||
+                        k.contains("seedling", ignoreCase = true) ||
+                        k.contains(SYSTEM_UI, ignoreCase = true)
+                }
+            }
+            return false
         }
 
         fun isAnimatingWidth(active: ViewGroup): Boolean = animatedWidth?.first?.invoke(active) == true
@@ -330,8 +437,10 @@ internal object NativeContract {
             val hosts = root.descendants(4).filter { container.isInstance(it) }.toList()
             val host = hosts.singleOrNull() as? ViewGroup
                 ?: return missing("CAPSULE_CONTAINERS=${hosts.size}")
-            val listed = (showing?.invoke(host) as? List<*>)?.contains(notificationKey)
-            val direct = find?.invoke(host, notificationKey) as? ViewGroup
+            val cos16Mode = notificationKey.startsWith(COS16_KEY_PREFIX)
+            val showingKeys = (showing?.invoke(host) as? List<*>)?.mapNotNull { it as? String }
+            val listed = if (cos16Mode) null else showingKeys?.contains(notificationKey)
+            val direct = if (cos16Mode) null else find?.invoke(host, notificationKey) as? ViewGroup
             fun owns(view: ViewGroup): Boolean = view.isAttachedToWindow &&
                 view.isInside(host) && hasOwner(view, notificationKey)
 
@@ -340,30 +449,90 @@ internal object NativeContract {
             } else if (direct != null && owns(direct)) {
                 direct
             } else {
-                val matches = host.descendants(4).filterIsInstance<ViewGroup>()
-                    .filter { it.isShown && capsule.isInstance(it) && owns(it) }.take(2).toList()
-                matches.singleOrNull() ?: return missing("VISIBLE_OWNED_CAPSULES=${matches.size}")
+                val visibleCapsules = host.descendants(4).filterIsInstance<ViewGroup>()
+                    .filter { it.isShown && capsule.isInstance(it) && it.isAttachedToWindow }.toList()
+                val owned = visibleCapsules.filter(::owns)
+                when {
+                    owned.size == 1 -> owned.single()
+                    cos16Mode && visibleCapsules.size == 1 -> visibleCapsules.single()
+                    else -> return missing("VISIBLE_OWNED_CAPSULES=${owned.size}/${visibleCapsules.size}, keys=$showingKeys")
+                }
             }
-            if (showing == null && direct === active) {
+            if (!cos16Mode && showing == null && direct === active) {
                 val sameOwner = host.descendants(4).filterIsInstance<ViewGroup>()
                     .filter { it.isShown && capsule.isInstance(it) && owns(it) }.take(2).count()
                 if (sameOwner != 1) return missing("VISIBLE_OWNED_CAPSULES=$sameOwner")
             }
-            val leftSection = active.views(leftSectionId).singleOrNull() as? ViewGroup
-                ?: return missing("LEFT_SECTION_NOT_UNIQUE")
-            val rightSection = active.views(rightSectionId).singleOrNull() as? ViewGroup
-                ?: return missing("RIGHT_SECTION_NOT_UNIQUE")
-            val artwork = leftSection.views(sideIconId).singleOrNull() ?: return missing("ARTWORK_VIEW_NOT_UNIQUE")
-            val waveform = rightSection.views(sideIconId).singleOrNull() ?: return missing("WAVEFORM_VIEW_NOT_UNIQUE")
-            val title = slot(rightSection, titleFrameId, titleId) ?: return missing("TITLE_SLOT_NOT_VERIFIED")
-            val translation = slot(rightSection, contentFrameId, contentId)
-                ?: return missing("TRANSLATION_SLOT_NOT_VERIFIED")
-            if (title.frame.parent !== translation.frame.parent) return missing("SLOTS_HAVE_DIFFERENT_PARENTS")
-            val target = Target(active, title, translation, artwork, waveform, leftSection, rightSection)
-            if (listed == false && target != retained) return missing("RETAINED_CAPSULE_CHANGED")
+            if (isCos17Layout) {
+                val leftSection = active.views(leftSectionId).singleOrNull() as? ViewGroup
+                    ?: return missing("LEFT_SECTION_NOT_UNIQUE")
+                val rightSection = active.views(rightSectionId).singleOrNull() as? ViewGroup
+                    ?: return missing("RIGHT_SECTION_NOT_UNIQUE")
+                val artwork = leftSection.views(sideIconId).singleOrNull() ?: return missing("ARTWORK_VIEW_NOT_UNIQUE")
+                val waveform = rightSection.views(sideIconId).singleOrNull() ?: return missing("WAVEFORM_VIEW_NOT_UNIQUE")
+                val title = slot(rightSection, titleFrameId, titleId) ?: return missing("TITLE_SLOT_NOT_VERIFIED")
+                val translation = slot(rightSection, contentFrameId, contentId)
+                    ?: return missing("TRANSLATION_SLOT_NOT_VERIFIED")
+                if (title.frame.parent !== translation.frame.parent) return missing("SLOTS_HAVE_DIFFERENT_PARENTS")
+                val target = Target(active, title, translation, artwork, waveform, leftSection, rightSection)
+                if (listed == false && target != retained) return missing("RETAINED_CAPSULE_CHANGED")
+                if (report != null) {
+                    val route = if (active === direct) "DIRECT" else if (listed == false) "RETAINED" else "VIEW_TREE"
+                    report("VERIFIED_$route, cutout=${active.display?.cutout != null}")
+                }
+                return target
+            }
+
+            // ColorOS 16 capsule binding: never filter linearSections/artwork/rightWaveform by isShown.
+            val maxIconBound = maxOf(active.height, 90) * 2
+            val linearSections = active.descendants(6).filterIsInstance<android.widget.LinearLayout>()
+                .filter { it.visibility != View.GONE && it.childCount > 0 }.toList()
+            val leftSection = (active.views(leftSectionId).firstOrNull() as? ViewGroup)
+                ?: linearSections.minByOrNull { it.left }
+            val rightSection = (active.views(rightSectionId).firstOrNull() as? ViewGroup)
+                ?: linearSections.filter { it !== leftSection }.maxByOrNull { it.left }
+
+            val artwork = (if (cos16ArtworkId != 0) leftSection?.views(cos16ArtworkId)?.firstOrNull() else null)
+                ?: leftSection?.descendants(5)?.firstOrNull {
+                    it.visibility != View.GONE && it is android.widget.ImageView && it.width <= maxIconBound
+                }
+                ?: active.descendants(7).firstOrNull {
+                    it.visibility != View.GONE && it is android.widget.ImageView && it.width <= maxIconBound
+                }
+                ?: leftSection
+                ?: active
+
+            val rightWaveform = (if (cos16LottieId != 0) rightSection?.views(cos16LottieId)?.firstOrNull() else null)
+                ?: rightSection?.descendants(5)?.firstOrNull {
+                    it.visibility != View.GONE && it !== artwork && it.width <= maxIconBound &&
+                        (it is android.widget.ImageView || it.javaClass.simpleName.contains("Lottie", ignoreCase = true))
+                }
+                ?: cos16DummyWaveforms.getOrPut(active) { View(active.context) }
+
+            val stockBg = active.descendants(6).firstOrNull {
+                it !== artwork && it !== rightWaveform &&
+                    it.javaClass.simpleName == "ImageFilterView" && it.width >= active.height * 2
+            }
+            val textContainer = rightSection?.takeIf { it is android.widget.FrameLayout }
+                ?: active.descendants(4).filterIsInstance<android.widget.FrameLayout>().lastOrNull()
+                ?: active
+            val stockTitle = (if (cos16TextId != 0) textContainer.views(cos16TextId).firstOrNull() else null)
+                ?: textContainer.descendants(4).firstOrNull { it is android.widget.TextView }
+                ?: stockBg
+                ?: textContainer
+            val stockTranslation = (if (cos16TextNextId != 0) textContainer.views(cos16TextNextId).firstOrNull() else null)
+                ?: textContainer.descendants(4).filterIsInstance<android.widget.TextView>().drop(1).firstOrNull()
+                ?: stockTitle
+            val titleSlot = Slot(textContainer, stockTitle)
+            val translationSlot = Slot(textContainer, stockTranslation)
+            val target = Target(active, titleSlot, translationSlot, artwork, rightWaveform, leftSection, rightSection)
+            if (cos16Mode) cos16BoundCapsules[active] = notificationKey
             if (report != null) {
-                val route = if (active === direct) "DIRECT" else if (listed == false) "RETAINED" else "VIEW_TREE"
-                report("VERIFIED_$route, cutout=${active.display?.cutout != null}")
+                val msg = "COS16_VERIFIED, keys=$showingKeys, cap=${active.width}x${active.height}, " +
+                    "left=${leftSection?.left}..${leftSection?.right}, right=${rightSection?.left}..${rightSection?.right}, " +
+                    "art=${artwork.javaClass.simpleName}(${artwork.width}x${artwork.height}), " +
+                    "wave=${rightWaveform.javaClass.simpleName}(${rightWaveform.width}x${rightWaveform.height})"
+                report(msg)
             }
             return target
         }
@@ -371,8 +540,9 @@ internal object NativeContract {
         fun belongs(container: Any?, root: ViewGroup): Boolean = (container as? View)?.isInside(root) == true
 
         private fun slot(section: ViewGroup, frameId: Int, stockId: Int): Slot? {
+            val switcher = contentSwitch ?: return null
             val frame = section.views(frameId).singleOrNull() as? android.widget.FrameLayout ?: return null
-            val stock = frame.children().singleOrNull { it.id == stockId && contentSwitch.isInstance(it) }
+            val stock = frame.children().singleOrNull { it.id == stockId && switcher.isInstance(it) }
                 ?: return null
             return Slot(frame, stock)
         }
@@ -417,6 +587,9 @@ internal object NativeContract {
     private fun Resources.pluginId(name: String): Int = getIdentifier(name, "id", PLUGIN_PACKAGE).also {
         if (it == 0) throw Mismatch("resource $PLUGIN_PACKAGE:id/$name")
     }
+
+    @SuppressLint("DiscouragedApi")
+    private fun Resources.optionalPluginId(name: String): Int = getIdentifier(name, "id", PLUGIN_PACKAGE)
 
     private fun ViewGroup.children(): Sequence<View> = (0 until childCount).asSequence().map(::getChildAt)
     private fun ViewGroup.views(id: Int): Sequence<View> = sequence {

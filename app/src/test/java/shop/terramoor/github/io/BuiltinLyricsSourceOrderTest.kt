@@ -19,7 +19,7 @@ class BuiltinLyricsSourceOrderTest {
     }
     @Test
     fun downloadedSourceCanBeStoredWithoutChangingFreshDefaults() {
-        assertEquals(listOf("LRCLIB", "QQ"), LyricsSourceConfigStore.decode("[\"LRCLIB\",\"QQ\"]"))
+        assertEquals(listOf("LRCLIB", "LYRICSPLUS", "QQ"), LyricsSourceConfigStore.decode("[\"LRCLIB\",\"LYRICSPLUS\",\"QQ\"]"))
         assertEquals(LyricsSourceConfigStore.defaults, LyricsSourceConfigStore.decode("invalid"))
     }
 

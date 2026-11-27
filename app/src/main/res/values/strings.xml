@@ -43,6 +43,10 @@
     <string name="lyrics_hub_processing" tools:ignore="MissingTranslation">Lyrics processing</string>
     <string name="lyrics_hub_apple" tools:ignore="MissingTranslation">Apple Music</string>
     <string name="lyrics_hub_translation" tools:ignore="MissingTranslation">Include translated lyrics</string>
+    <string name="lyrics_hub_auto_translate" tools:ignore="MissingTranslation">Auto-translate lyrics</string>
+    <string name="lyrics_hub_auto_translate_description" tools:ignore="MissingTranslation">Translate lyrics automatically via Google Translate when no matching translation is available</string>
+    <string name="lyrics_hub_auto_translate_lang" tools:ignore="MissingTranslation">Target language</string>
+    <string name="lyrics_hub_auto_translate_lang_system" tools:ignore="MissingTranslation">Follow system</string>
     <string name="lyrics_hub_word_timing" tools:ignore="MissingTranslation">Prefer word timing</string>
     <string name="lyrics_hub_coarse_clock" tools:ignore="MissingTranslation">Use line timing for coarse playback clocks</string>
     <string name="lyrics_hub_raw" tools:ignore="MissingTranslation">Allow rawLyric</string>
@@ -104,6 +108,14 @@
     <string name="section_capsule">Live Alert lyrics</string>
     <string name="section_connection">Module status</string>
     <string name="enable_lyrics">Enable Live Alert lyrics</string>
+    <string name="section_cos16_compat">ColorOS 16 compatibility</string>
+    <string name="cos16_live_alerts_collapse_title">Prevent capsule auto-collapse (5 min)</string>
+    <string name="cos16_live_alerts_collapse_summary">Open ColorOS Live Alerts settings to disable automatic shrinking after 5 minutes</string>
+    <string name="cos16_open_live_alerts_fallback">Open Settings → Notifications &amp; Quick Settings → Live Alerts</string>
+    <string name="cos16_aod_lyrics_title">AOD lyrics overlay</string>
+    <string name="cos16_aod_lyrics_summary">Display borderless multi-line lyrics on Always-On Display</string>
+    <string name="cos16_aod_whitelist_title">Unlock AOD player whitelist</string>
+    <string name="cos16_aod_whitelist_summary">Allow all music players to appear on Always-On Display</string>
     <string name="double_line_lyrics">Two-line lyrics</string>
     <string name="artwork_background">Use cover background</string>
     <string name="artwork_background_summary">Show blurred cover art behind the lyrics</string>

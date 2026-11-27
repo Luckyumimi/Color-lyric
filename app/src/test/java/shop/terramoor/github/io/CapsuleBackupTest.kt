@@ -123,7 +123,7 @@ class CapsuleBackupTest {
         assertEquals(PauseBehavior.KEEP_CURRENT, restored.pauseBehavior)
     }
 
-    @Test fun v16RoundTripPreservesTintPauseBehaviorAndInactiveSettings() {
+    @Test fun v17RoundTripPreservesTintPauseBehaviorAndInactiveSettings() {
         val expected = CapsuleSettings(
             doubleLine = false,
             secondRowContent = SecondRowContent.LYRIC,
@@ -139,17 +139,30 @@ class CapsuleBackupTest {
             lyricTintEnabled = false,
             lyricTintMode = LyricTintMode.TEXTURE,
             pauseBehavior = PauseBehavior.RESTORE_NATIVE,
+            cos16AodLyrics = false,
+            cos16AodUnlockWhitelist = false,
         ).withTuning(CapsuleTuning.entries.associateWith {
             if (it == CapsuleTuning.TINT_STRENGTH) 75 else it.range.last
         })
         val encoded = CapsuleBackup.encode(expected)
         val root = JSONObject(encoded)
-        assertEquals(16, root.getInt("version"))
+        assertEquals(17, root.getInt("version"))
         val data = root.getJSONObject("settings")
         assertFalse(data.getBoolean(CapsuleSettings.LYRIC_TINT_ENABLED))
+        assertFalse(data.getBoolean(CapsuleSettings.COS16_AOD_LYRICS))
+        assertFalse(data.getBoolean(CapsuleSettings.COS16_AOD_UNLOCK_WHITELIST))
         assertFalse(data.has("translation"))
         assertTrue(CapsuleSettings.retiredTintKeys.none(data::has))
         assertEquals(expected, CapsuleBackup.decode(encoded.byteInputStream()))
+    }
+
+    @Test fun v16BackupDefaultsCos16AodOptionsToOn() {
+        val backup = JSONObject(CapsuleBackup.encode(CapsuleSettings())).put("version", 16)
+        backup.getJSONObject("settings").remove(CapsuleSettings.COS16_AOD_LYRICS)
+        backup.getJSONObject("settings").remove(CapsuleSettings.COS16_AOD_UNLOCK_WHITELIST)
+        val restored = CapsuleBackup.decode(backup.toString().byteInputStream())
+        assertTrue(restored.cos16AodLyrics)
+        assertTrue(restored.cos16AodUnlockWhitelist)
     }
 
     @Test fun v15BackupDefaultsBoldLyricsToOn() {

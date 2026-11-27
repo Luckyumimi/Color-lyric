@@ -29,9 +29,12 @@ class LyricsSourceAggregator(
     val kugouSource: LyricsSource = KugouSource(client)
 ) {
     private val lrclibSource: LyricsSource = LrclibSource(client)
+    private val lyricsPlusSource: LyricsSource = LyricsPlusSource(client)
 
-    private val communitySources by lazy { SourceId.entries.filter { it.ordinal > SourceId.LRCLIB.ordinal }
-        .associateWith { CommunityLyricsSource(client, it) } }
+    private val communitySources by lazy {
+        setOf(SourceId.UNISON, SourceId.LRC_RED, SourceId.KARALYR, SourceId.AMLL, SourceId.LUNABEAT)
+            .associateWith { CommunityLyricsSource(client, it) }
+    }
 
     companion object {
         private val lookupBudget = ThreadLocal<LyricLookupBudget>()
@@ -51,6 +54,7 @@ class LyricsSourceAggregator(
         KUGOU("酷狗音乐"),
         APPLE_MUSIC("Apple Music"),
         LRCLIB("LRCLIB"),
+        LYRICSPLUS("LyricsPlus"),
         UNISON("Unison"),
         LRC_RED("lrc.red"),
         KARALYR("Karalyr"),
@@ -64,6 +68,7 @@ class LyricsSourceAggregator(
         SourceId.KUGOU -> kugouSource
         SourceId.APPLE_MUSIC -> appleMusicSource
         SourceId.LRCLIB -> lrclibSource
+        SourceId.LYRICSPLUS -> lyricsPlusSource
         SourceId.UNISON, SourceId.LRC_RED, SourceId.KARALYR, SourceId.AMLL, SourceId.LUNABEAT ->
             communitySources.getValue(id)
     }

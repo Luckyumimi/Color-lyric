@@ -22,6 +22,7 @@ import kotlin.math.roundToInt
 internal class CapsuleLabels(
     val target: NativeContract.Target,
     modulePackage: String = target.capsule.context.packageName,
+    private val isCos16: Boolean = false,
     onFontFailure: (Throwable) -> Unit = {},
 ) {
     private val capsule = target.capsule
@@ -34,6 +35,10 @@ internal class CapsuleLabels(
     }
     private val coverVisibility = NativeSlotVisibility(target.artwork)
     private val waveformVisibility = NativeSlotVisibility(target.waveform)
+    private val leftSectionVisibility = if (isCos16) target.leftSection?.takeIf { it !== target.capsule }?.let(::NativeSlotVisibility) else null
+    private val rightSectionVisibility = if (isCos16) target.rightSection?.takeIf { it !== target.capsule }?.let(::NativeSlotVisibility) else null
+    private val titleStockVisibility = if (isCos16) target.title.stock.takeIf { it !== target.capsule && it !== target.artwork && it !== target.waveform }?.let(::NativeSlotVisibility) else null
+    private val translationStockVisibility = if (isCos16) target.translation.stock.takeIf { it !== target.capsule && it !== target.title.stock && it !== target.artwork && it !== target.waveform }?.let(::NativeSlotVisibility) else null
     private val filler = View(capsule.context).apply {
         visibility = View.INVISIBLE
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -324,6 +329,48 @@ internal class CapsuleLabels(
 
     private fun updateCapsuleWidth(requestedWidth: Int?) {
         val params = capsule.layoutParams ?: return
+        if (isCos16) {
+            if (params !== sizedParams) {
+                sizedParams = params
+                if (requestedWidth != null && appliedWidth == null && params.width <= 0) {
+                    nativeWidth = params.width
+                }
+                appliedWidth = null
+            }
+            val width = requestedWidth ?: nativeWidth
+            val minimum = if (requestedWidth == null) nativeMinimumWidth else width
+            var changed = false
+            if (capsule.minimumWidth != minimum) {
+                capsule.minimumWidth = minimum
+                changed = true
+            }
+            if (params.width != width) {
+                params.width = width
+                capsule.layoutParams = params
+                changed = true
+            }
+            val parent = capsule.parent as? ViewGroup
+            if (requestedWidth != null) {
+                if (capsule.clipChildren) capsule.clipChildren = false
+                if (capsule.clipToPadding) capsule.clipToPadding = false
+                if (parent != null) {
+                    if (parent.clipChildren) parent.clipChildren = false
+                    if (parent.clipToPadding) parent.clipToPadding = false
+                }
+                // ColorOS 16 unlock/card-exit animations can leave measuredWidth stuck without changing LayoutParams.width.
+                if (!changed && capsule.isLaidOut && capsule.measuredWidth != width && !capsule.isLayoutRequested) {
+                    changed = true
+                }
+            }
+            if (changed) {
+                capsule.requestLayout()
+                if (requestedWidth != null && parent != null && parent.width < width && !parent.isLayoutRequested) {
+                    parent.requestLayout()
+                }
+            }
+            appliedWidth = if (requestedWidth == null) null else width.takeUnless { it == nativeWidth }
+            return
+        }
         if (params !== sizedParams || params.width != appliedWidth) {
             sizedParams = params
             nativeWidth = params.width
@@ -347,9 +394,11 @@ internal class CapsuleLabels(
 
     private fun setFillerWidth(width: Int) {
         val frame = target.title.frame
-        if (filler.parent == null) frame.addView(filler, FrameLayout.LayoutParams(width, 1, Gravity.START))
+        val lp = if (frame is FrameLayout) FrameLayout.LayoutParams(width, 1, Gravity.START)
+        else ViewGroup.LayoutParams(width, 1)
+        if (filler.parent == null) frame.addView(filler, lp)
         else if (filler.layoutParams.width != width) {
-            filler.layoutParams = FrameLayout.LayoutParams(width, 1, Gravity.START)
+            filler.layoutParams = lp
         }
     }
 
@@ -362,6 +411,13 @@ internal class CapsuleLabels(
         val settings = displaySettings ?: return
         coverVisibility.apply(!settings.showCover)
         waveformVisibility.apply(!settings.showWaveform)
+        if (isCos16) {
+            leftSectionVisibility?.apply(!settings.showCover)
+            rightSectionVisibility?.apply(!settings.showWaveform)
+            val hideStock = displayLine != null
+            titleStockVisibility?.apply(hideStock)
+            translationStockVisibility?.apply(hideStock)
+        }
     }
 
     fun restoreForPause() {
@@ -376,6 +432,10 @@ internal class CapsuleLabels(
         capsule.removeCallbacks(redrawContent)
         coverVisibility.restore()
         waveformVisibility.restore()
+        leftSectionVisibility?.restore()
+        rightSectionVisibility?.restore()
+        titleStockVisibility?.restore()
+        translationStockVisibility?.restore()
         updateCapsuleWidth(null)
         clearFiller()
         displayLine = null
