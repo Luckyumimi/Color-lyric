@@ -10,9 +10,9 @@
     <string name="cos16_live_alerts_collapse_summary">Mở cài đặt Live Alerts hệ thống để tắt tự thu gọn sau 5 phút</string>
     <string name="cos16_open_live_alerts_fallback">Hãy vào Cài đặt → Thông báo &amp; Thanh trạng thái → Live Alerts</string>
     <string name="cos16_aod_lyrics_title">Lời bài hát trên AOD</string>
-    <string name="cos16_aod_lyrics_summary">Hiển thị lời bài hát nhiều dòng không viền trên màn hình luôn bật (chỉ ColorOS 16)</string>
+    <string name="cos16_aod_lyrics_summary">Hiển thị lời bài hát nhiều dòng không viền trên màn hình luôn bật</string>
     <string name="cos16_aod_whitelist_title">Mở khóa danh sách trắng trình phát AOD</string>
-    <string name="cos16_aod_whitelist_summary">Cho phép mọi ứng dụng nghe nhạc hiển thị trên AOD (chỉ ColorOS 16)</string>
+    <string name="cos16_aod_whitelist_summary">Cho phép mọi ứng dụng nghe nhạc hiển thị trên AOD</string>
     <string name="double_line_lyrics">Lời bài hát hai dòng</string>
     <string name="artwork_background">Dùng ảnh bìa làm nền</string>
     <string name="artwork_background_summary">Hiển thị ảnh bìa làm mờ phía sau lời bài hát</string>

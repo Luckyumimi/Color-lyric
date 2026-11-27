@@ -106,9 +106,9 @@
     <string name="cos16_live_alerts_collapse_summary">跳转至系统流体云设置页，手动关闭自动收起开关</string>
     <string name="cos16_open_live_alerts_fallback">请前往 设置 → 通知与状态栏 → 流体云 进行调整</string>
     <string name="cos16_aod_lyrics_title">息屏显示（AOD）歌词</string>
-    <string name="cos16_aod_lyrics_summary">在息屏界面以无边框多行样式显示歌词与译文（仅 ColorOS 16）</string>
+    <string name="cos16_aod_lyrics_summary">在息屏界面以无边框多行样式显示歌词与译文</string>
     <string name="cos16_aod_whitelist_title">解除 AOD 播放器白名单限制</string>
-    <string name="cos16_aod_whitelist_summary">允许所有音乐播放器在息屏界面显示并同步歌词（仅 ColorOS 16）</string>
+    <string name="cos16_aod_whitelist_summary">允许所有音乐播放器在息屏界面显示并同步歌词</string>
     <string name="double_line_lyrics">双排歌词</string>
     <string name="artwork_background">使用封面背景</string>
     <string name="artwork_background_summary">在胶囊内显示当前歌曲的模糊封面</string>
